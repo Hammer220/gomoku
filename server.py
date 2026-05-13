@@ -29,6 +29,7 @@ DATA_DIR = 'data'
 os.makedirs(DATA_DIR, exist_ok=True)
 
 USERS_FILE = os.path.join(DATA_DIR, 'users.json')
+PASSWORD_FILE = os.path.join(DATA_DIR, 'password.json')
 RECORDS_FILE = os.path.join(DATA_DIR, 'records.json')
 SAVES_FILE = os.path.join(DATA_DIR, 'saves.json')
 TOKENS_FILE = os.path.join(DATA_DIR, 'tokens.json')
@@ -37,6 +38,7 @@ MATCHES_FILE = os.path.join(DATA_DIR, 'matches.json')
 
 file_locks = {
     USERS_FILE: threading.Lock(),
+    PASSWORD_FILE: threading.Lock(),
     RECORDS_FILE: threading.Lock(),
     SAVES_FILE: threading.Lock(),
     TOKENS_FILE: threading.Lock(),

@@ -498,6 +498,7 @@
     }
     
     let boardLineColor = '#8B5A2B', boardDotColor = '#8B5A2B';
+    let boardColorSettingsLoaded = false;  // 棋盘颜色设置是否已加载
     
     // 棋盘背景图片轮换 - 自动识别picture文件夹中的图片
     const boardImages = [];
@@ -1241,6 +1242,11 @@
                     onlineGameActive = false;
                     stopOnlinePolling();
                     stopOnlineTimer();
+                    // 同步最终棋盘状态（包括管理员强制落子）
+                    if (res.board) {
+                        onlineBoard = res.board;
+                        drawOnlineBoard();
+                    }
                     const myWin = res.winner === onlineMyColor;
                     document.getElementById('onlineStatusText').textContent = myWin ? '你赢了！' : '你输了！';
                     showToast(myWin ? '你赢了！' : '你输了！', !myWin);
@@ -1282,8 +1288,11 @@
                 if (res.board) {
                     onlineBoard = res.board;
                     const lastMove = res.moves[res.moves.length - 1];
-                    if (lastMove && lastMove.player !== onlineMyColor) {
-                        onlineMoveHistory.push({ row: lastMove.row, col: lastMove.col });
+                    if (lastMove && (lastMove.forced || lastMove.player !== onlineMyColor)) {
+                        const alreadyTracked = onlineMoveHistory.some(m => m.row === lastMove.row && m.col === lastMove.col);
+                        if (!alreadyTracked) {
+                            onlineMoveHistory.push({ row: lastMove.row, col: lastMove.col });
+                        }
                     }
                     onlineCurrentPlayer = res.currentPlayer;
                     if (res.creatorColor) {
@@ -1291,6 +1300,8 @@
                     }
                     drawOnlineBoard();
                     updateOnlineUI();
+                    // 更新步数显示
+                    document.getElementById('onlineMoveCount').textContent = res.moves.length;
                 }
                 // 更新房间状态
                 if (res.players && res.players.length >= 2) {
@@ -1411,9 +1422,12 @@
                     await loadAdminUsers();
                 }
                 
-                // 如果是超级管理员，检查棋盘颜色设置
+                // 如果是超级管理员，检查棋盘颜色设置（仅加载一次）
                 if (currentUser.isSuperAdmin) {
-                    loadBoardColorSettings();
+                    const adminPanel = document.getElementById('adminContent');
+                    if (adminPanel && !adminPanel.classList.contains('hidden') && !boardColorSettingsLoaded) {
+                        loadBoardColorSettings();
+                    }
                     // 显示联机对局监控
                     document.getElementById('onlineMatchMonitor').classList.remove('hidden');
                     // 加载房间列表
@@ -2182,7 +2196,7 @@
     
     async function loadBoardColorSettings() {
         try {
-            const settings = await apiCall('/api/admin/settings', 'GET', null, true);
+            const settings = await apiCall('/api/user/settings', 'GET', null, true);
             if (settings.boardLineColor) {
                 boardLineColor = settings.boardLineColor;
                 document.getElementById('boardLineColor').value = boardLineColor;
@@ -2194,17 +2208,19 @@
                 document.getElementById('boardDotColorText').value = boardDotColor;
             }
             drawBoard();
+            boardColorSettingsLoaded = true;
         } catch (err) {
-            // 非超级管理员或加载失败，使用默认颜色
+            // 加载失败，使用默认颜色
         }
     }
     
     async function saveBoardColorSettings() {
         try {
-            await apiCall('/api/admin/settings', 'POST', {
+            await apiCall('/api/user/settings', 'POST', {
                 boardLineColor: boardLineColor,
                 boardDotColor: boardDotColor
             });
+            boardColorSettingsLoaded = false;  // 重置加载标志，下次打开面板时重新加载
             showToast('棋盘颜色设置已保存');
         } catch (err) {
             showToast('保存失败：' + err.message, true);

@@ -1255,15 +1255,15 @@ def join_match(user):
     match_id = data.get('matchId', '').strip()
     
     if not match_id or match_id not in active_matches:
-        return jsonify({'error': 'Match not found'}), 404
+        return jsonify({'error': '房间不存在'}), 404
     
     match = active_matches[match_id]
     
     if match['status'] != 'waiting':
-        return jsonify({'error': 'Match already started or ended'}), 400
+        return jsonify({'error': '房间已开始或已结束'}), 400
     
     if match['creator'] == user['username']:
-        return jsonify({'error': 'Cannot join your own match'}), 400
+        return jsonify({'error': '不能加入自己创建的房间'}), 400
     
     import random
     creator_color = random.choice([1, 2])
@@ -1303,13 +1303,13 @@ def list_matches(user):
 def get_match_status(user, match_id):
     """获取比赛状态（轮询）"""
     if match_id not in active_matches:
-        return jsonify({'error': 'Match not found'}), 404
+        return jsonify({'error': '房间不存在'}), 404
     
     match = active_matches[match_id]
     username = user['username']
     
     if match['creator'] != username and match['opponent'] != username:
-        return jsonify({'error': 'Not in this match'}), 403
+        return jsonify({'error': '您不在这个房间中'}), 403
     
     my_color = None
     opponent_name = None
@@ -1342,19 +1342,19 @@ def make_move(user):
     col = data.get('col')
     
     if not all([match_id, row is not None, col is not None]):
-        return jsonify({'error': 'Invalid parameters'}), 400
+        return jsonify({'error': '参数无效'}), 400
     
     if match_id not in active_matches:
-        return jsonify({'error': 'Match not found'}), 404
+        return jsonify({'error': '房间不存在'}), 404
     
     match = active_matches[match_id]
     username = user['username']
     
     if match['status'] != 'playing':
-        return jsonify({'error': 'Match not playing', 'status': match['status']}), 400
+        return jsonify({'error': '游戏未在进行中', 'status': match['status']}), 400
     
     if match['creator'] != username and match['opponent'] != username:
-        return jsonify({'error': 'Not in this match'}), 403
+        return jsonify({'error': '您不在这个房间中'}), 403
     
     my_color = None
     if match['creator'] == username:
@@ -1365,10 +1365,10 @@ def make_move(user):
     print(f"[落子] 用户: {username}, 我的颜色: {my_color}, 当前玩家: {match['currentPlayer']}")
     
     if match['currentPlayer'] != my_color:
-        return jsonify({'error': 'Not your turn', 'currentPlayer': match['currentPlayer'], 'myColor': my_color}), 400
+        return jsonify({'error': '不是您的回合', 'currentPlayer': match['currentPlayer'], 'myColor': my_color}), 400
     
     if match['board'][row][col] != 0:
-        return jsonify({'error': 'Position occupied'}), 400
+        return jsonify({'error': '该位置已有棋子'}), 400
     
     match['board'][row][col] = my_color
     match['moves'].append({'row': row, 'col': col, 'player': my_color})
@@ -1451,14 +1451,14 @@ def close_match(user):
     match_id = data.get('matchId')
     
     if not match_id or match_id not in active_matches:
-        return jsonify({'error': 'Match not found'}), 404
+        return jsonify({'error': '房间不存在'}), 404
     
     match = active_matches[match_id]
     username = user['username']
     
     # 只有房间创建者可以关闭房间
     if match['creator'] != username:
-        return jsonify({'error': 'Only room creator can close the room'}), 403
+        return jsonify({'error': '只有房间创建者可以关闭房间'}), 403
     
     # 标记房间为已关闭
     match['status'] = 'closed'
@@ -1483,18 +1483,18 @@ def restart_match(user):
     match_id = data.get('matchId')
     
     if not match_id or match_id not in active_matches:
-        return jsonify({'error': 'Match not found'}), 404
+        return jsonify({'error': '房间不存在'}), 404
     
     match = active_matches[match_id]
     username = user['username']
     
     # 只有房间创建者可以重新开始游戏
     if match['creator'] != username:
-        return jsonify({'error': 'Only room creator can restart game'}), 403
+        return jsonify({'error': '只有房间创建者可以重新开始游戏'}), 403
     
     # 允许对已结束或进行中的游戏进行重启
     if match['status'] not in ['finished', 'playing']:
-        return jsonify({'error': 'Game cannot be restarted'}), 400
+        return jsonify({'error': '游戏无法重新开始'}), 400
     
     # 重置游戏状态
     match['board'] = [[0] * 15 for _ in range(15)]
@@ -1535,7 +1535,7 @@ def get_match_detail(user, match_id):
     """获取房间详情（仅限超级管理员）"""
     
     if match_id not in active_matches:
-        return jsonify({'error': 'Match not found'}), 404
+        return jsonify({'error': '房间不存在'}), 404
     
     match = active_matches[match_id]
     return jsonify({
@@ -1559,7 +1559,7 @@ def force_close_match(user):
     match_id = data.get('matchId')
     
     if not match_id or match_id not in active_matches:
-        return jsonify({'error': 'Match not found'}), 404
+        return jsonify({'error': '房间不存在'}), 404
     
     match = active_matches[match_id]
     match['status'] = 'closed'
@@ -1580,10 +1580,10 @@ def force_move(user):
     player = data.get('player', 1)  # 1=黑棋, 2=白棋
     
     if not all([match_id, row is not None, col is not None]):
-        return jsonify({'error': 'Invalid parameters'}), 400
+        return jsonify({'error': '参数无效'}), 400
     
     if match_id not in active_matches:
-        return jsonify({'error': 'Match not found'}), 404
+        return jsonify({'error': '房间不存在'}), 404
     
     match = active_matches[match_id]
     

@@ -83,7 +83,7 @@ python server.py
 
 ```
 管理员账号: admin
-管理员密码: xK9mP2qL
+管理员密码: “随机生成”
 服务器启动: http://localhost:8000
 ```
 

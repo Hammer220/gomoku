@@ -927,6 +927,8 @@
     async function forceMove(row, col, player) {
         if (!monitorMatchId) return;
         try {
+            stopMonitor();
+            
             const res = await apiCall('/api/admin/match/force_move', 'POST', {
                 matchId: monitorMatchId,
                 row, col, player
@@ -939,8 +941,15 @@
             }
             
             await updateMonitor();
+            
+            if (monitorMatchId) {
+                startMonitor();
+            }
         } catch (err) {
             showToast('强制落子失败: ' + err.message, true);
+            if (monitorMatchId) {
+                startMonitor();
+            }
         }
     }
 

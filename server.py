@@ -54,13 +54,6 @@ cache = {
     'matches': {}
 }
 
-def save_matches():
-    with open(MATCHES_FILE, 'w', encoding='utf-8') as f:
-        json.dump(active_matches, f, ensure_ascii=False, indent=2)
-
-# 活跃匹配（持久化存储）
-MATCHES_FILE = os.path.join(DATA_DIR, 'matches.json')
-
 # 读取现有匹配信息
 try:
     with open(MATCHES_FILE, 'r', encoding='utf-8') as f:
@@ -1159,26 +1152,44 @@ def list_admins(admin_user):
     
     return jsonify({'admins': admins})
 
-@app.route('/api/admin/settings', methods=['GET'])
-@require_super_admin
-def get_settings(super_admin):
-    """获取系统设置"""
-    settings = load_json_with_lock(SETTINGS_FILE, {})
+@app.route('/api/user/settings', methods=['GET'])
+@require_auth
+def get_user_settings(user):
+    """获取用户个人设置"""
+    username = user['username']
+    users = load_json_with_lock(USERS_FILE)
+    user_data = users.get(username, {})
+    settings = user_data.get('settings', {})
+    
     return jsonify(settings)
 
-@app.route('/api/admin/settings', methods=['POST'])
-@require_super_admin
-def save_settings(super_admin):
-    """保存系统设置"""
+@app.route('/api/user/settings', methods=['POST'])
+@require_auth
+def save_user_settings(user):
+    """保存用户个人设置"""
     data = request.json
-    settings = load_json_with_lock(SETTINGS_FILE, {})
+    username = user['username']
+    users = load_json_with_lock(USERS_FILE)
+    
+    if username not in users:
+        return jsonify({'error': '用户不存在'}), 404
+    
+    if 'settings' not in users[username]:
+        users[username]['settings'] = {}
+    
+    settings = users[username]['settings']
     
     if 'boardLineColor' in data:
         settings['boardLineColor'] = data['boardLineColor']
     if 'boardDotColor' in data:
         settings['boardDotColor'] = data['boardDotColor']
     
-    save_json_with_lock(SETTINGS_FILE, settings)
+    save_json_with_lock(USERS_FILE, users)
+    
+    # 清除该用户的缓存
+    if username in cache['user_info']:
+        del cache['user_info'][username]
+    
     return jsonify({'success': True, 'message': '设置保存成功'})
 
 @app.route('/api/match/my', methods=['GET'])
@@ -1405,17 +1416,29 @@ def leave_match(user):
     if match['creator'] != username and match['opponent'] != username:
         return jsonify({'success': True})
     
-    # 如果游戏正在进行，标记为结束并关闭房间
-    if match['status'] == 'playing':
+    # 标记玩家离开
+    if match['creator'] == username:
+        match['creatorLeft'] = True
+    elif match.get('opponent') == username:
+        match['opponentLeft'] = True
+    
+    # 检查是否双方都已离开
+    creator_left = match.get('creatorLeft', False)
+    opponent_left = match.get('opponentLeft', False)
+    
+    # 等待中且创建者离开，直接删除房间
+    if match['status'] == 'waiting' and match['creator'] == username:
+        del active_matches[match_id]
+        save_matches()
+    # 双方都离开时，关闭并删除房间
+    elif (creator_left and opponent_left) or (creator_left and match['status'] == 'finished'):
         match['status'] = 'closed'
-        save_matches()  # 保存匹配信息到文件
+        save_matches()
         del active_matches[match_id]
-    elif match['status'] == 'waiting' and match['creator'] == username:
-        # 等待中且创建者离开，删除房间
-        del active_matches[match_id]
-    elif match['status'] == 'finished':
-        # 游戏已结束，直接删除房间
-        del active_matches[match_id]
+    else:
+        # 只有一方离开，更新状态但保留房间
+        match['status'] = 'waiting_for_reconnect' if match['status'] == 'playing' else match['status']
+        save_matches()
     
     return jsonify({'success': True})
 
@@ -1487,11 +1510,9 @@ def restart_match(user):
 
 
 @app.route('/api/admin/matches', methods=['GET'])
-@require_auth
+@require_super_admin
 def get_all_matches(user):
     """获取所有房间（仅限超级管理员）"""
-    if not user.get('isSuperAdmin'):
-        return jsonify({'error': '需要超级管理员权限'}), 403
     
     matches_list = []
     for match_id, match in active_matches.items():
@@ -1509,11 +1530,9 @@ def get_all_matches(user):
 
 
 @app.route('/api/admin/match/<match_id>', methods=['GET'])
-@require_auth
+@require_super_admin
 def get_match_detail(user, match_id):
     """获取房间详情（仅限超级管理员）"""
-    if not user.get('isSuperAdmin'):
-        return jsonify({'error': '需要超级管理员权限'}), 403
     
     if match_id not in active_matches:
         return jsonify({'error': 'Match not found'}), 404
@@ -1567,6 +1586,12 @@ def force_move(user):
         return jsonify({'error': 'Match not found'}), 404
     
     match = active_matches[match_id]
+    
+    # 游戏未开始或已结束时禁止强制落子
+    if match['status'] != 'playing':
+        if match['status'] == 'finished':
+            return jsonify({'error': '游戏已结束，请重新开始后再操作'}), 400
+        return jsonify({'error': '游戏尚未开始，无法强制落子'}), 400
     
     # 超级管理员可以无视规则在任何位置落子
     match['board'][row][col] = player

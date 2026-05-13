@@ -1599,8 +1599,8 @@
         const dirs=[[1,0],[0,1],[1,1],[1,-1]]; let score=0;
         for(let [dx,dy] of dirs){
             let count=1, blocked=0;
-            for(let i=1;i<5;i++){ const nr=row+i*dx,nc=col+i*dy; if(nr<0||nr>=BOARD_SIZE||nc<0||nc>=BOARD_SIZE){blocked++;break;} if(gameBoard[nr][nc]===player) count++; else if(gameBoard[nr][nc]!==0){blocked++;break;} else break; }
-            for(let i=1;i<5;i++){ const nr=row-i*dx,nc=col-i*dy; if(nr<0||nr>=BOARD_SIZE||nc<0||nc>=BOARD_SIZE){blocked++;break;} if(gameBoard[nr][nc]===player) count++; else if(gameBoard[nr][nc]!==0){blocked++;break;} else break; }
+            for(let i=1;i<5;i++){ const nr=row+i*dy,nc=col+i*dx; if(nr<0||nr>=BOARD_SIZE||nc<0||nc>=BOARD_SIZE){blocked++;break;} if(gameBoard[nr][nc]===player) count++; else if(gameBoard[nr][nc]!==0){blocked++;break;} else break; }
+            for(let i=1;i<5;i++){ const nr=row-i*dy,nc=col-i*dx; if(nr<0||nr>=BOARD_SIZE||nc<0||nc>=BOARD_SIZE){blocked++;break;} if(gameBoard[nr][nc]===player) count++; else if(gameBoard[nr][nc]!==0){blocked++;break;} else break; }
             if(count>=5) return 10000;
             if(count===4 && blocked===0) score+=1000; else if(count===4 && blocked===1) score+=100;
             else if(count===3 && blocked===0) score+=50; else if(count===3 && blocked===1) score+=10;

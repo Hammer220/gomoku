@@ -1554,8 +1554,6 @@ def force_move(user):
     return jsonify({'success': True, 'win': False, 'board': match['board']})
 
 
-cleanup_expired_matches()
-
 # 启动后台清理任务
 def start_cleanup_task():
     def cleanup_loop():

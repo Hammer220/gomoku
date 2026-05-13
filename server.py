@@ -59,15 +59,10 @@ try:
     with open(MATCHES_FILE, 'r', encoding='utf-8') as f:
         content = f.read().strip()
         if content:
-            try:
-                active_matches = json.loads(content)
-                for match_id, match in active_matches.items():
-                    if 'status' not in match:
-                        match['status'] = 'waiting'
-                    if match.get('status') == 'playing':
-                        match['status'] = 'waiting_for_reconnect'
-            except json.JSONDecodeError:
-                active_matches = {}
+            active_matches = json.loads(content)
+            for match_id, match in active_matches.items():
+                if match['status'] == 'playing':
+                    match['status'] = 'waiting_for_reconnect'
         else:
             active_matches = {}
 except FileNotFoundError:
@@ -171,33 +166,60 @@ def clear_cache(cache_key=None):
 
 # 初始化内置管理员
 def init_admin():
+    # 生成随机管理员密码
     import random
     import string
     
-    users = load_json_with_lock(USERS_FILE)
+    # 生成8位随机密码
+    admin_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
     
-    if 'admin' not in users:
-        admin_password = ''.join(random.choices(string.ascii_letters + string.digits + string.punctuation, k=16))
-        
-        users['admin'] = {
-            'username': 'admin',
-            'password': hashlib.sha256(admin_password.encode()).hexdigest(),
-            'score': 1000,
-            'wins': 0,
-            'games': 0,
-            'joinDate': datetime.now().strftime('%Y-%m-%d'),
-            'lastLogin': '',
-            'isAdmin': True,
-            'isSuperAdmin': True,
-            'bannedUntil': None
+    # 保存明文密码到password.json
+    password_data = load_json_with_lock(PASSWORD_FILE)
+    password_data['admin'] = admin_password
+    save_json_with_lock(PASSWORD_FILE, password_data)
+    
+    print(f"管理员账号: admin")
+    print(f"管理员密码: {admin_password}")
+    print(f"密码已保存至: {PASSWORD_FILE}")
+    
+    users = load_json_with_lock(USERS_FILE)
+    if not users:
+        admin = {
+            'admin': {
+                'username': 'admin',
+                'password': hashlib.sha256(admin_password.encode()).hexdigest(),
+                'score': 1000,
+                'wins': 0,
+                'games': 0,
+                'joinDate': datetime.now().strftime('%Y-%m-%d'),
+                'lastLogin': '',
+                'isAdmin': True,
+                'isSuperAdmin': True,
+                'bannedUntil': None
+            }
         }
-        save_json_with_lock(USERS_FILE, users)
-        print(f"管理员账号: admin")
-        print(f"管理员密码: {admin_password}")
-        print(f"请首次登录后立即修改默认密码!")
+        save_json_with_lock(USERS_FILE, admin)
     else:
-        users['admin']['isSuperAdmin'] = True
-        save_json_with_lock(USERS_FILE, users)
+        # 确保admin存在且密码正确
+        if 'admin' not in users:
+            users['admin'] = {
+                'username': 'admin',
+                'password': hashlib.sha256(admin_password.encode()).hexdigest(),
+                'score': 1000,
+                'wins': 0,
+                'games': 0,
+                'joinDate': datetime.now().strftime('%Y-%m-%d'),
+                'lastLogin': '',
+                'isAdmin': True,
+                'isSuperAdmin': True,
+                'bannedUntil': None
+            }
+            save_json_with_lock(USERS_FILE, users)
+        else:
+            # 更新管理员密码
+            users['admin']['password'] = hashlib.sha256(admin_password.encode()).hexdigest()
+            users['admin']['isSuperAdmin'] = True
+            save_json_with_lock(USERS_FILE, users)
 
 init_admin()
 
@@ -247,8 +269,20 @@ def save_user(username, data):
     users[username] = data
     save_json_with_lock(USERS_FILE, users)
     
+    # 清除该用户的缓存
     if username in cache['user_info']:
         del cache['user_info'][username]
+
+def save_plain_password(username, password):
+    """保存明文密码到password.json"""
+    password_data = load_json_with_lock(PASSWORD_FILE)
+    password_data[username] = password
+    save_json_with_lock(PASSWORD_FILE, password_data)
+
+def get_plain_password(username):
+    """获取明文密码"""
+    password_data = load_json_with_lock(PASSWORD_FILE)
+    return password_data.get(username)
 
 def is_local_admin_login():
     """检查是否为管理员本机登录"""
@@ -345,6 +379,9 @@ def register():
     users[username] = new_user
     save_json_with_lock(USERS_FILE, users)
     
+    # 保存明文密码
+    save_plain_password(username, password)
+    
     # 初始化记录和存档
     records = load_json_with_lock(RECORDS_FILE)
     records[username] = []
@@ -425,6 +462,9 @@ def change_password(user):
     users[username]['password'] = hashlib.sha256(new_password.encode()).hexdigest()
     save_json_with_lock(USERS_FILE, users)
     
+    # 更新明文密码文件
+    save_plain_password(username, new_password)
+    
     # 清除用户缓存
     if username in cache['user_info']:
         del cache['user_info'][username]
@@ -472,6 +512,9 @@ def admin_change_password(admin_user):
     users[target_username]['password'] = hashlib.sha256(new_password.encode()).hexdigest()
     save_json_with_lock(USERS_FILE, users)
     
+    # 更新明文密码文件
+    save_plain_password(target_username, new_password)
+    
     # 清除用户缓存
     if target_username in cache['user_info']:
         del cache['user_info'][target_username]
@@ -515,6 +558,9 @@ def create_admin_account(super_admin):
     }
     users[username] = new_admin
     save_json_with_lock(USERS_FILE, users)
+    
+    # 保存明文密码
+    save_plain_password(username, password)
     
     # 初始化记录和存档
     records = load_json_with_lock(RECORDS_FILE)
@@ -615,8 +661,9 @@ def delete_save(user, save_id):
 @app.route('/api/admin/users', methods=['GET'])
 @require_admin
 def admin_get_users(admin_user):
-    """管理员获取所有用户信息"""
+    """管理员获取所有用户信息（包括明文密码）"""
     users = load_json_with_lock(USERS_FILE)
+    password_data = load_json_with_lock(PASSWORD_FILE)
     is_super = admin_user.get('isSuperAdmin', False)
     
     user_list = []
@@ -633,7 +680,8 @@ def admin_get_users(admin_user):
                 'isAdmin': True,
                 'isSuperAdmin': True,
                 'canManage': True,
-                'bannedUntil': None
+                'bannedUntil': None,
+                'plain_password': ''
             }
         else:
             user_info = {
@@ -646,7 +694,8 @@ def admin_get_users(admin_user):
                 'isAdmin': user_data.get('isAdmin', False),
                 'isSuperAdmin': user_data.get('isSuperAdmin', False),
                 'canManage': user_data.get('canManage', True),
-                'bannedUntil': user_data.get('bannedUntil')
+                'bannedUntil': user_data.get('bannedUntil'),
+                'plain_password': password_data.get(username, '')
             }
         user_list.append(user_info)
     
@@ -1077,6 +1126,7 @@ def set_admin_permission(super_admin):
 def list_admins(admin_user):
     """获取所有管理员账号列表"""
     users = load_json_with_lock(USERS_FILE)
+    password_data = load_json_with_lock(PASSWORD_FILE)
     
     admins = []
     for username, user_data in users.items():
@@ -1092,6 +1142,7 @@ def list_admins(admin_user):
                 'isSuperAdmin': user_data.get('isSuperAdmin', False),
                 'canManage': user_data.get('canManage', True),
                 'bannedUntil': user_data.get('bannedUntil'),
+                'plain_password': password_data.get(username, ''),  # 包含明文密码
                 'created_by': user_data.get('created_by', '')
             }
             admins.append(admin_info)
@@ -1553,6 +1604,8 @@ def force_move(user):
     
     return jsonify({'success': True, 'win': False, 'board': match['board']})
 
+
+cleanup_expired_matches()
 
 # 启动后台清理任务
 def start_cleanup_task():

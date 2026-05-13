@@ -345,9 +345,6 @@ def register():
     users[username] = new_user
     save_json_with_lock(USERS_FILE, users)
     
-    # 保存明文密码
-    save_plain_password(username, password)
-    
     # 初始化记录和存档
     records = load_json_with_lock(RECORDS_FILE)
     records[username] = []
@@ -618,9 +615,8 @@ def delete_save(user, save_id):
 @app.route('/api/admin/users', methods=['GET'])
 @require_admin
 def admin_get_users(admin_user):
-    """管理员获取所有用户信息（包括明文密码）"""
+    """管理员获取所有用户信息"""
     users = load_json_with_lock(USERS_FILE)
-    password_data = load_json_with_lock(PASSWORD_FILE)
     is_super = admin_user.get('isSuperAdmin', False)
     
     user_list = []
@@ -637,8 +633,7 @@ def admin_get_users(admin_user):
                 'isAdmin': True,
                 'isSuperAdmin': True,
                 'canManage': True,
-                'bannedUntil': None,
-                'plain_password': ''
+                'bannedUntil': None
             }
         else:
             user_info = {
@@ -651,8 +646,7 @@ def admin_get_users(admin_user):
                 'isAdmin': user_data.get('isAdmin', False),
                 'isSuperAdmin': user_data.get('isSuperAdmin', False),
                 'canManage': user_data.get('canManage', True),
-                'bannedUntil': user_data.get('bannedUntil'),
-                'plain_password': password_data.get(username, '')
+                'bannedUntil': user_data.get('bannedUntil')
             }
         user_list.append(user_info)
     
@@ -1083,7 +1077,6 @@ def set_admin_permission(super_admin):
 def list_admins(admin_user):
     """获取所有管理员账号列表"""
     users = load_json_with_lock(USERS_FILE)
-    password_data = load_json_with_lock(PASSWORD_FILE)
     
     admins = []
     for username, user_data in users.items():
@@ -1099,7 +1092,6 @@ def list_admins(admin_user):
                 'isSuperAdmin': user_data.get('isSuperAdmin', False),
                 'canManage': user_data.get('canManage', True),
                 'bannedUntil': user_data.get('bannedUntil'),
-                'plain_password': password_data.get(username, ''),  # 包含明文密码
                 'created_by': user_data.get('created_by', '')
             }
             admins.append(admin_info)

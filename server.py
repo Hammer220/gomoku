@@ -1317,6 +1317,7 @@ def get_match_status(user, match_id):
         'moves': match['moves'],
         'winner': match['winner'],
         'myColor': my_color,
+        'creatorColor': match['creatorColor'],
         'opponent': opponent_name
     })
 
@@ -1438,11 +1439,17 @@ def close_match(user):
     
     # 标记房间为已关闭
     match['status'] = 'closed'
+    match['closed_at'] = int(time.time())
+    match['closed_by'] = username
+    
+    # 如果有对手，记录对手信息
+    if 'opponent' in match and match['opponent']:
+        match['opponent_left'] = True
     
     save_matches()  # 保存匹配信息到文件
     
     # 不立即删除匹配，让其他玩家通过轮询检测到房间关闭
-    return jsonify({'success': True})
+    return jsonify({'success': True, 'message': '房间已成功关闭'})
 
 
 @app.route('/api/match/restart', methods=['POST'])

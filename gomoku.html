@@ -463,6 +463,8 @@
     let canvas, ctx, onlineCanvas, onlineCtx;
     let onlineBoard = [], onlineMoveHistory = [], onlineGameActive = false;
     let onlineGameTime = 0, onlineTimerInterval = null;
+    let restartCountdownTimer = null;
+    let restartCountdownSeconds = 0;
     
     function initOnlineBoard() { 
         onlineBoard = Array(BOARD_SIZE).fill().map(()=>Array(BOARD_SIZE).fill(0)); 
@@ -605,12 +607,12 @@
 
     let onlinePollingInterval = null;
     let matchListInterval = null;  // 房间列表刷新定时器
+    let bannedCountdownInterval = null;  // 封禁倒计时定时器
 
     async function onlineCreateMatch() {
         try {
             const res = await apiCall('/api/match/create', 'POST', {});
             onlineMatchId = res.matchId;
-            onlineMyColor = 1;
             gameMode = 'online';
             initOnlineBoard();
             onlineMoveHistory = [];
@@ -618,13 +620,12 @@
             onlineGameTime = 0;
             onlineCurrentPlayer = 1;
             
-            // 停止房间列表刷新
             stopMatchListRefresh();
             
             document.getElementById('onlineMatchIdDisplay').textContent = res.matchId;
             document.getElementById('roomInfo').innerHTML = `
                 <p>房间号: <span class="font-mono font-bold text-lg">${res.matchId}</span></p>
-                <p>你的棋子: <span class="font-bold">黑棋</span></p>
+                <p>你的棋子: <span class="font-bold">等待中...</span></p>
                 <p>状态: <span class="text-amber-600">等待对手加入...</span></p>
                 <p class="text-sm text-gray-500">你是房间创建者</p>
             `;
@@ -714,10 +715,42 @@
         }
     }
     
-    async function restartOnlineGame() {
-        if (!onlineMatchId || !onlineGameActive) return;
-        if (!confirm('确定要重新开始游戏吗？')) return;
+    function stopRestartCountdown() {
+        if (restartCountdownTimer) {
+            clearInterval(restartCountdownTimer);
+            restartCountdownTimer = null;
+        }
+        restartCountdownSeconds = 0;
+    }
+    
+    function startRestartCountdown() {
+        stopRestartCountdown();
+        restartCountdownSeconds = 10;
         
+        document.getElementById('roomActions').innerHTML = `
+            <button id="restartGameBtn" class="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg text-sm mb-2">立即重新开始</button>
+            <button id="closeRoomBtn" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm">关闭房间</button>
+            <div id="restartCountdown" class="text-center text-gray-500 text-sm mt-2">自动重新开始: <span id="countdownSeconds">10</span> 秒</div>
+        `;
+        
+        document.getElementById('restartGameBtn').addEventListener('click', async () => {
+            stopRestartCountdown();
+            await doRestartOnlineGame();
+        });
+        document.getElementById('closeRoomBtn').addEventListener('click', closeOnlineRoom);
+        
+        restartCountdownTimer = setInterval(() => {
+            restartCountdownSeconds--;
+            document.getElementById('countdownSeconds').textContent = restartCountdownSeconds;
+            
+            if (restartCountdownSeconds <= 0) {
+                stopRestartCountdown();
+                doRestartOnlineGame();
+            }
+        }, 1000);
+    }
+    
+    async function doRestartOnlineGame() {
         try {
             // 重置本地游戏状态
             initOnlineBoard();
@@ -731,6 +764,8 @@
             
             // 更新UI
             document.getElementById('onlineStatusText').textContent = '游戏重新开始';
+            document.getElementById('roomActions').innerHTML = '<button id="closeRoomBtn" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm">关闭房间</button>';
+            document.getElementById('closeRoomBtn').addEventListener('click', closeOnlineRoom);
             
             // 重新开始轮询和计时
             startOnlinePolling();
@@ -742,6 +777,11 @@
         } catch (err) {
             showToast('重新开始失败: ' + err.message, true);
         }
+    }
+    
+    async function restartOnlineGame() {
+        stopRestartCountdown();
+        await doRestartOnlineGame();
     }
     
     // 联机对局监控相关函数
@@ -818,7 +858,7 @@
         if (!monitorMatchId) return;
         
         await updateMonitor();
-        monitorInterval = setInterval(updateMonitor, 1000);
+        monitorInterval = setInterval(updateMonitor, 5000);
     }
     
     function stopMonitor() {
@@ -912,15 +952,18 @@
         if (!monitorMatchId) return;
         if (!confirm('确定要强制关闭此房间吗？')) return;
         try {
+            stopMonitor();
             await apiCall('/api/admin/match/force_close', 'POST', { matchId: monitorMatchId });
             showToast('房间已强制关闭');
-            stopMonitor();
             monitorMatchId = null;
             document.getElementById('monitorMatchId').textContent = '未选择房间';
             document.getElementById('monitorControls').classList.add('hidden');
             await loadMatchList();
         } catch (err) {
             showToast('强制关闭失败: ' + err.message, true);
+            if (monitorMatchId) {
+                startMonitor();
+            }
         }
     }
     
@@ -958,6 +1001,7 @@
         try {
             await apiCall('/api/match/leave', 'POST', { matchId: onlineMatchId });
         } catch (err) {}
+        stopRestartCountdown();
         onlineMatchId = null;
         onlineMyColor = null;
         onlineOpponent = null;
@@ -975,9 +1019,35 @@
     
     async function closeOnlineRoom() {
         if (!onlineMatchId) return;
+        
+        if (!confirm('确定要关闭房间吗？')) return;
+        
+        const btn = document.getElementById('closeRoomBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>处理中';
+        }
+        
         try {
-            await apiCall('/api/match/close', 'POST', { matchId: onlineMatchId });
-        } catch (err) {}
+            const res = await apiCall('/api/match/close', 'POST', { matchId: onlineMatchId });
+            if (res.message) {
+                showToast(res.message);
+            }
+        } catch (err) {
+            showToast('关闭房间失败: ' + err.message, true);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '关闭房间';
+            }
+            return;
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '关闭房间';
+            }
+        }
+        
+        stopRestartCountdown();
         onlineMatchId = null;
         onlineMyColor = null;
         onlineOpponent = null;
@@ -1068,11 +1138,9 @@
     }
     
     async function checkExistingMatch() {
-        // 检查用户是否正在参与某个游戏
         try {
             const res = await apiCall('/api/match/my', 'GET');
             if (res.match) {
-                // 用户有一个正在进行的游戏，尝试重新连接
                 const match = res.match;
                 onlineMatchId = match.id;
                 onlineMyColor = match.myColor;
@@ -1080,10 +1148,9 @@
                 onlineGameActive = true;
                 onlineBoard = match.board;
                 onlineMoveHistory = match.moves;
-                onlineCurrentPlayer = match.currentPlayer;  // 添加这行
+                onlineCurrentPlayer = match.currentPlayer;
                 onlineGameTime = Math.floor(Date.now() / 1000) - match.startTime;
                 
-                // 更新UI
                 document.getElementById('onlineMatchIdDisplay').textContent = match.id;
                 document.getElementById('roomInfo').innerHTML = `
                     <p>房间号: <span class="font-mono font-bold text-lg">${match.id}</span></p>
@@ -1095,11 +1162,9 @@
                 document.getElementById('onlineCreateBtn').classList.add('hidden');
                 document.getElementById('onlineJoinBtn').parentElement.classList.add('hidden');
                 
-                // 开始轮询
                 startOnlinePolling();
                 startOnlineTimer();
                 
-                // 绘制棋盘
                 drawOnlineBoard();
                 updateOnlineUI();
             }
@@ -1154,7 +1219,6 @@
             onlineMyColor = res.yourColor;
             onlineOpponent = res.opponent;
             gameMode = 'online';
-            playerColor = res.yourColor;
             currentPlayer = 1;
             updateModeButtons();
             updateColorButtons();
@@ -1185,14 +1249,8 @@
                     } else {
                         await apiCall('/api/records', 'POST', { result: 'lose', opponent: onlineOpponent, mode: 'online' });
                     }
-                    // 显示重新开始按钮
-                    document.getElementById('roomActions').innerHTML = `
-                        <button id="restartGameBtn" class="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg text-sm mb-2">重新开始</button>
-                        <button id="closeRoomBtn" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm">关闭房间</button>
-                    `;
-                    // 绑定重新开始按钮事件
-                    document.getElementById('restartGameBtn').addEventListener('click', restartOnlineGame);
-                    document.getElementById('closeRoomBtn').addEventListener('click', closeOnlineRoom);
+                    // 开始重新开始倒计时
+                    startRestartCountdown();
                     return;
                 }
                 if (res.status === 'closed') {
@@ -1228,14 +1286,18 @@
                         onlineMoveHistory.push({ row: lastMove.row, col: lastMove.col });
                     }
                     onlineCurrentPlayer = res.currentPlayer;
+                    if (res.creatorColor) {
+                        onlineMyColor = currentUser?.username === res.opponent ? (res.creatorColor === 1 ? 2 : 1) : res.creatorColor;
+                    }
                     drawOnlineBoard();
                     updateOnlineUI();
                 }
                 // 更新房间状态
                 if (res.players && res.players.length >= 2) {
+                    const myColor = res.creatorColor ? (currentUser?.username === res.opponent ? (res.creatorColor === 1 ? 2 : 1) : res.creatorColor) : onlineMyColor;
                     document.getElementById('roomInfo').innerHTML = `
                         <p>房间号: <span class="font-mono font-bold text-lg">${onlineMatchId}</span></p>
-                        <p>你的棋子: <span class="font-bold">${onlineMyColor === 1 ? '黑棋' : '白棋'}</span></p>
+                        <p>你的棋子: <span class="font-bold">${myColor === 1 ? '黑棋' : '白棋'}</span></p>
                         <p>对手: <span class="font-bold">${res.players.find(p => p !== currentUser?.username) || '对手'}</span></p>
                         <p>状态: <span class="text-green-600">对战进行中</span></p>
                     `;
@@ -1380,6 +1442,42 @@
         if (statusCheckInterval) {
             clearInterval(statusCheckInterval);
             statusCheckInterval = null;
+        }
+    }
+    
+    function startBannedCountdown() {
+        stopBannedCountdown();
+        bannedCountdownInterval = setInterval(updateBannedCountdown, 1000);
+    }
+    
+    function stopBannedCountdown() {
+        if (bannedCountdownInterval) {
+            clearInterval(bannedCountdownInterval);
+            bannedCountdownInterval = null;
+        }
+    }
+    
+    function updateBannedCountdown() {
+        const countdownElements = document.querySelectorAll('.banned-countdown');
+        let needRefresh = false;
+        
+        countdownElements.forEach(el => {
+            const bannedUntil = parseInt(el.dataset.until);
+            const now = new Date().getTime();
+            const remaining = bannedUntil - now;
+            
+            if (remaining <= 0) {
+                el.textContent = '已解封';
+                el.classList.remove('text-red-600');
+                el.classList.add('text-green-600');
+                needRefresh = true;
+            } else {
+                el.textContent = formatRemainingTime(bannedUntil);
+            }
+        });
+        
+        if (needRefresh) {
+            loadAdminUsers();
         }
     }
 
@@ -1590,6 +1688,30 @@
     }
 
     function formatTime(sec) { const m = Math.floor(sec/60).toString().padStart(2,'0'); const s = (sec%60).toString().padStart(2,'0'); return `${m}:${s}`; }
+    
+    function formatRemainingTime(timestampMs) {
+        const now = new Date().getTime();
+        const remaining = timestampMs - now;
+        
+        if (remaining <= 0) {
+            return '已解封';
+        }
+        
+        const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+        
+        if (days > 0) {
+            return `${days}天 ${hours}时 ${minutes}分`;
+        } else if (hours > 0) {
+            return `${hours}时 ${minutes}分 ${seconds}秒`;
+        } else if (minutes > 0) {
+            return `${minutes}分 ${seconds}秒`;
+        } else {
+            return `${seconds}秒`;
+        }
+    }
 
     function resetGame(){
         stopTimer(); initBoard(); currentPlayer=1; gameActive=true; moveHistory=[]; gameTime=0; undoCount=0; winningCells=[];
@@ -1735,9 +1857,15 @@
             const scoreDisplay = canOperate || isSuperAdmin ? u.score : '<span class="text-gray-400">权限不足</span>';
             const winsDisplay = canOperate || isSuperAdmin ? u.wins : '<span class="text-gray-400">权限不足</span>';
             const gamesDisplay = canOperate || isSuperAdmin ? u.games : '<span class="text-gray-400">权限不足</span>';
-            const bannedDisplay = canOperate || isSuperAdmin 
-                ? (isBanned ? `<span class="text-red-600">${new Date(u.bannedUntil*1000).toLocaleString()}</span>` : '正常')
-                : '<span class="text-gray-400">权限不足</span>';
+            let bannedDisplay = '正常';
+            if (canOperate || isSuperAdmin) {
+                if (isBanned) {
+                    const bannedUntilMs = u.bannedUntil * 1000;
+                    bannedDisplay = `<span class="text-red-600 banned-countdown" data-username="${u.username}" data-until="${bannedUntilMs}">${formatRemainingTime(bannedUntilMs)}</span>`;
+                }
+            } else {
+                bannedDisplay = '<span class="text-gray-400">权限不足</span>';
+            }
             
             // 操作按钮
             let actionBtns = '';
@@ -1813,6 +1941,8 @@
                 showToast('设置权限失败: ' + error.message, true);
             }
         }));
+        
+        startBannedCountdown();
     }
     
     // 显示修改密码弹窗
@@ -2324,43 +2454,67 @@
         document.getElementById('adminBanBtn').addEventListener('click', async ()=>{
             const u=document.getElementById('adminBanUsername').value, m=parseInt(document.getElementById('adminBanMinutes').value);
             if(!u||m<1) return showToast('请输入用户名和分钟',true);
+            const btn = document.getElementById('adminBanBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>处理中';
             try {
                 await apiCall('/api/admin/ban','POST',{username:u, minutes:m}); 
                 showToast(`已封禁 ${u} ${m} 分钟`);
                 await loadAdminUsers();
             } catch(e) {
                 showToast('操作失败: ' + e.message, true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-ban mr-1"></i>封禁';
             }
         });
         document.getElementById('adminUnbanBtn').addEventListener('click', async ()=>{
             const u=document.getElementById('adminBanUsername').value; if(!u) return;
+            const btn = document.getElementById('adminUnbanBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>处理中';
             try {
                 await apiCall('/api/admin/unban','POST',{username:u}); 
                 showToast(`已解封 ${u}`);
                 await loadAdminUsers();
             } catch(e) {
                 showToast('操作失败: ' + e.message, true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-unlock mr-1"></i>解封';
             }
         });
         document.getElementById('adminKickBtn').addEventListener('click', async ()=>{
             const u=document.getElementById('adminBanUsername').value; if(!u) return;
+            const btn = document.getElementById('adminKickBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>处理中';
             try {
                 await apiCall('/api/admin/kick','POST',{username:u}); 
                 showToast(`已强制登出 ${u}`);
                 await loadAdminUsers();
             } catch(e) {
                 showToast('操作失败: ' + e.message, true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-sign-out-alt mr-1"></i>强制登出';
             }
         });
         document.getElementById('adminDeleteBtn').addEventListener('click', async ()=>{
             const u=document.getElementById('adminBanUsername').value; if(!u || u==='admin') return showToast('不能删除admin',true);
             if(!confirm(`确定注销用户 ${u} ？`)) return;
+            const btn = document.getElementById('adminDeleteBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>处理中';
             try {
                 await apiCall(`/api/admin/user/${u}`,'DELETE'); 
                 showToast(`已注销 ${u}`);
                 await loadAdminUsers();
             } catch(e) {
                 showToast('操作失败: ' + e.message, true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-trash mr-1"></i>注销';
             }
         });
         
@@ -2397,12 +2551,18 @@
             if (users.length === 0) return showToast('请先选择用户', true);
             const minutes = prompt('请输入封禁时长（分钟）:', '10');
             if (!minutes || parseInt(minutes) <= 0) return;
+            const btn = document.getElementById('batchBanBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>处理中';
             try {
                 const result = await apiCall('/api/admin/batch_ban', 'POST', { usernames: users, minutes: parseInt(minutes) });
                 showToast(`批量封禁完成：成功 ${result.success_count} 个，失败 ${result.failed_count} 个`);
                 await loadAdminUsers();
             } catch(e) {
                 showToast('操作失败: ' + e.message, true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-users mr-1"></i>批量封禁';
             }
         });
         
@@ -2410,12 +2570,18 @@
         document.getElementById('batchUnbanBtn').addEventListener('click', async () => {
             const users = getSelectedUsers();
             if (users.length === 0) return showToast('请先选择用户', true);
+            const btn = document.getElementById('batchUnbanBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>处理中';
             try {
                 const result = await apiCall('/api/admin/batch_unban', 'POST', { usernames: users });
                 showToast(`批量解封完成：成功 ${result.success_count} 个，失败 ${result.failed_count} 个`);
                 await loadAdminUsers();
             } catch(e) {
                 showToast('操作失败: ' + e.message, true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-unlock-alt mr-1"></i>批量解封';
             }
         });
         
@@ -2424,12 +2590,18 @@
             const users = getSelectedUsers();
             if (users.length === 0) return showToast('请先选择用户', true);
             if (!confirm(`确定强制登出选中的 ${users.length} 个用户？`)) return;
+            const btn = document.getElementById('batchKickBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>处理中';
             try {
                 const result = await apiCall('/api/admin/batch_kick', 'POST', { usernames: users });
                 showToast(`批量强制登出完成：成功 ${result.success_count} 个，失败 ${result.failed_count} 个`);
                 await loadAdminUsers();
             } catch(e) {
                 showToast('操作失败: ' + e.message, true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-sign-out-alt mr-1"></i>批量登出';
             }
         });
         
@@ -2438,12 +2610,18 @@
             const users = getSelectedUsers();
             if (users.length === 0) return showToast('请先选择用户', true);
             if (!confirm(`确定注销选中的 ${users.length} 个用户？此操作不可恢复！`)) return;
+            const btn = document.getElementById('batchDeleteBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>处理中';
             try {
                 const result = await apiCall('/api/admin/batch_delete', 'POST', { usernames: users });
                 showToast(`批量注销完成：成功 ${result.success_count} 个，失败 ${result.failed_count} 个`);
                 await loadAdminUsers();
             } catch(e) {
                 showToast('操作失败: ' + e.message, true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-trash mr-1"></i>批量注销';
             }
         });
 
@@ -2463,7 +2641,10 @@
         }
 
         // 页面关闭时停止检查
-        window.addEventListener('beforeunload', stopStatusCheck);
+        window.addEventListener('beforeunload', function() {
+            stopStatusCheck();
+            stopBannedCountdown();
+        });
     }
 
     init();

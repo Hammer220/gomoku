@@ -113,29 +113,6 @@
     </div>
 </div>
 
-<div id="onlineModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
-    <div class="modal-content bg-white rounded-xl p-6 max-w-lg w-full mx-4">
-        <h2 class="text-2xl font-bold mb-6 text-center text-primary">联机对战</h2>
-        <div class="space-y-4">
-            <button id="createMatchBtn" class="w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-lg font-medium">创建房间</button>
-            <div class="relative">
-                <div class="absolute inset-0 flex items-center"><div class="w-full border-t"></div></div>
-                <div class="relative flex justify-center text-sm"><span class="px-2 bg-white text-gray-500">或</span></div>
-            </div>
-            <div class="flex gap-2">
-                <input type="text" id="matchIdInput" placeholder="输入房间号" class="flex-1 px-4 py-2 border rounded-lg">
-                <button id="joinMatchBtn" class="px-6 bg-primary hover:bg-primary/90 text-white py-2 rounded-lg font-medium">加入</button>
-            </div>
-            <div class="relative">
-                <div class="absolute inset-0 flex items-center"><div class="w-full border-t"></div></div>
-                <div class="relative flex justify-center text-sm"><span class="px-2 bg-white text-gray-500">可用房间</span></div>
-            </div>
-            <div id="availableMatches" class="max-h-48 overflow-y-auto space-y-2"></div>
-        </div>
-        <p class="text-center mt-4"><button id="closeOnlineModal" class="text-gray-500 hover:text-gray-700">关闭</button></p>
-    </div>
-</div>
-
 <!-- 主游戏容器 -->
 <div id="gameContainer" class="max-w-7xl w-full bg-white rounded-2xl shadow-xl overflow-hidden hidden">
     <div class="bg-primary text-white p-4 md:p-6 flex flex-wrap justify-between items-center">
@@ -1538,8 +1515,13 @@
         const rect = container.getBoundingClientRect();
         const size = Math.min(rect.width, rect.height);
         const onlineCellSize = Math.max(15, size / (BOARD_SIZE - 1));
+        const onlinePieceSize = onlineCellSize * PIECE_SIZE_RATIO;
+        
         onlineCanvas.width = onlineCellSize * (BOARD_SIZE - 1);
         onlineCanvas.height = onlineCellSize * (BOARD_SIZE - 1);
+        
+        onlineCellSizeGlobal = onlineCellSize;
+        onlinePieceSizeGlobal = onlinePieceSize;
     }
 
     function initBoard() { gameBoard = Array(BOARD_SIZE).fill().map(()=>Array(BOARD_SIZE).fill(0)); winningCells = []; }

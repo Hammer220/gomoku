@@ -9,9 +9,10 @@ from datetime import datetime, timedelta
 from functools import wraps
 from flask import Flask, request, jsonify, send_from_directory
 import logging
+import secrets
 
 app = Flask(__name__, static_folder='.', static_url_path='')
-app.secret_key = 'your-secret-key-change-in-production'
+app.secret_key = secrets.token_hex(32)
 
 # Configure logging - console for network address, file for other logs
 log = logging.getLogger('werkzeug')
@@ -31,17 +32,14 @@ USERS_FILE = os.path.join(DATA_DIR, 'users.json')
 RECORDS_FILE = os.path.join(DATA_DIR, 'records.json')
 SAVES_FILE = os.path.join(DATA_DIR, 'saves.json')
 TOKENS_FILE = os.path.join(DATA_DIR, 'tokens.json')
-PASSWORD_FILE = os.path.join(DATA_DIR, 'password.json')
 SETTINGS_FILE = os.path.join(DATA_DIR, 'settings.json')
 MATCHES_FILE = os.path.join(DATA_DIR, 'matches.json')
 
-# 文件锁
 file_locks = {
     USERS_FILE: threading.Lock(),
     RECORDS_FILE: threading.Lock(),
     SAVES_FILE: threading.Lock(),
     TOKENS_FILE: threading.Lock(),
-    PASSWORD_FILE: threading.Lock(),
     SETTINGS_FILE: threading.Lock(),
     MATCHES_FILE: threading.Lock()
 }
@@ -54,22 +52,26 @@ cache = {
     'matches': {}
 }
 
+active_matches_lock = threading.Lock()
+
 # 读取现有匹配信息
 try:
     with open(MATCHES_FILE, 'r', encoding='utf-8') as f:
         content = f.read().strip()
         if content:
-            active_matches = json.loads(content)
-            # 确保所有匹配处于合适的状态（例如，等待玩家重新连接）
-            for match_id, match in active_matches.items():
-                if match['status'] == 'playing':
-                    # 如果匹配在进行中，将其设为等待状态直到玩家重新连接
-                    match['status'] = 'waiting_for_reconnect'
+            try:
+                active_matches = json.loads(content)
+                for match_id, match in active_matches.items():
+                    if 'status' not in match:
+                        match['status'] = 'waiting'
+                    if match.get('status') == 'playing':
+                        match['status'] = 'waiting_for_reconnect'
+            except json.JSONDecodeError:
+                active_matches = {}
         else:
             active_matches = {}
 except FileNotFoundError:
     active_matches = {}
-match_locks = {}
 
 
 def cleanup_expired_matches():
@@ -78,14 +80,14 @@ def cleanup_expired_matches():
     expired_matches = []
     current_time = time.time()
     
-    for match_id, match in active_matches.items():
-        # 如果匹配超过1小时没有活动，则视为过期
-        if 'startTime' in match and (current_time - match['startTime']) > 3600:
-            expired_matches.append(match_id)
-    
-    for match_id in expired_matches:
-        del active_matches[match_id]
-        print(f"清理过期匹配: {match_id}")
+    with active_matches_lock:
+        for match_id, match in active_matches.items():
+            if 'startTime' in match and (current_time - match['startTime']) > 3600:
+                expired_matches.append(match_id)
+        
+        for match_id in expired_matches:
+            del active_matches[match_id]
+            print(f"清理过期匹配: {match_id}")
     
     if expired_matches:
         save_matches()
@@ -169,60 +171,33 @@ def clear_cache(cache_key=None):
 
 # 初始化内置管理员
 def init_admin():
-    # 生成随机管理员密码
     import random
     import string
     
-    # 生成8位随机密码
-    admin_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-    
-    # 保存明文密码到password.json
-    password_data = load_json_with_lock(PASSWORD_FILE)
-    password_data['admin'] = admin_password
-    save_json_with_lock(PASSWORD_FILE, password_data)
-    
-    print(f"管理员账号: admin")
-    print(f"管理员密码: {admin_password}")
-    print(f"密码已保存至: {PASSWORD_FILE}")
-    
     users = load_json_with_lock(USERS_FILE)
-    if not users:
-        admin = {
-            'admin': {
-                'username': 'admin',
-                'password': hashlib.sha256(admin_password.encode()).hexdigest(),
-                'score': 1000,
-                'wins': 0,
-                'games': 0,
-                'joinDate': datetime.now().strftime('%Y-%m-%d'),
-                'lastLogin': '',
-                'isAdmin': True,
-                'isSuperAdmin': True,
-                'bannedUntil': None
-            }
+    
+    if 'admin' not in users:
+        admin_password = ''.join(random.choices(string.ascii_letters + string.digits + string.punctuation, k=16))
+        
+        users['admin'] = {
+            'username': 'admin',
+            'password': hashlib.sha256(admin_password.encode()).hexdigest(),
+            'score': 1000,
+            'wins': 0,
+            'games': 0,
+            'joinDate': datetime.now().strftime('%Y-%m-%d'),
+            'lastLogin': '',
+            'isAdmin': True,
+            'isSuperAdmin': True,
+            'bannedUntil': None
         }
-        save_json_with_lock(USERS_FILE, admin)
+        save_json_with_lock(USERS_FILE, users)
+        print(f"管理员账号: admin")
+        print(f"管理员密码: {admin_password}")
+        print(f"请首次登录后立即修改默认密码!")
     else:
-        # 确保admin存在且密码正确
-        if 'admin' not in users:
-            users['admin'] = {
-                'username': 'admin',
-                'password': hashlib.sha256(admin_password.encode()).hexdigest(),
-                'score': 1000,
-                'wins': 0,
-                'games': 0,
-                'joinDate': datetime.now().strftime('%Y-%m-%d'),
-                'lastLogin': '',
-                'isAdmin': True,
-                'isSuperAdmin': True,
-                'bannedUntil': None
-            }
-            save_json_with_lock(USERS_FILE, users)
-        else:
-            # 更新管理员密码
-            users['admin']['password'] = hashlib.sha256(admin_password.encode()).hexdigest()
-            users['admin']['isSuperAdmin'] = True
-            save_json_with_lock(USERS_FILE, users)
+        users['admin']['isSuperAdmin'] = True
+        save_json_with_lock(USERS_FILE, users)
 
 init_admin()
 
@@ -272,20 +247,8 @@ def save_user(username, data):
     users[username] = data
     save_json_with_lock(USERS_FILE, users)
     
-    # 清除该用户的缓存
     if username in cache['user_info']:
         del cache['user_info'][username]
-
-def save_plain_password(username, password):
-    """保存明文密码到password.json"""
-    password_data = load_json_with_lock(PASSWORD_FILE)
-    password_data[username] = password
-    save_json_with_lock(PASSWORD_FILE, password_data)
-
-def get_plain_password(username):
-    """获取明文密码"""
-    password_data = load_json_with_lock(PASSWORD_FILE)
-    return password_data.get(username)
 
 def is_local_admin_login():
     """检查是否为管理员本机登录"""
@@ -465,9 +428,6 @@ def change_password(user):
     users[username]['password'] = hashlib.sha256(new_password.encode()).hexdigest()
     save_json_with_lock(USERS_FILE, users)
     
-    # 更新明文密码文件
-    save_plain_password(username, new_password)
-    
     # 清除用户缓存
     if username in cache['user_info']:
         del cache['user_info'][username]
@@ -515,9 +475,6 @@ def admin_change_password(admin_user):
     users[target_username]['password'] = hashlib.sha256(new_password.encode()).hexdigest()
     save_json_with_lock(USERS_FILE, users)
     
-    # 更新明文密码文件
-    save_plain_password(target_username, new_password)
-    
     # 清除用户缓存
     if target_username in cache['user_info']:
         del cache['user_info'][target_username]
@@ -561,9 +518,6 @@ def create_admin_account(super_admin):
     }
     users[username] = new_admin
     save_json_with_lock(USERS_FILE, users)
-    
-    # 保存明文密码
-    save_plain_password(username, password)
     
     # 初始化记录和存档
     records = load_json_with_lock(RECORDS_FILE)
@@ -1198,32 +1152,32 @@ def get_my_match(user):
     """获取用户参与的匹配"""
     username = user['username']
     
-    for match_id, match in active_matches.items():
-        if match['creator'] == username or match.get('opponent') == username:
-            # 返回用户参与的比赛信息
-            my_color = None
-            opponent = None
-            
-            if match['creator'] == username:
-                my_color = match.get('creatorColor')
-                opponent = match.get('opponent')
-            else:
-                my_color = 2 if match.get('creatorColor') == 1 else 1
-                opponent = match.get('creator')
-            
-            return jsonify({
-                'match': {
-                    'id': match_id,
-                    'status': match['status'],
-                    'board': match['board'],
-                    'currentPlayer': match['currentPlayer'],
-                    'moves': match['moves'],
-                    'winner': match['winner'],
-                    'myColor': my_color,
-                    'opponent': opponent,
-                    'startTime': int(match.get('startTime', 0))
-                }
-            })
+    with active_matches_lock:
+        for match_id, match in active_matches.items():
+            if match['creator'] == username or match.get('opponent') == username:
+                my_color = None
+                opponent = None
+                
+                if match['creator'] == username:
+                    my_color = match.get('creatorColor')
+                    opponent = match.get('opponent')
+                else:
+                    my_color = 2 if match.get('creatorColor') == 1 else 1
+                    opponent = match.get('creator')
+                
+                return jsonify({
+                    'match': {
+                        'id': match_id,
+                        'status': match['status'],
+                        'board': match['board'],
+                        'currentPlayer': match['currentPlayer'],
+                        'moves': match['moves'],
+                        'winner': match['winner'],
+                        'myColor': my_color,
+                        'opponent': opponent,
+                        'startTime': int(match.get('startTime', 0))
+                    }
+                })
     
     return jsonify({'match': None})
 
@@ -1232,19 +1186,20 @@ def get_my_match(user):
 def create_match(user):
     """创建联机对战房间"""
     match_id = str(uuid.uuid4())[:8]
-    active_matches[match_id] = {
-        'id': match_id,
-        'creator': user['username'],
-        'opponent': None,
-        'status': 'waiting',
-        'board': [[0] * 15 for _ in range(15)],
-        'currentPlayer': 1,
-        'moves': [],
-        'winner': None,
-        'startTime': time.time(),
-        'creatorColor': None
-    }
-    save_matches()  # 保存匹配信息到文件
+    with active_matches_lock:
+        active_matches[match_id] = {
+            'id': match_id,
+            'creator': user['username'],
+            'opponent': None,
+            'status': 'waiting',
+            'board': [[0] * 15 for _ in range(15)],
+            'currentPlayer': 1,
+            'moves': [],
+            'winner': None,
+            'startTime': time.time(),
+            'creatorColor': None
+        }
+    save_matches()
     return jsonify({'success': True, 'matchId': match_id})
 
 @app.route('/api/match/join', methods=['POST'])
@@ -1254,32 +1209,31 @@ def join_match(user):
     data = request.json
     match_id = data.get('matchId', '').strip()
     
-    if not match_id or match_id not in active_matches:
-        return jsonify({'error': '房间不存在'}), 404
+    with active_matches_lock:
+        if not match_id or match_id not in active_matches:
+            return jsonify({'error': '房间不存在'}), 404
+        
+        match = active_matches[match_id]
+        
+        if match['status'] != 'waiting':
+            return jsonify({'error': '房间已开始或已结束'}), 400
+        
+        if match['creator'] == user['username']:
+            return jsonify({'error': '不能加入自己创建的房间'}), 400
+        
+        import random
+        creator_color = random.choice([1, 2])
+        
+        match['opponent'] = user['username']
+        match['status'] = 'playing'
+        match['creatorColor'] = creator_color
     
-    match = active_matches[match_id]
-    
-    if match['status'] != 'waiting':
-        return jsonify({'error': '房间已开始或已结束'}), 400
-    
-    if match['creator'] == user['username']:
-        return jsonify({'error': '不能加入自己创建的房间'}), 400
-    
-    import random
-    creator_color = random.choice([1, 2])
-    
-    match['opponent'] = user['username']
-    match['status'] = 'playing'
-    match['creatorColor'] = creator_color
-    
-    opponent_color = 2 if creator_color == 1 else 1
-    
-    save_matches()  # 保存匹配信息到文件
+    save_matches()
     
     return jsonify({
         'success': True,
         'matchId': match_id,
-        'yourColor': opponent_color,
+        'yourColor': 2 if creator_color == 1 else 1,
         'opponent': match['creator'],
         'currentPlayer': 1
     })
@@ -1289,36 +1243,38 @@ def join_match(user):
 def list_matches(user):
     """获取可加入的房间列表"""
     available = []
-    for match_id, match in active_matches.items():
-        if match['status'] == 'waiting' and match['creator'] != user['username']:
-            available.append({
-                'id': match_id,
-                'creator': match['creator'],
-                'status': match['status']
-            })
+    with active_matches_lock:
+        for match_id, match in active_matches.items():
+            if match['status'] == 'waiting' and match['creator'] != user['username']:
+                available.append({
+                    'id': match_id,
+                    'creator': match['creator'],
+                    'status': match['status']
+                })
     return jsonify({'matches': available})
 
 @app.route('/api/match/status/<match_id>', methods=['GET'])
 @require_auth
 def get_match_status(user, match_id):
     """获取比赛状态（轮询）"""
-    if match_id not in active_matches:
-        return jsonify({'error': '房间不存在'}), 404
-    
-    match = active_matches[match_id]
-    username = user['username']
-    
-    if match['creator'] != username and match['opponent'] != username:
-        return jsonify({'error': '您不在这个房间中'}), 403
-    
-    my_color = None
-    opponent_name = None
-    if match['creator'] == username:
-        my_color = match['creatorColor']
-        opponent_name = match['opponent']
-    else:
-        my_color = 2 if match['creatorColor'] == 1 else 1
-        opponent_name = match['creator']
+    with active_matches_lock:
+        if match_id not in active_matches:
+            return jsonify({'error': '房间不存在'}), 404
+        
+        match = active_matches[match_id]
+        username = user['username']
+        
+        if match['creator'] != username and match['opponent'] != username:
+            return jsonify({'error': '您不在这个房间中'}), 403
+        
+        my_color = None
+        opponent_name = None
+        if match['creator'] == username:
+            my_color = match['creatorColor']
+            opponent_name = match['opponent']
+        else:
+            my_color = 2 if match['creatorColor'] == 1 else 1
+            opponent_name = match['creator']
     
     return jsonify({
         'id': match_id,
@@ -1344,42 +1300,43 @@ def make_move(user):
     if not all([match_id, row is not None, col is not None]):
         return jsonify({'error': '参数无效'}), 400
     
-    if match_id not in active_matches:
-        return jsonify({'error': '房间不存在'}), 404
-    
-    match = active_matches[match_id]
-    username = user['username']
-    
-    if match['status'] != 'playing':
-        return jsonify({'error': '游戏未在进行中', 'status': match['status']}), 400
-    
-    if match['creator'] != username and match['opponent'] != username:
-        return jsonify({'error': '您不在这个房间中'}), 403
-    
-    my_color = None
-    if match['creator'] == username:
-        my_color = match['creatorColor']
-    else:
-        my_color = 2 if match['creatorColor'] == 1 else 1
-    
-    print(f"[落子] 用户: {username}, 我的颜色: {my_color}, 当前玩家: {match['currentPlayer']}")
-    
-    if match['currentPlayer'] != my_color:
-        return jsonify({'error': '不是您的回合', 'currentPlayer': match['currentPlayer'], 'myColor': my_color}), 400
-    
-    if match['board'][row][col] != 0:
-        return jsonify({'error': '该位置已有棋子'}), 400
-    
-    match['board'][row][col] = my_color
-    match['moves'].append({'row': row, 'col': col, 'player': my_color})
-    
-    if check_win(match['board'], row, col, my_color):
-        match['winner'] = my_color
-        match['status'] = 'finished'
-        save_matches()
-        return jsonify({'success': True, 'win': True, 'winner': my_color, 'board': match['board']})
-    
-    match['currentPlayer'] = 2 if my_color == 1 else 1
+    with active_matches_lock:
+        if match_id not in active_matches:
+            return jsonify({'error': '房间不存在'}), 404
+        
+        match = active_matches[match_id]
+        username = user['username']
+        
+        if match['status'] != 'playing':
+            return jsonify({'error': '游戏未在进行中', 'status': match['status']}), 400
+        
+        if match['creator'] != username and match['opponent'] != username:
+            return jsonify({'error': '您不在这个房间中'}), 403
+        
+        my_color = None
+        if match['creator'] == username:
+            my_color = match['creatorColor']
+        else:
+            my_color = 2 if match['creatorColor'] == 1 else 1
+        
+        print(f"[落子] 用户: {username}, 我的颜色: {my_color}, 当前玩家: {match['currentPlayer']}")
+        
+        if match['currentPlayer'] != my_color:
+            return jsonify({'error': '不是您的回合', 'currentPlayer': match['currentPlayer'], 'myColor': my_color}), 400
+        
+        if match['board'][row][col] != 0:
+            return jsonify({'error': '该位置已有棋子'}), 400
+        
+        match['board'][row][col] = my_color
+        match['moves'].append({'row': row, 'col': col, 'player': my_color})
+        
+        if check_win(match['board'], row, col, my_color):
+            match['winner'] = my_color
+            match['status'] = 'finished'
+            save_matches()
+            return jsonify({'success': True, 'win': True, 'winner': my_color, 'board': match['board']})
+        
+        match['currentPlayer'] = 2 if my_color == 1 else 1
     
     save_matches()
     
@@ -1407,38 +1364,35 @@ def leave_match(user):
     data = request.json
     match_id = data.get('matchId')
     
-    if match_id not in active_matches:
-        return jsonify({'success': True})
-    
-    match = active_matches[match_id]
-    username = user['username']
-    
-    if match['creator'] != username and match['opponent'] != username:
-        return jsonify({'success': True})
-    
-    # 标记玩家离开
-    if match['creator'] == username:
-        match['creatorLeft'] = True
-    elif match.get('opponent') == username:
-        match['opponentLeft'] = True
-    
-    # 检查是否双方都已离开
-    creator_left = match.get('creatorLeft', False)
-    opponent_left = match.get('opponentLeft', False)
-    
-    # 等待中且创建者离开，直接删除房间
-    if match['status'] == 'waiting' and match['creator'] == username:
-        del active_matches[match_id]
-        save_matches()
-    # 双方都离开时，关闭并删除房间
-    elif (creator_left and opponent_left) or (creator_left and match['status'] == 'finished'):
-        match['status'] = 'closed'
-        save_matches()
-        del active_matches[match_id]
-    else:
-        # 只有一方离开，更新状态但保留房间
-        match['status'] = 'waiting_for_reconnect' if match['status'] == 'playing' else match['status']
-        save_matches()
+    with active_matches_lock:
+        if match_id not in active_matches:
+            return jsonify({'success': True})
+        
+        match = active_matches[match_id]
+        username = user['username']
+        
+        if match['creator'] != username and match['opponent'] != username:
+            return jsonify({'success': True})
+        
+        if match['creator'] == username:
+            match['creatorLeft'] = True
+        elif match.get('opponent') == username:
+            match['opponentLeft'] = True
+        
+        creator_left = match.get('creatorLeft', False)
+        opponent_left = match.get('opponentLeft', False)
+        
+        if match['status'] == 'waiting' and match['creator'] == username:
+            del active_matches[match_id]
+            save_matches()
+        elif (creator_left and opponent_left) or (creator_left and match['status'] == 'finished'):
+            match['status'] = 'closed'
+            save_matches()
+            del active_matches[match_id]
+        else:
+            if match['status'] == 'playing':
+                match['status'] = 'waiting_for_reconnect'
+            save_matches()
     
     return jsonify({'success': True})
 
@@ -1450,28 +1404,24 @@ def close_match(user):
     data = request.json
     match_id = data.get('matchId')
     
-    if not match_id or match_id not in active_matches:
-        return jsonify({'error': '房间不存在'}), 404
-    
-    match = active_matches[match_id]
-    username = user['username']
-    
-    # 只有房间创建者可以关闭房间
-    if match['creator'] != username:
-        return jsonify({'error': '只有房间创建者可以关闭房间'}), 403
-    
-    # 标记房间为已关闭
-    match['status'] = 'closed'
-    match['closed_at'] = int(time.time())
-    match['closed_by'] = username
-    
-    # 如果有对手，记录对手信息
-    if 'opponent' in match and match['opponent']:
-        match['opponent_left'] = True
-    
-    save_matches()  # 保存匹配信息到文件
-    
-    # 不立即删除匹配，让其他玩家通过轮询检测到房间关闭
+    with active_matches_lock:
+        if not match_id or match_id not in active_matches:
+            return jsonify({'error': '房间不存在'}), 404
+        
+        match = active_matches[match_id]
+        username = user['username']
+        
+        if match['creator'] != username:
+            return jsonify({'error': '只有房间创建者可以关闭房间'}), 403
+        
+        match['status'] = 'closed'
+        match['closed_at'] = int(time.time())
+        match['closed_by'] = username
+        
+        if 'opponent' in match and match['opponent']:
+            match['opponent_left'] = True
+        
+        save_matches()
     return jsonify({'success': True, 'message': '房间已成功关闭'})
 
 
@@ -1482,29 +1432,29 @@ def restart_match(user):
     data = request.json
     match_id = data.get('matchId')
     
-    if not match_id or match_id not in active_matches:
-        return jsonify({'error': '房间不存在'}), 404
+    with active_matches_lock:
+        if not match_id or match_id not in active_matches:
+            return jsonify({'error': '房间不存在'}), 404
+        
+        match = active_matches[match_id]
+        username = user['username']
+        
+        if match['creator'] != username:
+            return jsonify({'error': '只有房间创建者可以重新开始游戏'}), 403
+        
+        if match['status'] not in ['finished', 'playing']:
+            return jsonify({'error': '游戏无法重新开始'}), 400
+        
+        match['board'] = [[0] * 15 for _ in range(15)]
+        match['currentPlayer'] = 1
+        match['moves'] = []
+        match['winner'] = None
+        match['status'] = 'playing'
+        match['startTime'] = time.time()
+        match['creatorLeft'] = False
+        match['opponentLeft'] = False
     
-    match = active_matches[match_id]
-    username = user['username']
-    
-    # 只有房间创建者可以重新开始游戏
-    if match['creator'] != username:
-        return jsonify({'error': '只有房间创建者可以重新开始游戏'}), 403
-    
-    # 允许对已结束或进行中的游戏进行重启
-    if match['status'] not in ['finished', 'playing']:
-        return jsonify({'error': '游戏无法重新开始'}), 400
-    
-    # 重置游戏状态
-    match['board'] = [[0] * 15 for _ in range(15)]
-    match['currentPlayer'] = 1
-    match['moves'] = []
-    match['winner'] = None
-    match['status'] = 'playing'
-    match['startTime'] = time.time()
-    
-    save_matches()  # 保存匹配信息到文件
+    save_matches()
     
     return jsonify({'success': True})
 
@@ -1515,16 +1465,17 @@ def get_all_matches(user):
     """获取所有房间（仅限超级管理员）"""
     
     matches_list = []
-    for match_id, match in active_matches.items():
-        matches_list.append({
-            'id': match_id,
-            'creator': match['creator'],
-            'opponent': match.get('opponent'),
-            'status': match['status'],
-            'currentPlayer': match['currentPlayer'],
-            'moveCount': len(match['moves']),
-            'startTime': match['startTime']
-        })
+    with active_matches_lock:
+        for match_id, match in active_matches.items():
+            matches_list.append({
+                'id': match_id,
+                'creator': match['creator'],
+                'opponent': match.get('opponent'),
+                'status': match['status'],
+                'currentPlayer': match['currentPlayer'],
+                'moveCount': len(match['moves']),
+                'startTime': match['startTime']
+            })
     
     return jsonify({'matches': matches_list})
 
@@ -1534,10 +1485,12 @@ def get_all_matches(user):
 def get_match_detail(user, match_id):
     """获取房间详情（仅限超级管理员）"""
     
-    if match_id not in active_matches:
-        return jsonify({'error': '房间不存在'}), 404
+    with active_matches_lock:
+        if match_id not in active_matches:
+            return jsonify({'error': '房间不存在'}), 404
+        
+        match = active_matches[match_id]
     
-    match = active_matches[match_id]
     return jsonify({
         'id': match_id,
         'creator': match['creator'],
@@ -1558,13 +1511,14 @@ def force_close_match(user):
     data = request.json
     match_id = data.get('matchId')
     
-    if not match_id or match_id not in active_matches:
-        return jsonify({'error': '房间不存在'}), 404
-    
-    match = active_matches[match_id]
-    match['status'] = 'closed'
-    save_matches()
-    del active_matches[match_id]
+    with active_matches_lock:
+        if not match_id or match_id not in active_matches:
+            return jsonify({'error': '房间不存在'}), 404
+        
+        match = active_matches[match_id]
+        match['status'] = 'closed'
+        save_matches()
+        del active_matches[match_id]
     
     return jsonify({'success': True})
 
@@ -1577,36 +1531,33 @@ def force_move(user):
     match_id = data.get('matchId')
     row = data.get('row')
     col = data.get('col')
-    player = data.get('player', 1)  # 1=黑棋, 2=白棋
+    player = data.get('player', 1)
     
     if not all([match_id, row is not None, col is not None]):
         return jsonify({'error': '参数无效'}), 400
     
-    if match_id not in active_matches:
-        return jsonify({'error': '房间不存在'}), 404
-    
-    match = active_matches[match_id]
-    
-    # 游戏未开始或已结束时禁止强制落子
-    if match['status'] != 'playing':
-        if match['status'] == 'finished':
-            return jsonify({'error': '游戏已结束，请重新开始后再操作'}), 400
-        return jsonify({'error': '游戏尚未开始，无法强制落子'}), 400
-    
-    # 超级管理员可以无视规则在任何位置落子
-    match['board'][row][col] = player
-    match['moves'].append({'row': row, 'col': col, 'player': player, 'forced': True})
-    
-    # 检查是否获胜
-    if check_win(match['board'], row, col, player):
-        match['winner'] = player
-        match['status'] = 'finished'
+    with active_matches_lock:
+        if match_id not in active_matches:
+            return jsonify({'error': '房间不存在'}), 404
+        
+        match = active_matches[match_id]
+        
+        if match['status'] != 'playing':
+            if match['status'] == 'finished':
+                return jsonify({'error': '游戏已结束，请重新开始后再操作'}), 400
+            return jsonify({'error': '游戏尚未开始，无法强制落子'}), 400
+        
+        match['board'][row][col] = player
+        match['moves'].append({'row': row, 'col': col, 'player': player, 'forced': True})
+        
+        if check_win(match['board'], row, col, player):
+            match['winner'] = player
+            match['status'] = 'finished'
+            save_matches()
+            return jsonify({'success': True, 'win': True, 'winner': player, 'board': match['board']})
+        
+        match['currentPlayer'] = 2 if player == 1 else 1
         save_matches()
-        return jsonify({'success': True, 'win': True, 'winner': player, 'board': match['board']})
-    
-    # 切换当前玩家
-    match['currentPlayer'] = 2 if player == 1 else 1
-    save_matches()
     
     return jsonify({'success': True, 'win': False, 'board': match['board']})
 

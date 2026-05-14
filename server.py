@@ -1260,6 +1260,9 @@ def get_my_match(user):
 def create_match(user):
     """创建联机对战房间"""
     match_id = str(uuid.uuid4())[:8]
+    # 创建房间时就确定创建者颜色（随机选择）
+    import random
+    creator_color = random.choice([1, 2])
     with active_matches_lock:
         active_matches[match_id] = {
             'id': match_id,
@@ -1267,14 +1270,14 @@ def create_match(user):
             'opponent': None,
             'status': 'waiting',
             'board': [[0] * 15 for _ in range(15)],
-            'currentPlayer': 1,
+            'currentPlayer': creator_color,
             'moves': [],
             'winner': None,
             'startTime': time.time(),
-            'creatorColor': 1
+            'creatorColor': creator_color
         }
     save_matches()
-    return jsonify({'success': True, 'matchId': match_id})
+    return jsonify({'success': True, 'matchId': match_id, 'creatorColor': creator_color})
 
 @app.route('/api/match/join', methods=['POST'])
 @require_auth
@@ -1295,12 +1298,11 @@ def join_match(user):
         if match['creator'] == user['username']:
             return jsonify({'error': '不能加入自己创建的房间'}), 400
         
-        import random
-        creator_color = random.choice([1, 2])
+        # 使用创建房间时已确定的颜色
+        creator_color = match['creatorColor']
         
         match['opponent'] = user['username']
         match['status'] = 'playing'
-        match['creatorColor'] = creator_color
         match['currentPlayer'] = creator_color
     
     save_matches()

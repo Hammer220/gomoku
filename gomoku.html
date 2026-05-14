@@ -457,9 +457,20 @@
     
     function drawOnlineBoard() {
         if(!onlineCtx || !onlineCanvas) return;
-        if(!onlineBoard || !onlineBoard[0]) return;
-        const size = Math.min(onlineCanvas.width, onlineCanvas.height);
-        const cellSize = size / (BOARD_SIZE - 1);
+        if(!onlineBoard || !onlineBoard[0]) {
+            // 初始化空棋盘
+            onlineBoard = Array(BOARD_SIZE).fill().map(()=>Array(BOARD_SIZE).fill(0));
+        }
+        
+        // 使用 calcOnlineCanvasSize 设置的全局尺寸
+        const cellSize = onlineCellSizeGlobal || 30;
+        
+        // 确保画布尺寸正确
+        if (onlineCanvas.width !== cellSize * (BOARD_SIZE - 1) || onlineCanvas.height !== cellSize * (BOARD_SIZE - 1)) {
+            onlineCanvas.width = cellSize * (BOARD_SIZE - 1);
+            onlineCanvas.height = cellSize * (BOARD_SIZE - 1);
+        }
+        
         onlineCtx.clearRect(0,0,onlineCanvas.width,onlineCanvas.height);
         onlineCtx.strokeStyle = boardLineColor; onlineCtx.lineWidth = 2;
         for(let i=0;i<BOARD_SIZE;i++){
@@ -613,19 +624,20 @@
         try {
             const res = await apiCall('/api/match/create', 'POST', {});
             onlineMatchId = res.matchId;
+            onlineMyColor = res.creatorColor;  // 保存创建者颜色
             gameMode = 'online';
             initOnlineBoard();
             onlineMoveHistory = [];
             onlineGameActive = true;
             onlineGameTime = 0;
-            onlineCurrentPlayer = 1;
+            onlineCurrentPlayer = res.creatorColor;  // 使用服务器返回的当前玩家
             
             stopMatchListRefresh();
             
             document.getElementById('onlineMatchIdDisplay').textContent = res.matchId;
             document.getElementById('roomInfo').innerHTML = `
                 <p>房间号: <span class="font-mono font-bold text-lg">${res.matchId}</span></p>
-                <p>你的棋子: <span class="font-bold">等待中...</span></p>
+                <p>你的棋子: <span class="font-bold">${res.creatorColor === 1 ? '黑棋' : '白棋'}</span></p>
                 <p>状态: <span class="text-amber-600">等待对手加入...</span></p>
                 <p class="text-sm text-gray-500">你是房间创建者</p>
             `;
@@ -634,6 +646,8 @@
             document.getElementById('onlineCreateBtn').classList.add('hidden');
             document.getElementById('onlineJoinBtn').parentElement.classList.add('hidden');
             showToast(`房间已创建: ${res.matchId}`);
+            // 确保画布尺寸已计算
+            calcOnlineCanvasSize();
             drawOnlineBoard();
             updateOnlineUI();
             startOnlinePolling();
@@ -1100,7 +1114,8 @@
             startRestartCountdown();
             return true;
         }
-        currentPlayer = player === 1 ? 2 : 1;
+        // 更新联机对战的当前玩家（而不是本地游戏的currentPlayer）
+        onlineCurrentPlayer = player === 1 ? 2 : 1;
         updateOnlineUI();
         return true;
     }
@@ -1147,21 +1162,24 @@
                 onlineMyColor = match.myColor;
                 onlineOpponent = match.opponent;
                 onlineGameActive = true;
-                onlineBoard = match.board;
-                onlineMoveHistory = match.moves;
+                onlineBoard = match.board || Array(BOARD_SIZE).fill().map(()=>Array(BOARD_SIZE).fill(0));
+                onlineMoveHistory = match.moves || [];
                 onlineCurrentPlayer = match.currentPlayer;
-                onlineGameTime = Math.floor(Date.now() / 1000) - match.startTime;
+                onlineGameTime = Math.floor(Date.now() / 1000) - (match.startTime || 0);
                 
                 document.getElementById('onlineMatchIdDisplay').textContent = match.id;
                 document.getElementById('roomInfo').innerHTML = `
                     <p>房间号: <span class="font-mono font-bold text-lg">${match.id}</span></p>
                     <p>你的棋子: <span class="font-bold">${match.myColor === 1 ? '黑棋' : '白棋'}</span></p>
-                    <p>对手: <span class="font-bold">${match.opponent}</span></p>
+                    <p>对手: <span class="font-bold">${match.opponent || '未知'}</span></p>
                     <p>状态: <span class="text-green-600">对战进行中</span></p>
                 `;
                 document.getElementById('onlineLeaveBtn').classList.remove('hidden');
                 document.getElementById('onlineCreateBtn').classList.add('hidden');
                 document.getElementById('onlineJoinBtn').parentElement.classList.add('hidden');
+                
+                // 确保画布尺寸已计算
+                calcOnlineCanvasSize();
                 
                 startOnlinePolling();
                 startOnlineTimer();
@@ -1295,7 +1313,10 @@
                         }
                     }
                     onlineCurrentPlayer = res.currentPlayer;
-                    if (res.creatorColor) {
+                    // 只有在初始状态或状态同步时更新颜色
+                    if (res.myColor !== undefined && res.myColor !== null) {
+                        onlineMyColor = res.myColor;
+                    } else if (res.creatorColor && !onlineMyColor) {
                         onlineMyColor = currentUser?.username === res.opponent ? (res.creatorColor === 1 ? 2 : 1) : res.creatorColor;
                     }
                     drawOnlineBoard();
@@ -1304,12 +1325,13 @@
                     document.getElementById('onlineMoveCount').textContent = res.moves.length;
                 }
                 // 更新房间状态
-                if (res.players && res.players.length >= 2) {
-                    const myColor = res.creatorColor ? (currentUser?.username === res.opponent ? (res.creatorColor === 1 ? 2 : 1) : res.creatorColor) : onlineMyColor;
+                const currentMyColor = onlineMyColor;
+                const currentOpponent = res.opponent || onlineOpponent;
+                if (currentMyColor !== null && currentMyColor !== undefined) {
                     document.getElementById('roomInfo').innerHTML = `
                         <p>房间号: <span class="font-mono font-bold text-lg">${onlineMatchId}</span></p>
-                        <p>你的棋子: <span class="font-bold">${myColor === 1 ? '黑棋' : '白棋'}</span></p>
-                        <p>对手: <span class="font-bold">${res.players.find(p => p !== currentUser?.username) || '对手'}</span></p>
+                        <p>你的棋子: <span class="font-bold">${currentMyColor === 1 ? '黑棋' : '白棋'}</span></p>
+                        <p>对手: <span class="font-bold">${currentOpponent || '对手'}</span></p>
                         <p>状态: <span class="text-green-600">对战进行中</span></p>
                     `;
                 }
@@ -2239,13 +2261,22 @@
         }
         if(tabId==='onlineContent'){
             onlineCanvas = document.getElementById('onlineCanvas');
+            onlineCtx = onlineCanvas?.getContext('2d');
             if(onlineCanvas) {
                 onlineCanvas.onclick = null;
                 onlineCanvas.addEventListener('click', handleOnlineClick);
             }
+            // 先计算画布尺寸，确保渲染有正确的尺寸
+            calcOnlineCanvasSize();
+            // 初始化棋盘（如果尚未初始化）
+            if(!onlineBoard || !onlineBoard[0]) {
+                initOnlineBoard();
+            }
+            // 先绘制棋盘
+            drawOnlineBoard();
+            // 然后加载房间列表和检查现有游戏
             loadOnlineAvailableMatches();
             checkExistingMatch();
-            setTimeout(()=>{ calcOnlineCanvasSize(); drawOnlineBoard(); }, 100);
             if(!onlineMatchId) {
                 startMatchListRefresh();
             }
@@ -2257,9 +2288,18 @@
     function handleOnlineClick(e) {
         console.log('点击检测 - onlineGameActive:', onlineGameActive, 'onlineMatchId:', onlineMatchId);
         console.log('点击检测 - onlineCurrentPlayer:', onlineCurrentPlayer, 'onlineMyColor:', onlineMyColor);
-        console.log('类型检查 - currentPlayer类型:', typeof onlineCurrentPlayer, 'myColor类型:', typeof onlineMyColor);
         
-        if(!onlineGameActive || !onlineMatchId) { console.log('游戏未激活'); return; }
+        // 检查游戏状态
+        if(!onlineGameActive || !onlineMatchId) { 
+            console.log('游戏未激活或未加入房间'); 
+            return; 
+        }
+        
+        // 检查颜色是否已设置
+        if(onlineMyColor === null || onlineMyColor === undefined) {
+            console.log('颜色未设置，等待同步...');
+            return;
+        }
         
         const currentPlayer = Number(onlineCurrentPlayer);
         const myColor = Number(onlineMyColor);

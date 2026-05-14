@@ -1076,6 +1076,7 @@
             } else {
                 await apiCall('/api/records', 'POST', { result: 'lose', opponent: onlineOpponent, mode: 'online', timestamp: Math.floor(Date.now() / 1000) });
             }
+            startRestartCountdown();
             return true;
         }
         currentPlayer = player === 1 ? 2 : 1;
@@ -1341,6 +1342,7 @@
                 } else {
                     await apiCall('/api/records', 'POST', { result: 'lose', opponent: onlineOpponent, mode: 'online' });
                 }
+                startRestartCountdown();
             }
         } catch (err) {
             // 如果请求失败，回滚本地状态
@@ -2335,6 +2337,8 @@
         document.getElementById('onlineJoinBtn').addEventListener('click', onlineJoinMatch);
         document.getElementById('onlineLeaveBtn').addEventListener('click', onlineLeaveMatch);
         document.getElementById('onlineLeaveBtn').classList.add('hidden');
+        
+        document.getElementById('closeRoomBtn').addEventListener('click', closeOnlineRoom);
         
         // 监控画布点击事件（超级管理员强制落子）
         document.getElementById('monitorCanvas')?.addEventListener('click', e=>{

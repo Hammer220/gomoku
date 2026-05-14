@@ -39,7 +39,7 @@
 
 ## 🌐 在线体验
 
-您可以直接访问 **[https://hammer220.github.io/gomoku/](https://hammer220.github.io/gomoku/)** 体验本项目。
+您可以直接访问 **<https://hammer220.github.io/gomoku/>** 体验本项目。
 
 > **⚠️ 注意**：由于 GitHub Pages 只能部署静态网页，无法运行 Flask 后端服务器，因此在线演示版本缺少以下核心功能：
 >

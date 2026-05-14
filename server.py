@@ -1242,7 +1242,7 @@ def create_match(user):
             'moves': [],
             'winner': None,
             'startTime': time.time(),
-            'creatorColor': None
+            'creatorColor': 1
         }
     save_matches()
     return jsonify({'success': True, 'matchId': match_id})
@@ -1272,6 +1272,7 @@ def join_match(user):
         match['opponent'] = user['username']
         match['status'] = 'playing'
         match['creatorColor'] = creator_color
+        match['currentPlayer'] = creator_color
     
     save_matches()
     
@@ -1280,7 +1281,7 @@ def join_match(user):
         'matchId': match_id,
         'yourColor': 2 if creator_color == 1 else 1,
         'opponent': match['creator'],
-        'currentPlayer': 1
+        'currentPlayer': creator_color
     })
 
 @app.route('/api/match/list', methods=['GET'])

@@ -1185,6 +1185,8 @@ def save_user_settings(user):
         settings['boardLineColor'] = data['boardLineColor']
     if 'boardDotColor' in data:
         settings['boardDotColor'] = data['boardDotColor']
+    if 'boardBackground' in data:
+        settings['boardBackground'] = data['boardBackground']
     
     save_json_with_lock(USERS_FILE, users)
     
@@ -1193,6 +1195,35 @@ def save_user_settings(user):
         del cache['user_info'][username]
     
     return jsonify({'success': True, 'message': '设置保存成功'})
+
+@app.route('/api/backgrounds', methods=['GET'])
+@require_auth
+def get_background_images():
+    """获取可用的背景图片列表"""
+    picture_dir = 'picture'
+    supported_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp']
+    
+    if not os.path.exists(picture_dir):
+        return jsonify({'backgrounds': []})
+    
+    backgrounds = []
+    try:
+        for filename in os.listdir(picture_dir):
+            file_path = os.path.join(picture_dir, filename)
+            if os.path.isfile(file_path):
+                ext = os.path.splitext(filename)[1].lower()
+                if ext in supported_extensions:
+                    backgrounds.append({
+                        'name': filename,
+                        'path': f'{picture_dir}/{filename}'
+                    })
+    except OSError:
+        pass
+    
+    # 按文件名排序
+    backgrounds.sort(key=lambda x: x['name'])
+    
+    return jsonify({'backgrounds': backgrounds})
 
 @app.route('/api/match/my', methods=['GET'])
 @require_auth

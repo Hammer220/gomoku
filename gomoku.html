@@ -356,7 +356,14 @@
                         </div>
                     </div>
                 </div>
-                <div class="flex gap-3">
+                <div class="mt-4">
+                    <label class="block text-sm mb-2">棋盘背景图片</label>
+                    <div id="backgroundImageGrid" class="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto p-2 bg-gray-50 rounded-lg">
+                        <div class="text-gray-500 text-sm text-center py-4 col-span-4">暂无背景图片</div>
+                    </div>
+                    <button id="loadBackgroundsBtn" class="mt-2 text-sm text-primary hover:text-primary/80"><i class="fa-solid fa-refresh mr-1"></i>刷新图片列表</button>
+                </div>
+                <div class="flex gap-3 mt-4">
                     <button id="saveBoardColorBtn" class="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-save mr-1"></i>保存设置</button>
                     <button id="resetBoardColorBtn" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-rotate-left mr-1"></i>恢复默认</button>
                 </div>
@@ -475,73 +482,86 @@
         onlineCtx.fillStyle=grad; onlineCtx.fill(); onlineCtx.strokeStyle=player===1?'#333':'#ccc'; onlineCtx.lineWidth=1; onlineCtx.stroke();
     }
     
-    let boardLineColor = '#8B5A2B', boardDotColor = '#8B5A2B';
+    let boardLineColor = '#8B5A2B', boardDotColor = '#FFD700';
     let boardColorSettingsLoaded = false;  // 棋盘颜色设置是否已加载
+    let availableBackgrounds = [];  // 可用的背景图片列表
+    let selectedBackground = '';  // 当前选择的背景图片
     
-    // 棋盘背景图片轮换 - 自动识别picture文件夹中的图片
-    const boardImages = [];
-    let currentImageIndex = 0;
-    
-    // 生成图片列表（支持picture1.png到picture99.png）
-    function generateBoardImages() {
-        boardImages.length = 0;
-        for(let i = 1; i <= 99; i++) {
-            boardImages.push(`picture/picture${i}.png`);
+    // 从服务器获取背景图片列表
+    async function loadBackgrounds() {
+        if (!token) return;
+        try {
+            const data = await apiCall('/api/backgrounds');
+            availableBackgrounds = data.backgrounds || [];
+            renderBackgroundGrid();
+        } catch (err) {
+            console.error('加载背景图片失败:', err);
         }
-        // 过滤掉不存在的图片
-        const validImages = [];
-        boardImages.forEach((image, index) => {
-            const img = new Image();
-            img.onload = () => {
-                validImages.push(image);
-                if (index === boardImages.length - 1) {
-                    // 所有图片检查完成后更新图片列表
-                    boardImages.length = 0;
-                    boardImages.push(...validImages);
-                    // 如果没有有效图片，添加默认图片
-                    if (boardImages.length === 0) {
-                        boardImages.push('picture.png');
-                    }
-                }
-            };
-            img.onerror = () => {
-                if (index === boardImages.length - 1) {
-                    // 所有图片检查完成后更新图片列表
-                    if (validImages.length === 0) {
-                        boardImages.push('picture.png');
-                    } else {
-                        boardImages.length = 0;
-                        boardImages.push(...validImages);
-                    }
-                }
-            };
-            img.src = image;
+    }
+    
+    // 渲染背景图片选择网格
+    function renderBackgroundGrid() {
+        const grid = document.getElementById('backgroundImageGrid');
+        if (!grid) return;
+        
+        if (availableBackgrounds.length === 0) {
+            grid.innerHTML = '<div class="text-gray-500 text-sm text-center py-4 col-span-4">暂无背景图片</div>';
+            return;
+        }
+        
+        grid.innerHTML = availableBackgrounds.map(bg => `
+            <div class="relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
+                selectedBackground === bg.path 
+                    ? 'border-primary shadow-md scale-105' 
+                    : 'border-transparent hover:border-gray-300'
+            }" data-path="${bg.path}" onclick="window.selectBackground('${bg.path}')">
+                <img src="${bg.path}" alt="${bg.name}" class="w-full aspect-square object-cover">
+                <div class="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-1 truncate">${bg.name}</div>
+            </div>
+        `).join('');
+    }
+    
+    // 选择背景图片 - 暴露到全局作用域以便HTML调用
+    window.selectBackground = function(path) {
+        selectedBackground = path;
+        renderBackgroundGrid();
+        applyBackground(path);
+    }
+    
+    // 应用背景图片
+    function applyBackground(path) {
+        const boardElements = document.querySelectorAll('.bg-board');
+        boardElements.forEach(el => {
+            if (path) {
+                el.style.backgroundImage = `url('${path}')`;
+            } else {
+                el.style.backgroundImage = 'none';
+            }
         });
     }
     
-    // 切换棋盘背景图片
-    function switchBoardImage() {
-        if(boardImages.length === 0) return;
-        currentImageIndex = (currentImageIndex + 1) % boardImages.length;
+    // 初始化棋盘背景
+    function initBoardBackground() {
         const boardElement = document.querySelector('.bg-board');
-        if(boardElement) {
-            boardElement.style.backgroundImage = `url('${boardImages[currentImageIndex]}')`;
+        if (boardElement) {
+            boardElement.style.backgroundImage = 'none';
         }
+        // 登录后加载用户的背景设置
+        loadUserBackgroundSetting();
     }
     
-    // 初始化棋盘背景图片
-    function initBoardBackground() {
-        generateBoardImages();
-        const boardElement = document.querySelector('.bg-board');
-        if(boardElement) {
-            // 立即设置默认背景，避免加载延迟
-            boardElement.style.backgroundImage = `url('picture.png')`;
-            // 稍后设置图片列表中的背景
-            setTimeout(() => {
-                if(boardImages.length > 0) {
-                    boardElement.style.backgroundImage = `url('${boardImages[currentImageIndex]}')`;
-                }
-            }, 100);
+    // 加载用户保存的背景图片设置
+    async function loadUserBackgroundSetting() {
+        if (!token) return;
+        try {
+            const settings = await apiCall('/api/user/settings');
+            if (settings && settings.boardBackground !== undefined) {
+                selectedBackground = settings.boardBackground;
+                applyBackground(selectedBackground);
+                renderBackgroundGrid();
+            }
+        } catch (err) {
+            console.error('加载背景设置失败:', err);
         }
     }
     
@@ -2192,7 +2212,13 @@
                 document.getElementById('boardDotColor').value = boardDotColor;
                 document.getElementById('boardDotColorText').value = boardDotColor;
             }
+            if (settings.boardBackground !== undefined) {
+                selectedBackground = settings.boardBackground;
+                applyBackground(selectedBackground);
+            }
             drawBoard();
+            // 加载背景图片列表
+            await loadBackgrounds();
             boardColorSettingsLoaded = true;
         } catch (err) {
             // 加载失败，使用默认颜色
@@ -2203,10 +2229,11 @@
         try {
             await apiCall('/api/user/settings', 'POST', {
                 boardLineColor: boardLineColor,
-                boardDotColor: boardDotColor
+                boardDotColor: boardDotColor,
+                boardBackground: selectedBackground
             });
             boardColorSettingsLoaded = false;  // 重置加载标志，下次打开面板时重新加载
-            showToast('棋盘颜色设置已保存');
+            showToast('设置已保存');
         } catch (err) {
             showToast('保存失败：' + err.message, true);
         }
@@ -2409,14 +2436,18 @@
         document.getElementById('saveBoardColorBtn').addEventListener('click', saveBoardColorSettings);
         document.getElementById('resetBoardColorBtn').addEventListener('click', function() {
             boardLineColor = '#8B5A2B';
-            boardDotColor = '#8B5A2B';
+            boardDotColor = '#FFD700';
+            selectedBackground = '';
             document.getElementById('boardLineColor').value = boardLineColor;
             document.getElementById('boardLineColorText').value = boardLineColor;
             document.getElementById('boardDotColor').value = boardDotColor;
             document.getElementById('boardDotColorText').value = boardDotColor;
             drawBoard();
+            applyBackground('');
+            renderBackgroundGrid();
             saveBoardColorSettings();
         });
+        document.getElementById('loadBackgroundsBtn').addEventListener('click', loadBackgrounds);
         
         // 联机对局监控事件
         document.getElementById('refreshMatchListBtn')?.addEventListener('click', loadMatchList);

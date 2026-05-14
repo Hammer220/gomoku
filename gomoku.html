@@ -457,6 +457,7 @@
     
     function drawOnlineBoard() {
         if(!onlineCtx || !onlineCanvas) return;
+        if(!onlineBoard || !onlineBoard[0]) return;
         const size = Math.min(onlineCanvas.width, onlineCanvas.height);
         const cellSize = size / (BOARD_SIZE - 1);
         onlineCtx.clearRect(0,0,onlineCanvas.width,onlineCanvas.height);
@@ -1577,6 +1578,7 @@
 
     function drawBoard() {
         if(!ctx) return;
+        if(!gameBoard || !gameBoard[0]) return;
         ctx.clearRect(0,0,canvas.width,canvas.height);
         ctx.strokeStyle = boardLineColor; ctx.lineWidth = 2;
         // 绘制棋盘线
@@ -1862,15 +1864,8 @@
                 roleTag = `<span class="text-xs px-2 py-1 rounded ${canManage ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'}">${canManage ? '管理员' : '已禁用'}</span>`;
             }
             
-            // 密码显示（点击显示/隐藏）
-            let passwordDisplay = '-';
-            if (u.plain_password) {
-                if (!canOperate && !isSuperAdmin) {
-                    passwordDisplay = '<span class="text-gray-400">无权限查看</span>';
-                } else {
-                    passwordDisplay = `<span class="password-display cursor-pointer text-blue-600" data-password="${u.plain_password}">点击查看</span>`;
-                }
-            }
+            // 密码显示（已隐藏，出于安全考虑）
+            let passwordDisplay = '<span class="text-gray-400 text-xs">***</span>';
             
             // 其他字段显示
             const scoreDisplay = canOperate || isSuperAdmin ? u.score : '<span class="text-gray-400">权限不足</span>';
@@ -1890,7 +1885,7 @@
             let actionBtns = '';
             if (canOperate || isSuperAdmin) {
                 actionBtns = `<button class="text-blue-600 hover:underline admin-select mr-2" data-username="${u.username}">选择</button>`;
-                actionBtns += `<button class="text-green-600 hover:underline admin-change-password mr-2" data-username="${u.username}" data-password="${u.plain_password || ''}">改密码</button>`;
+                actionBtns += `<button class="text-green-600 hover:underline admin-change-password mr-2" data-username="${u.username}">改密码</button>`;
                 if (isSuperAdmin && u.isAdmin && !u.isSuperAdmin) {
                     const canManage = u.canManage !== false;
                     actionBtns += `<button class="text-purple-600 hover:underline admin-toggle-permission" data-username="${u.username}" data-canmanage="${!canManage}">${canManage ? '禁用' : '启用'}</button>`;
@@ -1930,20 +1925,7 @@
                 return;
             }
             document.getElementById('adminBanUsername').value=this.dataset.username;
-            showChangePasswordModal(this.dataset.username, this.dataset.password);
-        }));
-        
-        // 绑定密码显示点击事件
-        tbody.querySelectorAll('.password-display').forEach(b=>b.addEventListener('click', function() {
-            if (this.textContent === '点击查看') {
-                this.textContent = this.dataset.password;
-                this.classList.remove('text-blue-600');
-                this.classList.add('text-red-600');
-            } else {
-                this.textContent = '点击查看';
-                this.classList.remove('text-red-600');
-                this.classList.add('text-blue-600');
-            }
+            showChangePasswordModal(this.dataset.username);
         }));
         
         // 绑定权限设置按钮事件
@@ -1965,7 +1947,7 @@
     }
     
     // 显示修改密码弹窗
-    function showChangePasswordModal(username, currentPassword) {
+    function showChangePasswordModal(username) {
         const modalHtml = `
             <div id="changePwdModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                 <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
@@ -1974,10 +1956,6 @@
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
                             <input type="text" id="changePwdUsername" value="${username}" class="w-full px-4 py-2 border rounded-lg bg-gray-100" readonly>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">当前密码</label>
-                            <input type="text" id="changePwdCurrent" value="${currentPassword}" class="w-full px-4 py-2 border rounded-lg bg-gray-100" readonly>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">新密码</label>
@@ -2112,13 +2090,8 @@
                 const adminDiv = document.createElement('div');
                 adminDiv.className = 'flex justify-between items-center p-2 bg-white rounded border';
                 
-                // 密码显示（点击显示/隐藏）
+                // 密码显示（已隐藏，出于安全考虑）
                 let passwordDisplay = '';
-                if (admin.plain_password) {
-                    if (isSuperAdmin || (!admin.isSuperAdmin)) {
-                        passwordDisplay = `<span class="password-display cursor-pointer text-blue-600 text-xs ml-2" data-password="${admin.plain_password}">点击查看密码</span>`;
-                    }
-                }
                 
                 // 权限状态显示
                 let permissionStatus = '';
@@ -2155,20 +2128,7 @@
                     </div>
                 `;
                 adminListDiv.appendChild(adminDiv);
-            });
-            
-            // 绑定密码显示点击事件
-            adminListDiv.querySelectorAll('.password-display').forEach(b=>b.addEventListener('click', function() {
-                if (this.textContent === '点击查看密码') {
-                    this.textContent = '密码: ' + this.dataset.password;
-                    this.classList.remove('text-blue-600');
-                    this.classList.add('text-red-600');
-                } else {
-                    this.textContent = '点击查看密码';
-                    this.classList.remove('text-red-600');
-                    this.classList.add('text-blue-600');
-                }
-            }));
+        });
         } catch (error) {
             console.error('加载管理员列表失败:', error);
             document.getElementById('adminList').innerHTML = '<div class="text-red-500 text-sm">加载失败</div>';

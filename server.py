@@ -1,4 +1,4 @@
-# server.py
+# server.py - 五子棋游戏服务器
 import os
 import json
 import uuid
@@ -14,7 +14,7 @@ import secrets
 app = Flask(__name__, static_folder='.', static_url_path='')
 app.secret_key = secrets.token_hex(32)
 
-# Configure logging - console for network address, file for other logs
+# 配置日志 - 控制台输出网络地址，文件记录其他日志
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.INFO)
 
@@ -24,7 +24,7 @@ class RequestFilter(logging.Filter):
 
 log.addFilter(RequestFilter())
 
-# File handler for logs
+# 日志文件处理器
 DATA_DIR = 'data'
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -48,7 +48,6 @@ file_locks = {
 
 # 内存缓存
 cache = {
-    'users': {'data': None, 'timestamp': 0, 'ttl': 30},
     'tokens': {'data': None, 'timestamp': 0, 'ttl': 10},
     'user_info': {},
     'matches': {}
@@ -126,7 +125,6 @@ def save_json_with_lock(file_path, data):
                 json.dump(data, f, indent=2, ensure_ascii=False)
             # 清除相关缓存
             if file_path == USERS_FILE:
-                cache['users']['data'] = None
                 cache['user_info'].clear()
             elif file_path == TOKENS_FILE:
                 cache['tokens']['data'] = None
@@ -245,6 +243,11 @@ def get_user(username):
             if user_data and user_data.get('bannedUntil') and time.time() >= user_data['bannedUntil']:
                 user_data['bannedUntil'] = None
                 save_user(username, user_data)
+                # 更新缓存中的封禁状态
+                cache['user_info'][username] = {
+                    'data': user_data,
+                    'timestamp': time.time()
+                }
             return user_data
     
     # 从文件读取
@@ -1607,8 +1610,6 @@ def force_move(user):
     
     return jsonify({'success': True, 'win': False, 'board': match['board']})
 
-
-cleanup_expired_matches()
 
 # 启动后台清理任务
 def start_cleanup_task():

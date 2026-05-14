@@ -344,17 +344,17 @@
                     <div>
                         <label class="block text-sm mb-1">线条颜色</label>
                         <div class="flex gap-2 items-center">
-                            <input type="color" id="boardLineColor" value="#FFD700" class="w-12 h-10 border rounded cursor-pointer">
-                            <input type="text" id="boardLineColorText" value="#FFD700" class="flex-1 border rounded-lg px-3 py-2" placeholder="#FFD700">
+                            <input type="color" id="boardLineColor" value="#8B5A2B" class="w-12 h-10 border rounded cursor-pointer">
+                            <input type="text" id="boardLineColorText" value="#8B5A2B" class="flex-1 border rounded-lg px-3 py-2" placeholder="#8B5A2B">
                         </div>
                     </div>
                     <div>
-                        <label class="block text-sm mb-1">点颜色</label>
-                        <div class="flex gap-2 items-center">
-                            <input type="color" id="boardDotColor" value="#FFD700" class="w-12 h-10 border rounded cursor-pointer">
-                            <input type="text" id="boardDotColorText" value="#FFD700" class="flex-1 border rounded-lg px-3 py-2" placeholder="#FFD700">
-                        </div>
-                    </div>
+                <label class="block text-sm mb-1">点颜色</label>
+                <div class="flex gap-2 items-center">
+                    <input type="color" id="boardDotColor" value="#8B4513" class="w-12 h-10 border rounded cursor-pointer">
+                    <input type="text" id="boardDotColorText" value="#8B4513" class="flex-1 border rounded-lg px-3 py-2" placeholder="#8B4513">
+                </div>
+            </div>
                 </div>
                 <div class="mt-4">
                     <label class="block text-sm mb-2">棋盘背景图片</label>
@@ -483,7 +483,7 @@
         onlineCtx.fillStyle=grad; onlineCtx.fill(); onlineCtx.strokeStyle=player===1?'#333':'#ccc'; onlineCtx.lineWidth=1; onlineCtx.stroke();
     }
     
-    let boardLineColor = '#8B5A2B', boardDotColor = '#FFD700';
+    let boardLineColor = '#8B5A2B', boardDotColor = '#8B4513';
     let boardColorSettingsLoaded = false;  // 棋盘颜色设置是否已加载
     let availableBackgrounds = [];  // 可用的背景图片列表
     let selectedBackground = '';  // 当前选择的背景图片

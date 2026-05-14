@@ -2277,9 +2277,8 @@
             // 然后加载房间列表和检查现有游戏
             loadOnlineAvailableMatches();
             checkExistingMatch();
-            if(!onlineMatchId) {
-                startMatchListRefresh();
-            }
+            // 始终自动刷新可用房间列表
+            startMatchListRefresh();
         } else {
             stopMatchListRefresh();
         }

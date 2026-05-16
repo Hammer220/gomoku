@@ -270,6 +270,40 @@
                 </button>
             </div>
         </div>
+
+        <!-- 棋盘颜色设置 -->
+        <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+            <h3 class="text-xl font-semibold mb-4">棋盘颜色设置</h3>
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm mb-1">线条颜色</label>
+                        <div class="flex gap-2 items-center">
+                            <input type="color" id="boardLineColor" value="#8B5A2B" class="w-12 h-10 border rounded cursor-pointer">
+                            <input type="text" id="boardLineColorText" value="#8B5A2B" class="flex-1 border rounded-lg px-3 py-2" placeholder="#8B5A2B">
+                        </div>
+                    </div>
+                    <div>
+                <label class="block text-sm mb-1">点颜色</label>
+                <div class="flex gap-2 items-center">
+                    <input type="color" id="boardDotColor" value="#8B5A2B" class="w-12 h-10 border rounded cursor-pointer">
+                    <input type="text" id="boardDotColorText" value="#8B5A2B" class="flex-1 border rounded-lg px-3 py-2" placeholder="#8B5A2B">
+                </div>
+            </div>
+                </div>
+                <div class="mt-4">
+                    <label class="block text-sm mb-2">棋盘背景图片</label>
+                    <div id="backgroundImageGrid" class="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto p-2 bg-gray-50 rounded-lg">
+                        <div class="text-gray-500 text-sm text-center py-4 col-span-4">暂无背景图片</div>
+                    </div>
+                    <button id="loadBackgroundsBtn" class="mt-2 text-sm text-primary hover:text-primary/80"><i class="fa-solid fa-refresh mr-1"></i>刷新图片列表</button>
+                </div>
+                <div class="flex gap-3 mt-4">
+                    <button id="saveBoardColorBtn" class="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-save mr-1"></i>保存设置</button>
+                    <button id="resetBoardColorBtn" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-rotate-left mr-1"></i>恢复默认</button>
+                </div>
+            </div>
+        </div>
     </div>
     
     <div id="historyContent" class="p-6 md:p-8 hidden">
@@ -322,41 +356,41 @@
         </div>
     </div>
     <div id="statsContent" class="p-6 md:p-8 hidden">
-        <h2 class="text-2xl font-bold mb-4 text-primary">数据统计</h2>
-        <div class="grid grid-cols-5 gap-2 mb-4">
-            <div class="bg-white rounded-lg shadow-md p-2 text-center">
-                <p class="text-lg font-bold text-primary" id="statTotalGames">0</p>
-                <p class="text-xs text-gray-500">总场次</p>
+        <h2 class="text-2xl font-bold mb-6 text-primary">数据统计</h2>
+        <div class="grid grid-cols-5 gap-3 mb-6">
+            <div class="bg-white rounded-lg shadow-md p-3 text-center">
+                <p class="text-xl font-bold text-primary" id="statTotalGames">0</p>
+                <p class="text-sm text-gray-500">总场次</p>
             </div>
-            <div class="bg-white rounded-lg shadow-md p-2 text-center">
-                <p class="text-lg font-bold text-green-600" id="statWins">0</p>
-                <p class="text-xs text-gray-500">胜场</p>
+            <div class="bg-white rounded-lg shadow-md p-3 text-center">
+                <p class="text-xl font-bold text-green-600" id="statWins">0</p>
+                <p class="text-sm text-gray-500">胜场</p>
             </div>
-            <div class="bg-white rounded-lg shadow-md p-2 text-center">
-                <p class="text-lg font-bold text-red-600" id="statLosses">0</p>
-                <p class="text-xs text-gray-500">负场</p>
+            <div class="bg-white rounded-lg shadow-md p-3 text-center">
+                <p class="text-xl font-bold text-red-600" id="statLosses">0</p>
+                <p class="text-sm text-gray-500">负场</p>
             </div>
-            <div class="bg-white rounded-lg shadow-md p-2 text-center">
-                <p class="text-lg font-bold text-yellow-600" id="statDraws">0</p>
-                <p class="text-xs text-gray-500">平局</p>
+            <div class="bg-white rounded-lg shadow-md p-3 text-center">
+                <p class="text-xl font-bold text-yellow-600" id="statDraws">0</p>
+                <p class="text-sm text-gray-500">平局</p>
             </div>
-            <div class="bg-white rounded-lg shadow-md p-2 text-center">
-                <p class="text-lg font-bold text-blue-600" id="statWinRate">0%</p>
-                <p class="text-xs text-gray-500">胜率</p>
+            <div class="bg-white rounded-lg shadow-md p-3 text-center">
+                <p class="text-xl font-bold text-blue-600" id="statWinRate">0%</p>
+                <p class="text-sm text-gray-500">胜率</p>
             </div>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-            <div class="bg-white rounded-lg shadow-md p-2" style="min-height:150px;height:22vh;max-height:280px;">
-                <h3 class="font-semibold mb-1 text-xs text-gray-600">胜负分布</h3>
+            <div class="bg-white rounded-lg shadow-md p-3" style="min-height:250px;height:38vh;max-height:480px;">
+                <h3 class="font-semibold mb-2 text-sm text-gray-600">胜负分布</h3>
                 <canvas id="winLossChart"></canvas>
             </div>
-            <div class="bg-white rounded-lg shadow-md p-2" style="min-height:150px;height:22vh;max-height:280px;">
-                <h3 class="font-semibold mb-1 text-xs text-gray-600">模式分布</h3>
+            <div class="bg-white rounded-lg shadow-md p-3" style="min-height:250px;height:38vh;max-height:480px;">
+                <h3 class="font-semibold mb-2 text-sm text-gray-600">模式分布</h3>
                 <canvas id="modeChart"></canvas>
             </div>
         </div>
-        <div class="bg-white rounded-lg shadow-md p-2" style="min-height:150px;height:22vh;max-height:280px;">
-            <h3 class="font-semibold mb-1 text-xs text-gray-600">积分走势</h3>
+        <div class="bg-white rounded-lg shadow-md p-3" style="min-height:250px;height:38vh;max-height:480px;">
+            <h3 class="font-semibold mb-2 text-sm text-gray-600">积分走势</h3>
             <canvas id="scoreTrendChart"></canvas>
         </div>
     </div>
@@ -445,40 +479,6 @@
                     <div id="adminList" class="space-y-2 max-h-40 overflow-y-auto">
                         <div class="text-gray-500 text-sm">加载中...</div>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 棋盘颜色设置 -->
-        <div class="bg-white rounded-lg shadow-md p-6 mt-6">
-            <h3 class="text-xl font-semibold mb-4">棋盘颜色设置</h3>
-            <div class="space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm mb-1">线条颜色</label>
-                        <div class="flex gap-2 items-center">
-                            <input type="color" id="boardLineColor" value="#8B5A2B" class="w-12 h-10 border rounded cursor-pointer">
-                            <input type="text" id="boardLineColorText" value="#8B5A2B" class="flex-1 border rounded-lg px-3 py-2" placeholder="#8B5A2B">
-                        </div>
-                    </div>
-                    <div>
-                <label class="block text-sm mb-1">点颜色</label>
-                <div class="flex gap-2 items-center">
-                    <input type="color" id="boardDotColor" value="#8B5A2B" class="w-12 h-10 border rounded cursor-pointer">
-                    <input type="text" id="boardDotColorText" value="#8B5A2B" class="flex-1 border rounded-lg px-3 py-2" placeholder="#8B5A2B">
-                </div>
-            </div>
-                </div>
-                <div class="mt-4">
-                    <label class="block text-sm mb-2">棋盘背景图片</label>
-                    <div id="backgroundImageGrid" class="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto p-2 bg-gray-50 rounded-lg">
-                        <div class="text-gray-500 text-sm text-center py-4 col-span-4">暂无背景图片</div>
-                    </div>
-                    <button id="loadBackgroundsBtn" class="mt-2 text-sm text-primary hover:text-primary/80"><i class="fa-solid fa-refresh mr-1"></i>刷新图片列表</button>
-                </div>
-                <div class="flex gap-3 mt-4">
-                    <button id="saveBoardColorBtn" class="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-save mr-1"></i>保存设置</button>
-                    <button id="resetBoardColorBtn" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-rotate-left mr-1"></i>恢复默认</button>
                 </div>
             </div>
         </div>
@@ -1744,13 +1744,8 @@
                     adminMgmt.classList.toggle('hidden', !currentUser.isSuperAdmin);
                 }
                 
-                // 如果是超级管理员，检查棋盘颜色设置（仅加载一次）
+                // 如果是超级管理员，显示联机对局监控
                 if (currentUser.isSuperAdmin) {
-                    const adminPanel = document.getElementById('adminContent');
-                    if (adminPanel && !adminPanel.classList.contains('hidden') && !boardColorSettingsLoaded) {
-                        loadBoardColorSettings();
-                    }
-                    // 显示联机对局监控
                     document.getElementById('onlineMatchMonitor').classList.remove('hidden');
                     // 加载房间列表
                     loadMatchList();

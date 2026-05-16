@@ -596,24 +596,33 @@
         try {
             const res = await fetch(API_BASE + url, { method, headers, body: body ? JSON.stringify(body) : undefined });
             
-            // 检查响应内容类型，如果返回 HTML 则说明未登录或会话过期
-            const contentType = res.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                if (res.status === 401 && !skipAuthCheck && isLoggedIn) {
-                    handleForceLogout('登录已过期，请重新登录');
-                }
+            // 先检查状态码
+            if (res.status === 401 && !skipAuthCheck && isLoggedIn) {
+                handleForceLogout('登录已过期，请重新登录');
+                throw new Error('登录已过期，请重新登录');
+            }
+            
+            // 获取响应文本检查内容
+            const responseText = await res.text();
+            
+            // 检查是否返回了 HTML（通常是登录页面）
+            if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
+                throw new Error('登录已过期，请重新登录');
+            }
+            
+            // 尝试解析为 JSON
+            let data;
+            try {
+                data = JSON.parse(responseText);
+            } catch (e) {
                 throw new Error('服务器返回了无效的响应格式');
             }
             
-            const data = await res.json();
             if (!res.ok) {
                 // 检测封禁错误
                 if (res.status === 403 && data.error && data.error.includes('封禁')) {
                     handleForceLogout(data.error);
                     throw new Error(data.error);
-                }
-                if (res.status === 401 && !skipAuthCheck && isLoggedIn) {
-                    handleForceLogout('登录已过期，请重新登录');
                 }
                 throw new Error(data.error || '请求失败');
             }

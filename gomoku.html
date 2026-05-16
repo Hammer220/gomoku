@@ -129,6 +129,7 @@
         <button id="profileTab" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">个人资料</button>
         <button id="historyTab" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">游戏记录</button>
         <button id="statsTab" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">数据统计</button>
+        <button id="leaderboardTab" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">积分排行榜</button>
         <button id="adminTab" class="px-4 md:px-6 py-3 font-medium text-red-600 hover:text-red-800 whitespace-nowrap hidden">管理面板</button>
     </div>
 
@@ -274,6 +275,32 @@
     <div id="historyContent" class="p-6 md:p-8 hidden">...</div>
     <div id="statsContent" class="p-6 md:p-8 hidden">...</div>
     
+    <!-- 积分排行榜 -->
+    <div id="leaderboardContent" class="p-6 md:p-8 hidden">
+        <h2 class="text-2xl font-bold mb-6 text-primary">积分排行榜</h2>
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex justify-between items-center mb-4">
+                <p class="text-gray-600">按积分从高到低排序</p>
+                <button id="refreshLeaderboardBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm"><i class="fa-solid fa-refresh mr-1"></i>刷新</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full border">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="border px-4 py-3 w-16">排名</th>
+                            <th class="border px-4 py-3">用户名</th>
+                            <th class="border px-4 py-3">积分</th>
+                            <th class="border px-4 py-3">胜场</th>
+                            <th class="border px-4 py-3">对局数</th>
+                            <th class="border px-4 py-3">注册日期</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboardTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
     <!-- 管理面板 -->
     <div id="adminContent" class="p-6 md:p-8 hidden">
         <h2 class="text-2xl font-bold mb-6 text-primary">管理员控制台</h2>
@@ -310,7 +337,7 @@
         
 
         
-        <div class="bg-white rounded-lg shadow-md p-6">
+        <div id="adminAccountManagement" class="bg-white rounded-lg shadow-md p-6">
             <h3 class="text-xl font-semibold mb-4">管理员账号管理</h3>
             <div class="space-y-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -351,8 +378,8 @@
                     <div>
                 <label class="block text-sm mb-1">点颜色</label>
                 <div class="flex gap-2 items-center">
-                    <input type="color" id="boardDotColor" value="#8B4513" class="w-12 h-10 border rounded cursor-pointer">
-                    <input type="text" id="boardDotColorText" value="#8B4513" class="flex-1 border rounded-lg px-3 py-2" placeholder="#8B4513">
+                    <input type="color" id="boardDotColor" value="#808080" class="w-12 h-10 border rounded cursor-pointer">
+                    <input type="text" id="boardDotColorText" value="#808080" class="flex-1 border rounded-lg px-3 py-2" placeholder="#808080">
                 </div>
             </div>
                 </div>
@@ -494,7 +521,7 @@
         onlineCtx.fillStyle=grad; onlineCtx.fill(); onlineCtx.strokeStyle=player===1?'#333':'#ccc'; onlineCtx.lineWidth=1; onlineCtx.stroke();
     }
     
-    let boardLineColor = '#8B5A2B', boardDotColor = '#8B4513';
+    let boardLineColor = '#8B5A2B', boardDotColor = '#808080';
     let boardColorSettingsLoaded = false;  // 棋盘颜色设置是否已加载
     let availableBackgrounds = [];  // 可用的背景图片列表
     let selectedBackground = '';  // 当前选择的背景图片
@@ -757,6 +784,18 @@
         restartCountdownSeconds = 0;
     }
     
+    let closeRoomBtnHandler = null;
+    
+    function attachCloseRoomHandler() {
+        const btn = document.getElementById('closeRoomBtn');
+        if (!btn) return;
+        if (closeRoomBtnHandler) {
+            btn.removeEventListener('click', closeRoomBtnHandler);
+        }
+        closeRoomBtnHandler = closeOnlineRoom;
+        btn.addEventListener('click', closeRoomBtnHandler);
+    }
+    
     function showRestartRequestUI() {
         document.getElementById('roomActions').innerHTML = `
             <button id="requestRestartBtn" class="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg text-sm mb-2">请求重新开始</button>
@@ -764,7 +803,7 @@
         `;
         
         document.getElementById('requestRestartBtn').addEventListener('click', requestRestart);
-        document.getElementById('closeRoomBtn').addEventListener('click', closeOnlineRoom);
+        attachCloseRoomHandler();
     }
     
     function showPendingRestartUI() {
@@ -775,9 +814,9 @@
         `;
         
         document.getElementById('cancelRestartBtn').addEventListener('click', () => {
-            requestRestart(true); // 取消请求
+            requestRestart(true);
         });
-        document.getElementById('closeRoomBtn').addEventListener('click', closeOnlineRoom);
+        attachCloseRoomHandler();
     }
     
     function showRespondRestartUI(requester) {
@@ -790,7 +829,7 @@
         
         document.getElementById('acceptRestartBtn').addEventListener('click', () => respondRestart(true));
         document.getElementById('declineRestartBtn').addEventListener('click', () => respondRestart(false));
-        document.getElementById('closeRoomBtn').addEventListener('click', closeOnlineRoom);
+        attachCloseRoomHandler();
     }
     
     async function requestRestart(cancel = false) {
@@ -852,7 +891,7 @@
         `;
         
         document.getElementById('requestRestartBtn').addEventListener('click', requestRestart);
-        document.getElementById('closeRoomBtn').addEventListener('click', closeOnlineRoom);
+        attachCloseRoomHandler();
         
         restartCountdownTimer = setInterval(() => {
             restartCountdownSeconds--;
@@ -861,29 +900,25 @@
             
             if (restartCountdownSeconds <= 0) {
                 stopRestartCountdown();
-                requestRestart(); // 自动请求重新开始
+                requestRestart();
             }
         }, 1000);
     }
     
     async function doRestartOnlineGame() {
         try {
-            // 重置本地游戏状态
             initOnlineBoard();
             onlineMoveHistory = [];
             onlineGameActive = true;
             onlineGameTime = 0;
             onlineCurrentPlayer = 1;
             
-            // 通知服务器重置游戏
             await apiCall('/api/match/restart', 'POST', { matchId: onlineMatchId });
             
-            // 更新UI
             document.getElementById('onlineStatusText').textContent = '游戏重新开始';
             document.getElementById('roomActions').innerHTML = '<button id="closeRoomBtn" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm">关闭房间</button>';
-            document.getElementById('closeRoomBtn').addEventListener('click', closeOnlineRoom);
+            attachCloseRoomHandler();
             
-            // 重新开始轮询和计时
             startOnlinePolling();
             startOnlineTimer();
             
@@ -1574,6 +1609,12 @@
                     await loadAdminUsers();
                 }
                 
+                // 更新管理员账号管理区域可见性
+                const adminMgmt = document.getElementById('adminAccountManagement');
+                if (adminMgmt) {
+                    adminMgmt.classList.toggle('hidden', !currentUser.isSuperAdmin);
+                }
+                
                 // 如果是超级管理员，检查棋盘颜色设置（仅加载一次）
                 if (currentUser.isSuperAdmin) {
                     const adminPanel = document.getElementById('adminContent');
@@ -1935,7 +1976,14 @@
         const data = await apiCall('/api/user');
         currentUser = data;
         updateUserDisplay();
-        if(currentUser.isAdmin) document.getElementById('adminTab').classList.remove('hidden');
+        if(currentUser.isAdmin) {
+            document.getElementById('adminTab').classList.remove('hidden');
+            // 普通管理员不显示管理员账号管理功能
+            const adminMgmt = document.getElementById('adminAccountManagement');
+            if (adminMgmt) {
+                adminMgmt.classList.toggle('hidden', !currentUser.isSuperAdmin);
+            }
+        }
     }
 
     async function saveGameRecord(result){
@@ -2037,6 +2085,9 @@
             if (canOperate || isSuperAdmin) {
                 actionBtns = `<button class="text-blue-600 hover:underline admin-select mr-2" data-username="${u.username}">选择</button>`;
                 actionBtns += `<button class="text-green-600 hover:underline admin-change-password mr-2" data-username="${u.username}">改密码</button>`;
+                if (isSuperAdmin) {
+                    actionBtns += `<button class="text-orange-600 hover:underline admin-update-score mr-2" data-username="${u.username}">改积分</button>`;
+                }
                 if (isSuperAdmin && u.isAdmin && !u.isSuperAdmin) {
                     const canManage = u.canManage !== false;
                     actionBtns += `<button class="text-purple-600 hover:underline admin-toggle-permission" data-username="${u.username}" data-canmanage="${!canManage}">${canManage ? '禁用' : '启用'}</button>`;
@@ -2094,7 +2145,66 @@
             }
         }));
         
+        // 绑定改积分按钮事件
+        tbody.querySelectorAll('.admin-update-score').forEach(b=>b.addEventListener('click', function() {
+            showUpdateScoreModal(this.dataset.username);
+        }));
+        
         startBannedCountdown();
+    }
+    
+    // 显示修改积分弹窗
+    function showUpdateScoreModal(username) {
+        const modalHtml = `
+            <div id="updateScoreModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+                    <h3 class="text-xl font-bold mb-4">修改用户积分</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                            <input type="text" id="updateScoreUsername" value="${username}" class="w-full px-4 py-2 border rounded-lg bg-gray-100" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">新积分</label>
+                            <input type="number" id="updateScoreValue" min="0" value="0" class="w-full px-4 py-2 border rounded-lg">
+                        </div>
+                    </div>
+                    <div class="flex gap-3 mt-6">
+                        <button id="confirmUpdateScoreBtn" class="flex-1 bg-primary hover:bg-primary/90 text-white py-2 rounded-lg">确认修改</button>
+                        <button id="cancelUpdateScoreBtn" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded-lg">取消</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const existingModal = document.getElementById('updateScoreModal');
+        if (existingModal) existingModal.remove();
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        document.getElementById('cancelUpdateScoreBtn').addEventListener('click', () => {
+            document.getElementById('updateScoreModal').remove();
+        });
+        
+        document.getElementById('confirmUpdateScoreBtn').addEventListener('click', async () => {
+            const newScore = parseInt(document.getElementById('updateScoreValue').value);
+            if (isNaN(newScore) || newScore < 0) {
+                showToast('积分必须为非负整数', true);
+                return;
+            }
+            
+            try {
+                const data = await apiCall('/api/admin/update_score', 'POST', {
+                    username: username,
+                    score: newScore
+                });
+                showToast(data.message);
+                document.getElementById('updateScoreModal').remove();
+                loadAdminUsers();
+            } catch (error) {
+                showToast('修改积分失败: ' + error.message, true);
+            }
+        });
     }
     
     // 显示修改密码弹窗
@@ -2226,6 +2336,7 @@
     }
 
     async function loadAdminList() {
+        if (!currentUser || !currentUser.isSuperAdmin) return;
         try {
             const data = await apiCall('/api/admin/list_admins');
             const adminListDiv = document.getElementById('adminList');
@@ -2338,11 +2449,16 @@
     
     async function saveBoardColorSettings() {
         try {
+            // 从UI获取当前值并应用到变量
+            boardLineColor = document.getElementById('boardLineColor').value;
+            boardDotColor = document.getElementById('boardDotColor').value;
+            
             await apiCall('/api/user/settings', 'POST', {
                 boardLineColor: boardLineColor,
                 boardDotColor: boardDotColor,
                 boardBackground: selectedBackground
             });
+            drawBoard();
             boardColorSettingsLoaded = false;  // 重置加载标志，下次打开面板时重新加载
             showToast('设置已保存');
         } catch (err) {
@@ -2386,7 +2502,9 @@
         document.getElementById(tabId.replace('Content','Tab')).classList.add('tab-active');
         if(tabId==='adminContent') {
             loadAdminUsers();
-            loadAdminList();
+            if (currentUser && currentUser.isSuperAdmin) {
+                loadAdminList();
+            }
         }
         if(tabId==='onlineContent'){
             onlineCanvas = document.getElementById('onlineCanvas');
@@ -2493,7 +2611,7 @@
         document.getElementById('onlineLeaveBtn').addEventListener('click', onlineLeaveMatch);
         document.getElementById('onlineLeaveBtn').classList.add('hidden');
         
-        document.getElementById('closeRoomBtn').addEventListener('click', closeOnlineRoom);
+        attachCloseRoomHandler();
         
         // 监控画布点击事件（超级管理员强制落子）
         document.getElementById('monitorCanvas')?.addEventListener('click', e=>{
@@ -2534,37 +2652,29 @@
         document.getElementById('createAdminBtn').addEventListener('click', createAdminAccount);
         document.getElementById('refreshAdminsBtn').addEventListener('click', loadAdminList);
         
-        // 棋盘颜色设置事件
+        // 棋盘颜色设置事件（只更新UI显示，不立即应用）
         document.getElementById('boardLineColor').addEventListener('input', function() {
-            boardLineColor = this.value;
             document.getElementById('boardLineColorText').value = this.value;
-            drawBoard();
         });
         document.getElementById('boardLineColorText').addEventListener('input', function() {
             const color = this.value;
             if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
-                boardLineColor = color;
                 document.getElementById('boardLineColor').value = color;
-                drawBoard();
             }
         });
         document.getElementById('boardDotColor').addEventListener('input', function() {
-            boardDotColor = this.value;
             document.getElementById('boardDotColorText').value = this.value;
-            drawBoard();
         });
         document.getElementById('boardDotColorText').addEventListener('input', function() {
             const color = this.value;
             if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
-                boardDotColor = color;
                 document.getElementById('boardDotColor').value = color;
-                drawBoard();
             }
         });
         document.getElementById('saveBoardColorBtn').addEventListener('click', saveBoardColorSettings);
         document.getElementById('resetBoardColorBtn').addEventListener('click', function() {
             boardLineColor = '#8B5A2B';
-            boardDotColor = '#FFD700';
+            boardDotColor = '#808080';
             selectedBackground = '';
             document.getElementById('boardLineColor').value = boardLineColor;
             document.getElementById('boardLineColorText').value = boardLineColor;

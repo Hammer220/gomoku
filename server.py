@@ -641,6 +641,39 @@ def add_record(user):
     save_json_with_lock(RECORDS_FILE, records)
     return jsonify({'success': True})
 
+@app.route('/api/statistics', methods=['GET'])
+@require_auth
+def get_statistics(user):
+    records = load_json_with_lock(RECORDS_FILE)
+    user_records = records.get(user['username'], [])
+    username = user['username']
+    users = load_json_with_lock(USERS_FILE)
+    user_info = users.get(username, {})
+
+    total = len(user_records)
+    wins = sum(1 for r in user_records if r.get('result') in ('win', '胜利'))
+    losses = sum(1 for r in user_records if r.get('result') in ('lose', '失败'))
+    draws = sum(1 for r in user_records if r.get('result') == 'draw' or r.get('result') == '平局')
+    win_rate = round(wins / total * 100, 1) if total > 0 else 0
+
+    mode_distribution = {}
+    for r in user_records:
+        mode = r.get('mode', 'unknown')
+        mode_distribution[mode] = mode_distribution.get(mode, 0) + 1
+
+    score = user_info.get('score', 0)
+
+    return jsonify({
+        'total': total,
+        'wins': wins,
+        'losses': losses,
+        'draws': draws,
+        'winRate': win_rate,
+        'score': score,
+        'modeDistribution': mode_distribution,
+        'records': user_records
+    })
+
 @app.route('/api/saves', methods=['GET'])
 @require_auth
 def get_saves(user):
@@ -1129,8 +1162,8 @@ def set_admin_permission(super_admin):
     return jsonify({'success': True, 'message': f'已{status}管理员 {target_username} 的管理权限'})
 
 @app.route('/api/admin/list_admins', methods=['GET'])
-@require_admin
-def list_admins(admin_user):
+@require_super_admin
+def list_admins(super_admin):
     """获取所有管理员账号列表"""
     users = load_json_with_lock(USERS_FILE)
     
@@ -1153,6 +1186,56 @@ def list_admins(admin_user):
             admins.append(admin_info)
     
     return jsonify({'admins': admins})
+
+@app.route('/api/admin/update_score', methods=['POST'])
+@require_super_admin
+def admin_update_score(super_admin):
+    """超级管理员修改用户积分"""
+    data = request.json
+    target_username = data.get('username', '').strip()
+    new_score = data.get('score')
+
+    if not target_username:
+        return jsonify({'error': '用户名不能为空'}), 400
+
+    if new_score is None or not isinstance(new_score, (int, float)) or new_score < 0:
+        return jsonify({'error': '积分必须为非负数字'}), 400
+
+    new_score = int(new_score)
+    users = load_json_with_lock(USERS_FILE)
+    if target_username not in users:
+        return jsonify({'error': '用户不存在'}), 404
+
+    users[target_username]['score'] = new_score
+    save_json_with_lock(USERS_FILE, users)
+
+    if target_username in cache['user_info']:
+        del cache['user_info'][target_username]
+
+    return jsonify({'success': True, 'message': f'已修改用户 {target_username} 的积分为 {new_score}'})
+
+@app.route('/api/leaderboard', methods=['GET'])
+def get_leaderboard():
+    """获取积分排行榜（公开接口）"""
+    users = load_json_with_lock(USERS_FILE)
+
+    leaderboard = []
+    for username, user_data in users.items():
+        leaderboard.append({
+            'username': username,
+            'score': user_data.get('score', 0),
+            'wins': user_data.get('wins', 0),
+            'games': user_data.get('games', 0),
+            'joinDate': user_data.get('joinDate', '')
+        })
+
+    leaderboard.sort(key=lambda x: x['score'], reverse=True)
+
+    limit = request.args.get('limit', 100, type=int)
+    if limit > 0:
+        leaderboard = leaderboard[:limit]
+
+    return jsonify(leaderboard)
 
 @app.route('/api/user/settings', methods=['GET'])
 @require_auth

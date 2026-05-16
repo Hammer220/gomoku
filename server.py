@@ -1,4 +1,3 @@
-# server.py - 五子棋游戏服务器
 import os
 import json
 import uuid
@@ -14,22 +13,6 @@ import secrets
 app = Flask(__name__, static_folder='.', static_url_path='')
 app.secret_key = secrets.token_hex(32)
 
-# 配置日志 - 显示所有日志信息
-log = logging.getLogger('werkzeug')
-log.setLevel(logging.INFO)
-log.propagate = True
-
-# 确保根日志级别
-root_log = logging.getLogger()
-if not root_log.handlers:
-    root_log.setLevel(logging.INFO)
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    formatter = logging.Formatter('[%(asctime)s] %(levelname)s: %(message)s', datefmt='%H:%M:%S')
-    console_handler.setFormatter(formatter)
-    root_log.addHandler(console_handler)
-
-# 日志文件处理器
 DATA_DIR = 'data'
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -88,7 +71,6 @@ def cleanup_expired_matches():
         
         for match_id in expired_matches:
             del active_matches[match_id]
-            print(f"清理过期匹配: {match_id}")
     
     if expired_matches:
         save_matches()
@@ -1488,8 +1470,6 @@ def make_move(user):
         else:
             my_color = 2 if match['creatorColor'] == 1 else 1
         
-        print(f"[落子] 用户: {username}, 我的颜色: {my_color}, 当前玩家: {match['currentPlayer']}")
-        
         if match['currentPlayer'] != my_color:
             return jsonify({'error': '不是您的回合', 'currentPlayer': match['currentPlayer'], 'myColor': my_color}), 400
         
@@ -1851,11 +1831,5 @@ if __name__ == '__main__':
                 port = try_port
                 print(f"使用端口 {port}")
                 break
-    
-    print(f"服务器启动: http://localhost:{port}")
-    print("=" * 50)
-    print("日志配置：已启用详细日志模式")
-    print("提示：每个HTTP请求都会显示在下方")
-    print("=" * 50)
     
     app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False, threaded=True)

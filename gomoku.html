@@ -379,16 +379,6 @@
                 <p class="text-sm text-gray-500">胜率</p>
             </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-            <div class="bg-white rounded-lg shadow-md p-3" style="min-height:250px;height:38vh;max-height:480px;">
-                <h3 class="font-semibold mb-2 text-sm text-gray-600">胜负分布</h3>
-                <canvas id="winLossChart"></canvas>
-            </div>
-            <div class="bg-white rounded-lg shadow-md p-3" style="min-height:250px;height:38vh;max-height:480px;">
-                <h3 class="font-semibold mb-2 text-sm text-gray-600">模式分布</h3>
-                <canvas id="modeChart"></canvas>
-            </div>
-        </div>
         <div class="bg-white rounded-lg shadow-md p-3" style="min-height:250px;height:38vh;max-height:480px;">
             <h3 class="font-semibold mb-2 text-sm text-gray-600">积分走势</h3>
             <canvas id="scoreTrendChart"></canvas>
@@ -1174,7 +1164,7 @@
         }
         
         // 绘制星位点
-        const dotSize = Math.max(3, cellSize * 0.2);
+        const dotSize = Math.max(2, cellSize * 0.15);
         [[3,3],[3,11],[7,7],[11,3],[11,11]].forEach(([x,y]) => {
             ctx.beginPath();
             ctx.arc(x * cellSize, y * cellSize, dotSize, 0, Math.PI * 2);
@@ -2324,7 +2314,13 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        y: { beginAtZero: true }
+                        y: { 
+                            beginAtZero: true,
+                            grace: '10%',
+                            ticks: {
+                                precision: 0
+                            }
+                        }
                     },
                     plugins: {
                         legend: { display: false }

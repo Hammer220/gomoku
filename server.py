@@ -1193,7 +1193,7 @@ def save_user_settings(user):
 
 @app.route('/api/backgrounds', methods=['GET'])
 @require_auth
-def get_background_images():
+def get_background_images(user):
     """获取可用的背景图片列表"""
     picture_dir = 'picture'
     supported_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp']

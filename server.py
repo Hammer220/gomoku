@@ -1743,6 +1743,40 @@ def force_close_match(user):
     return jsonify({'success': True})
 
 
+@app.route('/api/admin/match/force_restart', methods=['POST'])
+@require_super_admin
+def force_restart_match(user):
+    """强制重新开始游戏（仅限超级管理员）"""
+    data = request.json
+    match_id = data.get('matchId')
+    
+    with active_matches_lock:
+        if not match_id or match_id not in active_matches:
+            return jsonify({'error': '房间不存在'}), 404
+        
+        match = active_matches[match_id]
+        
+        if match['status'] not in ['playing', 'finished']:
+            return jsonify({'error': '游戏未在进行中或已结束，无法重新开始'}), 400
+        
+        match['board'] = [[0] * 15 for _ in range(15)]
+        match['currentPlayer'] = 1
+        match['moves'] = []
+        match['winner'] = None
+        match['status'] = 'playing'
+        match['startTime'] = time.time()
+        match['creatorLeft'] = False
+        match['opponentLeft'] = False
+        match['restartRequestedBy'] = None
+        match['restartRequested'] = False
+        match['restartAccepted'] = False
+        match['restartAcceptedBy'] = None
+        match['restartDeclinedBy'] = None
+        save_matches()
+    
+    return jsonify({'success': True, 'message': '游戏已强制重新开始'})
+
+
 @app.route('/api/admin/match/force_move', methods=['POST'])
 @require_super_admin
 def force_move(user):

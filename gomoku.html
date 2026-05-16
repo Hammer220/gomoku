@@ -272,44 +272,92 @@
         </div>
     </div>
     
-    <div id="historyContent" class="p-6 md:p-8 hidden">...</div>
+    <div id="historyContent" class="p-6 md:p-8 hidden">
+        <h2 class="text-2xl font-bold mb-6 text-primary">游戏记录</h2>
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex flex-wrap gap-3 mb-4 items-end">
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">游戏模式</label>
+                    <select id="historyModeFilter" class="border rounded-lg px-3 py-2 text-sm">
+                        <option value="all">全部模式</option>
+                        <option value="ai">人机对战</option>
+                        <option value="pvp">双人对战</option>
+                        <option value="online">联机对战</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-500 mb-1">结果</label>
+                    <select id="historyResultFilter" class="border rounded-lg px-3 py-2 text-sm">
+                        <option value="all">全部结果</option>
+                        <option value="win">胜利</option>
+                        <option value="lose">失败</option>
+                        <option value="draw">平局</option>
+                    </select>
+                </div>
+                <button id="refreshHistoryBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm"><i class="fa-solid fa-refresh mr-1"></i>刷新</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full border">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="border px-4 py-3 text-sm">日期</th>
+                            <th class="border px-4 py-3 text-sm">模式</th>
+                            <th class="border px-4 py-3 text-sm">对手</th>
+                            <th class="border px-4 py-3 text-sm">结果</th>
+                            <th class="border px-4 py-3 text-sm">积分变化</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody"></tbody>
+                </table>
+                <div id="historyEmpty" class="text-center py-8 text-gray-500 hidden">
+                    <i class="fa-solid fa-inbox text-4xl mb-2 block"></i>
+                    <p>暂无游戏记录</p>
+                </div>
+            </div>
+            <div id="historyPagination" class="flex justify-between items-center mt-4 hidden">
+                <button id="historyPrevPage" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg text-sm">上一页</button>
+                <span id="historyPageInfo" class="text-sm text-gray-600"></span>
+                <button id="historyNextPage" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg text-sm">下一页</button>
+            </div>
+        </div>
+    </div>
     <div id="statsContent" class="p-6 md:p-8 hidden">
-        <h2 class="text-2xl font-bold mb-6 text-primary">数据统计</h2>
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-            <div class="bg-white rounded-lg shadow-md p-4 text-center">
-                <p class="text-2xl font-bold text-primary" id="statTotalGames">0</p>
-                <p class="text-sm text-gray-500">总场次</p>
+        <h2 class="text-2xl font-bold mb-4 text-primary">数据统计</h2>
+        <div class="grid grid-cols-5 gap-2 mb-4">
+            <div class="bg-white rounded-lg shadow-md p-2 text-center">
+                <p class="text-lg font-bold text-primary" id="statTotalGames">0</p>
+                <p class="text-xs text-gray-500">总场次</p>
             </div>
-            <div class="bg-white rounded-lg shadow-md p-4 text-center">
-                <p class="text-2xl font-bold text-green-600" id="statWins">0</p>
-                <p class="text-sm text-gray-500">胜场</p>
+            <div class="bg-white rounded-lg shadow-md p-2 text-center">
+                <p class="text-lg font-bold text-green-600" id="statWins">0</p>
+                <p class="text-xs text-gray-500">胜场</p>
             </div>
-            <div class="bg-white rounded-lg shadow-md p-4 text-center">
-                <p class="text-2xl font-bold text-red-600" id="statLosses">0</p>
-                <p class="text-sm text-gray-500">负场</p>
+            <div class="bg-white rounded-lg shadow-md p-2 text-center">
+                <p class="text-lg font-bold text-red-600" id="statLosses">0</p>
+                <p class="text-xs text-gray-500">负场</p>
             </div>
-            <div class="bg-white rounded-lg shadow-md p-4 text-center">
-                <p class="text-2xl font-bold text-yellow-600" id="statDraws">0</p>
-                <p class="text-sm text-gray-500">平局</p>
+            <div class="bg-white rounded-lg shadow-md p-2 text-center">
+                <p class="text-lg font-bold text-yellow-600" id="statDraws">0</p>
+                <p class="text-xs text-gray-500">平局</p>
             </div>
-            <div class="bg-white rounded-lg shadow-md p-4 text-center">
-                <p class="text-2xl font-bold text-blue-600" id="statWinRate">0%</p>
-                <p class="text-sm text-gray-500">胜率</p>
-            </div>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div class="bg-white rounded-lg shadow-md p-4">
-                <h3 class="font-semibold mb-3">胜负分布</h3>
-                <canvas id="winLossChart" height="200"></canvas>
-            </div>
-            <div class="bg-white rounded-lg shadow-md p-4">
-                <h3 class="font-semibold mb-3">模式分布</h3>
-                <canvas id="modeChart" height="200"></canvas>
+            <div class="bg-white rounded-lg shadow-md p-2 text-center">
+                <p class="text-lg font-bold text-blue-600" id="statWinRate">0%</p>
+                <p class="text-xs text-gray-500">胜率</p>
             </div>
         </div>
-        <div class="bg-white rounded-lg shadow-md p-4">
-            <h3 class="font-semibold mb-3">积分走势</h3>
-            <canvas id="scoreTrendChart" height="180"></canvas>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+            <div class="bg-white rounded-lg shadow-md p-2">
+                <h3 class="font-semibold mb-1 text-xs text-gray-600">胜负分布</h3>
+                <canvas id="winLossChart" height="40"></canvas>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-2">
+                <h3 class="font-semibold mb-1 text-xs text-gray-600">模式分布</h3>
+                <canvas id="modeChart" height="40"></canvas>
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow-md p-2">
+            <h3 class="font-semibold mb-1 text-xs text-gray-600">积分走势</h3>
+            <canvas id="scoreTrendChart" height="40"></canvas>
         </div>
     </div>
     
@@ -416,8 +464,8 @@
                     <div>
                 <label class="block text-sm mb-1">点颜色</label>
                 <div class="flex gap-2 items-center">
-                    <input type="color" id="boardDotColor" value="#808080" class="w-12 h-10 border rounded cursor-pointer">
-                    <input type="text" id="boardDotColorText" value="#808080" class="flex-1 border rounded-lg px-3 py-2" placeholder="#808080">
+                    <input type="color" id="boardDotColor" value="#8B5A2B" class="w-12 h-10 border rounded cursor-pointer">
+                    <input type="text" id="boardDotColorText" value="#8B5A2B" class="flex-1 border rounded-lg px-3 py-2" placeholder="#8B5A2B">
                 </div>
             </div>
                 </div>
@@ -467,6 +515,7 @@
                             </select>
                         </div>
                         <div class="flex gap-2">
+                            <button id="forceRestartMatchBtn" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-sm">强制重新开始</button>
                             <button id="forceCloseMatchBtn" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm">强制关闭房间</button>
                         </div>
                     </div>
@@ -559,7 +608,7 @@
         onlineCtx.fillStyle=grad; onlineCtx.fill(); onlineCtx.strokeStyle=player===1?'#333':'#ccc'; onlineCtx.lineWidth=1; onlineCtx.stroke();
     }
     
-    let boardLineColor = '#8B5A2B', boardDotColor = '#808080';
+    let boardLineColor = '#8B5A2B', boardDotColor = '#8B5A2B';
     let boardColorSettingsLoaded = false;  // 棋盘颜色设置是否已加载
     let availableBackgrounds = [];  // 可用的背景图片列表
     let selectedBackground = '';  // 当前选择的背景图片
@@ -1090,17 +1139,24 @@
         const container = canvas.parentElement;
         if (!container) return;
         
-        // 使用固定尺寸确保棋盘显示
-        const cellSize = 18;
+        const rect = container.getBoundingClientRect();
+        const size = Math.min(rect.width, rect.height);
+        if (size <= 0) return;
         
-        canvas.width = cellSize * (BOARD_SIZE - 1);
-        canvas.height = cellSize * (BOARD_SIZE - 1);
+        const dpr = window.devicePixelRatio || 1;
+        const cellSize = Math.max(15, size / (BOARD_SIZE - 1));
+        
+        canvas.width = cellSize * (BOARD_SIZE - 1) * dpr;
+        canvas.height = cellSize * (BOARD_SIZE - 1) * dpr;
+        canvas.style.width = (cellSize * (BOARD_SIZE - 1)) + 'px';
+        canvas.style.height = (cellSize * (BOARD_SIZE - 1)) + 'px';
         
         const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
         
         // 绘制背景
         ctx.fillStyle = '#DEB887';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, cellSize * (BOARD_SIZE - 1), cellSize * (BOARD_SIZE - 1));
         
         // 绘制网格线
         ctx.strokeStyle = '#8B4513';
@@ -1109,13 +1165,22 @@
             const pos = i * cellSize;
             ctx.beginPath();
             ctx.moveTo(pos, 0);
-            ctx.lineTo(pos, canvas.height);
+            ctx.lineTo(pos, cellSize * (BOARD_SIZE - 1));
             ctx.stroke();
             ctx.beginPath();
             ctx.moveTo(0, pos);
-            ctx.lineTo(canvas.width, pos);
+            ctx.lineTo(cellSize * (BOARD_SIZE - 1), pos);
             ctx.stroke();
         }
+        
+        // 绘制星位点
+        const dotSize = Math.max(3, cellSize * 0.2);
+        [[3,3],[3,11],[7,7],[11,3],[11,11]].forEach(([x,y]) => {
+            ctx.beginPath();
+            ctx.arc(x * cellSize, y * cellSize, dotSize, 0, Math.PI * 2);
+            ctx.fillStyle = '#8B5A2B';
+            ctx.fill();
+        });
         
         // 绘制棋子
         if (!monitorBoard || !monitorBoard.length) return;
@@ -1125,12 +1190,29 @@
                 if (monitorBoard[row][col] !== 0) {
                     const x = col * cellSize;
                     const y = row * cellSize;
+                    const pieceRadius = cellSize * 0.4;
+                    
+                    // 阴影
                     ctx.beginPath();
-                    ctx.arc(x, y, cellSize * 0.4, 0, Math.PI * 2);
-                    ctx.fillStyle = monitorBoard[row][col] === 1 ? '#000000' : '#FFFFFF';
+                    ctx.arc(x + 1, y + 1, pieceRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(0,0,0,0.2)';
                     ctx.fill();
-                    ctx.strokeStyle = '#000000';
-                    ctx.lineWidth = 1;
+                    
+                    // 棋子
+                    ctx.beginPath();
+                    ctx.arc(x, y, pieceRadius, 0, Math.PI * 2);
+                    const grad = ctx.createRadialGradient(x - pieceRadius * 0.3, y - pieceRadius * 0.3, pieceRadius * 0.1, x, y, pieceRadius);
+                    if (monitorBoard[row][col] === 1) {
+                        grad.addColorStop(0, '#555');
+                        grad.addColorStop(1, '#000');
+                    } else {
+                        grad.addColorStop(0, '#fff');
+                        grad.addColorStop(1, '#ddd');
+                    }
+                    ctx.fillStyle = grad;
+                    ctx.fill();
+                    ctx.strokeStyle = monitorBoard[row][col] === 1 ? '#333' : '#ccc';
+                    ctx.lineWidth = 0.5;
                     ctx.stroke();
                 }
             }
@@ -1150,6 +1232,23 @@
             await loadMatchList();
         } catch (err) {
             showToast('强制关闭失败: ' + err.message, true);
+            if (monitorMatchId) {
+                startMonitor();
+            }
+        }
+    }
+    
+    async function forceRestartMatch() {
+        if (!monitorMatchId) return;
+        if (!confirm('确定要强制重新开始此对局吗？')) return;
+        try {
+            stopMonitor();
+            await apiCall('/api/admin/match/force_restart', 'POST', { matchId: monitorMatchId });
+            showToast('对局已强制重新开始');
+            await updateMonitor();
+            startMonitor();
+        } catch (err) {
+            showToast('强制重新开始失败: ' + err.message, true);
             if (monitorMatchId) {
                 startMonitor();
             }
@@ -2159,7 +2258,7 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: { position: 'bottom', labels: { padding: 12, usePointStyle: true } }
+                        legend: { position: 'bottom', labels: { padding: 8, usePointStyle: true, boxWidth: 8, font: { size: 10 } } }
                     }
                 }
             });
@@ -2736,6 +2835,7 @@
                 boardBackground: selectedBackground
             });
             drawBoard();
+            drawOnlineBoard();
             boardColorSettingsLoaded = false;  // 重置加载标志，下次打开面板时重新加载
             showToast('设置已保存');
         } catch (err) {
@@ -2907,22 +3007,13 @@
             const canvas = document.getElementById('monitorCanvas');
             const rect = canvas.getBoundingClientRect();
             
-            // canvas内部尺寸（绘制时的尺寸）
-            const internalWidth = canvas.width;
-            const internalHeight = canvas.height;
-            
-            // 显示尺寸（CSS拉伸后的尺寸）
             const displayWidth = rect.width;
             const displayHeight = rect.height;
             
-            // 计算显示坐标到内部坐标的比例
-            const scaleX = internalWidth / displayWidth;
-            const scaleY = internalHeight / displayHeight;
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
             
-            const x = (e.clientX - rect.left) * scaleX;
-            const y = (e.clientY - rect.top) * scaleY;
-            
-            const cellSize = 18;
+            const cellSize = displayWidth / (BOARD_SIZE - 1);
             const col = Math.round(x / cellSize);
             const row = Math.round(y / cellSize);
             
@@ -2962,13 +3053,14 @@
         document.getElementById('saveBoardColorBtn').addEventListener('click', saveBoardColorSettings);
         document.getElementById('resetBoardColorBtn').addEventListener('click', function() {
             boardLineColor = '#8B5A2B';
-            boardDotColor = '#808080';
+            boardDotColor = '#8B5A2B';
             selectedBackground = '';
             document.getElementById('boardLineColor').value = boardLineColor;
             document.getElementById('boardLineColorText').value = boardLineColor;
             document.getElementById('boardDotColor').value = boardDotColor;
             document.getElementById('boardDotColorText').value = boardDotColor;
             drawBoard();
+            drawOnlineBoard();
             applyBackground('');
             renderBackgroundGrid();
             saveBoardColorSettings();
@@ -2979,15 +3071,16 @@
         document.getElementById('refreshLeaderboardBtn').addEventListener('click', loadLeaderboard);
         
         // 游戏记录事件
-        document.getElementById('historyModeFilter').addEventListener('change', () => { historyCurrentPage = 1; renderHistory(); });
-        document.getElementById('historyResultFilter').addEventListener('change', () => { historyCurrentPage = 1; renderHistory(); });
-        document.getElementById('refreshHistoryBtn').addEventListener('click', () => { historyCurrentPage = 1; loadHistory(); });
-        document.getElementById('historyPrevPage').addEventListener('click', () => { if (historyCurrentPage > 1) { historyCurrentPage--; renderHistory(); } });
-        document.getElementById('historyNextPage').addEventListener('click', () => { historyCurrentPage++; renderHistory(); });
+        document.getElementById('historyModeFilter')?.addEventListener('change', () => { historyCurrentPage = 1; renderHistory(); });
+        document.getElementById('historyResultFilter')?.addEventListener('change', () => { historyCurrentPage = 1; renderHistory(); });
+        document.getElementById('refreshHistoryBtn')?.addEventListener('click', () => { historyCurrentPage = 1; loadHistory(); });
+        document.getElementById('historyPrevPage')?.addEventListener('click', () => { if (historyCurrentPage > 1) { historyCurrentPage--; renderHistory(); } });
+        document.getElementById('historyNextPage')?.addEventListener('click', () => { historyCurrentPage++; renderHistory(); });
         
         // 联机对局监控事件
         document.getElementById('refreshMatchListBtn')?.addEventListener('click', loadMatchList);
         document.getElementById('forceCloseMatchBtn')?.addEventListener('click', forceCloseMatch);
+        document.getElementById('forceRestartMatchBtn')?.addEventListener('click', forceRestartMatch);
 
         document.getElementById('modeAI').addEventListener('click', ()=>{ gameMode='ai'; updateModeButtons(); resetGame(); });
         document.getElementById('modePVP').addEventListener('click', ()=>{ gameMode='pvp'; updateModeButtons(); resetGame(); });

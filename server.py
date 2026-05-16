@@ -834,16 +834,9 @@ def admin_ban(admin_user):
     # 检查目标用户权限
     target_user = get_user(username)
     if target_user:
-        # 超级管理员：不能被封禁
+        # 超级管理员：不能被封禁也不登出
         if target_user.get('isSuperAdmin'):
             return jsonify({'error': '不能封禁超级管理员'}), 403
-        # 普通管理员：检查权限
-        if target_user.get('isAdmin') and not target_user.get('isSuperAdmin'):
-            if not current_user_data or not current_user_data.get('canManage', True):
-                return jsonify({'error': '您的管理权限已被禁用'}), 403
-    
-    if username == 'admin':
-        return jsonify({'error': '不能封禁管理员'}), 400
         
     user = get_user(username)
     if not user:

@@ -638,6 +638,7 @@
     let onlinePollingInterval = null;
     let matchListInterval = null;  // 房间列表刷新定时器
     let bannedCountdownInterval = null;  // 封禁倒计时定时器
+    let lastMoveCount = 0;  // 跟踪之前的步数，用于检测重新开始
 
     async function onlineCreateMatch() {
         try {
@@ -826,6 +827,7 @@
                 onlineGameActive = true;
                 onlineGameTime = 0;
                 onlineCurrentPlayer = 1;
+                lastMoveCount = 0;
                 onlineBoard = Array(BOARD_SIZE).fill().map(()=>Array(BOARD_SIZE).fill(0));
                 drawOnlineBoard();
                 updateOnlineUI();
@@ -1356,6 +1358,22 @@
             if (!onlineMatchId || !onlineGameActive) return;
             try {
                 const res = await apiCall(`/api/match/status/${onlineMatchId}`, 'GET');
+                
+                // 检测游戏重新开始：如果之前步数大于0，现在步数为0，并且状态是playing，说明游戏重新开始了
+                if (res.status === 'playing' && lastMoveCount > 0 && res.moves.length === 0) {
+                    showToast('游戏重新开始！');
+                    initOnlineBoard();
+                    onlineMoveHistory = [];
+                    onlineGameActive = true;
+                    onlineGameTime = 0;
+                    onlineCurrentPlayer = 1;
+                    lastMoveCount = 0;
+                    drawOnlineBoard();
+                    updateOnlineUI();
+                    // 确保轮询继续运行
+                    return;
+                }
+                
                 if (res.status === 'finished') {
                     onlineGameActive = false;
                     stopOnlinePolling();
@@ -1385,18 +1403,6 @@
                         showRespondRestartUI(requester);
                         showToast(`${requester} 请求重新开始`, true);
                     }
-                } else if (res.restartAccepted) {
-                    // 对方同意了重新开始请求
-                    showToast('对方同意了重新开始，游戏即将开始');
-                    initOnlineBoard();
-                    onlineMoveHistory = [];
-                    onlineGameActive = true;
-                    onlineGameTime = 0;
-                    onlineCurrentPlayer = 1;
-                    drawOnlineBoard();
-                    updateOnlineUI();
-                    startOnlinePolling();
-                    startOnlineTimer();
                 }
                 if (res.status === 'closed') {
                     // 房间被关闭
@@ -1444,6 +1450,8 @@
                     updateOnlineUI();
                     // 更新步数显示
                     document.getElementById('onlineMoveCount').textContent = res.moves.length;
+                    // 更新步数跟踪
+                    lastMoveCount = res.moves.length;
                 }
                 // 更新房间状态
                 const currentMyColor = onlineMyColor;

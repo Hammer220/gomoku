@@ -14,15 +14,20 @@ import secrets
 app = Flask(__name__, static_folder='.', static_url_path='')
 app.secret_key = secrets.token_hex(32)
 
-# 配置日志 - 控制台输出网络地址，文件记录其他日志
+# 配置日志 - 显示所有日志信息
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.INFO)
+log.propagate = True
 
-class RequestFilter(logging.Filter):
-    def filter(self, record):
-        return not ('HTTP/1.1' in record.getMessage() or 'GET ' in record.getMessage() or 'POST ' in record.getMessage())
-
-log.addFilter(RequestFilter())
+# 确保根日志级别
+root_log = logging.getLogger()
+if not root_log.handlers:
+    root_log.setLevel(logging.INFO)
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('[%(asctime)s] %(levelname)s: %(message)s', datefmt='%H:%M:%S')
+    console_handler.setFormatter(formatter)
+    root_log.addHandler(console_handler)
 
 # 日志文件处理器
 DATA_DIR = 'data'
@@ -1731,5 +1736,9 @@ if __name__ == '__main__':
                 break
     
     print(f"服务器启动: http://localhost:{port}")
+    print("=" * 50)
+    print("日志配置：已启用详细日志模式")
+    print("提示：每个HTTP请求都会显示在下方")
+    print("=" * 50)
     
     app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False, threaded=True)

@@ -756,29 +756,110 @@
         restartCountdownSeconds = 0;
     }
     
+    function showRestartRequestUI() {
+        document.getElementById('roomActions').innerHTML = `
+            <button id="requestRestartBtn" class="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg text-sm mb-2">请求重新开始</button>
+            <button id="closeRoomBtn" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm">关闭房间</button>
+        `;
+        
+        document.getElementById('requestRestartBtn').addEventListener('click', requestRestart);
+        document.getElementById('closeRoomBtn').addEventListener('click', closeOnlineRoom);
+    }
+    
+    function showPendingRestartUI() {
+        document.getElementById('roomActions').innerHTML = `
+            <div class="text-center py-2 mb-2 text-amber-600 font-medium">等待对方响应...</div>
+            <button id="cancelRestartBtn" class="w-full bg-gray-500 hover:bg-gray-600 text-white py-2 rounded-lg text-sm mb-2">取消请求</button>
+            <button id="closeRoomBtn" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm">关闭房间</button>
+        `;
+        
+        document.getElementById('cancelRestartBtn').addEventListener('click', () => {
+            requestRestart(true); // 取消请求
+        });
+        document.getElementById('closeRoomBtn').addEventListener('click', closeOnlineRoom);
+    }
+    
+    function showRespondRestartUI(requester) {
+        document.getElementById('roomActions').innerHTML = `
+            <div class="text-center py-2 mb-2 text-amber-600 font-medium">${requester} 请求重新开始</div>
+            <button id="acceptRestartBtn" class="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg text-sm mb-2">同意</button>
+            <button id="declineRestartBtn" class="w-full bg-gray-500 hover:bg-gray-600 text-white py-2 rounded-lg text-sm mb-2">拒绝</button>
+            <button id="closeRoomBtn" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm">关闭房间</button>
+        `;
+        
+        document.getElementById('acceptRestartBtn').addEventListener('click', () => respondRestart(true));
+        document.getElementById('declineRestartBtn').addEventListener('click', () => respondRestart(false));
+        document.getElementById('closeRoomBtn').addEventListener('click', closeOnlineRoom);
+    }
+    
+    async function requestRestart(cancel = false) {
+        if (!onlineMatchId) return;
+        
+        try {
+            const res = await apiCall('/api/match/restart', 'POST', { matchId: onlineMatchId });
+            if (cancel) {
+                showRestartRequestUI();
+                showToast('已取消重新开始请求');
+            } else {
+                showPendingRestartUI();
+                showToast('已发送重新开始请求，等待对方确认');
+            }
+        } catch (err) {
+            showToast(err.message, true);
+        }
+    }
+    
+    async function respondRestart(accept) {
+        if (!onlineMatchId) return;
+        
+        try {
+            const res = await apiCall('/api/match/restart/respond', 'POST', { 
+                matchId: onlineMatchId, 
+                accept: accept 
+            });
+            
+            if (accept) {
+                showToast('已同意重新开始，游戏即将开始');
+                // 重置本地游戏状态
+                initOnlineBoard();
+                onlineMoveHistory = [];
+                onlineGameActive = true;
+                onlineGameTime = 0;
+                onlineCurrentPlayer = 1;
+                onlineBoard = Array(BOARD_SIZE).fill().map(()=>Array(BOARD_SIZE).fill(0));
+                drawOnlineBoard();
+                updateOnlineUI();
+                startOnlinePolling();
+                startOnlineTimer();
+            } else {
+                showToast('已拒绝重新开始请求');
+                showRestartRequestUI();
+            }
+        } catch (err) {
+            showToast(err.message, true);
+        }
+    }
+    
     function startRestartCountdown() {
         stopRestartCountdown();
         restartCountdownSeconds = 10;
         
         document.getElementById('roomActions').innerHTML = `
-            <button id="restartGameBtn" class="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg text-sm mb-2">立即重新开始</button>
+            <button id="requestRestartBtn" class="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg text-sm mb-2">请求重新开始</button>
             <button id="closeRoomBtn" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm">关闭房间</button>
-            <div id="restartCountdown" class="text-center text-gray-500 text-sm mt-2">自动重新开始: <span id="countdownSeconds">10</span> 秒</div>
         `;
         
-        document.getElementById('restartGameBtn').addEventListener('click', async () => {
-            stopRestartCountdown();
-            await doRestartOnlineGame();
-        });
+        document.getElementById('requestRestartBtn').addEventListener('click', requestRestart);
         document.getElementById('closeRoomBtn').addEventListener('click', closeOnlineRoom);
         
         restartCountdownTimer = setInterval(() => {
             restartCountdownSeconds--;
-            document.getElementById('countdownSeconds').textContent = restartCountdownSeconds;
+            const countdownEl = document.getElementById('countdownSeconds');
+            if (countdownEl) countdownEl.textContent = restartCountdownSeconds;
             
             if (restartCountdownSeconds <= 0) {
                 stopRestartCountdown();
-                doRestartOnlineGame();
+                requestRestart(); // 自动请求重新开始
             }
         }, 1000);
     }
@@ -1292,9 +1373,30 @@
                     } else {
                         await apiCall('/api/records', 'POST', { result: 'lose', opponent: onlineOpponent, mode: 'online' });
                     }
-                    // 开始重新开始倒计时
-                    startRestartCountdown();
+                    // 显示重新开始请求按钮（双方都需要手动请求）
+                    showRestartRequestUI();
                     return;
+                }
+                // 检查是否有重新开始请求
+                if (res.restartRequested) {
+                    const requester = res.restartRequestedBy;
+                    // 如果不是自己请求的，显示响应按钮
+                    if (requester !== currentUser?.username) {
+                        showRespondRestartUI(requester);
+                        showToast(`${requester} 请求重新开始`, true);
+                    }
+                } else if (res.restartAccepted) {
+                    // 对方同意了重新开始请求
+                    showToast('对方同意了重新开始，游戏即将开始');
+                    initOnlineBoard();
+                    onlineMoveHistory = [];
+                    onlineGameActive = true;
+                    onlineGameTime = 0;
+                    onlineCurrentPlayer = 1;
+                    drawOnlineBoard();
+                    updateOnlineUI();
+                    startOnlinePolling();
+                    startOnlineTimer();
                 }
                 if (res.status === 'closed') {
                     // 房间被关闭

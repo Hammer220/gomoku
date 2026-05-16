@@ -273,7 +273,45 @@
     </div>
     
     <div id="historyContent" class="p-6 md:p-8 hidden">...</div>
-    <div id="statsContent" class="p-6 md:p-8 hidden">...</div>
+    <div id="statsContent" class="p-6 md:p-8 hidden">
+        <h2 class="text-2xl font-bold mb-6 text-primary">数据统计</h2>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+            <div class="bg-white rounded-lg shadow-md p-4 text-center">
+                <p class="text-2xl font-bold text-primary" id="statTotalGames">0</p>
+                <p class="text-sm text-gray-500">总场次</p>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-4 text-center">
+                <p class="text-2xl font-bold text-green-600" id="statWins">0</p>
+                <p class="text-sm text-gray-500">胜场</p>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-4 text-center">
+                <p class="text-2xl font-bold text-red-600" id="statLosses">0</p>
+                <p class="text-sm text-gray-500">负场</p>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-4 text-center">
+                <p class="text-2xl font-bold text-yellow-600" id="statDraws">0</p>
+                <p class="text-sm text-gray-500">平局</p>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-4 text-center">
+                <p class="text-2xl font-bold text-blue-600" id="statWinRate">0%</p>
+                <p class="text-sm text-gray-500">胜率</p>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="bg-white rounded-lg shadow-md p-4">
+                <h3 class="font-semibold mb-3">胜负分布</h3>
+                <canvas id="winLossChart" height="200"></canvas>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-4">
+                <h3 class="font-semibold mb-3">模式分布</h3>
+                <canvas id="modeChart" height="200"></canvas>
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow-md p-4">
+            <h3 class="font-semibold mb-3">积分走势</h3>
+            <canvas id="scoreTrendChart" height="180"></canvas>
+        </div>
+    </div>
     
     <!-- 积分排行榜 -->
     <div id="leaderboardContent" class="p-6 md:p-8 hidden">
@@ -2496,15 +2534,18 @@
     }
 
     function showTab(tabId){
-        ['gameContent','onlineContent','profileContent','historyContent','statsContent','adminContent'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+        ['gameContent','onlineContent','profileContent','historyContent','statsContent','leaderboardContent','adminContent'].forEach(id=>document.getElementById(id).classList.add('hidden'));
         document.getElementById(tabId).classList.remove('hidden');
-        ['gameTab','onlineTab','profileTab','historyTab','statsTab','adminTab'].forEach(id=>document.getElementById(id).classList.remove('tab-active'));
+        ['gameTab','onlineTab','profileTab','historyTab','statsTab','leaderboardTab','adminTab'].forEach(id=>document.getElementById(id).classList.remove('tab-active'));
         document.getElementById(tabId.replace('Content','Tab')).classList.add('tab-active');
         if(tabId==='adminContent') {
             loadAdminUsers();
             if (currentUser && currentUser.isSuperAdmin) {
                 loadAdminList();
             }
+        }
+        if(tabId==='leaderboardContent') {
+            loadLeaderboard();
         }
         if(tabId==='onlineContent'){
             onlineCanvas = document.getElementById('onlineCanvas');

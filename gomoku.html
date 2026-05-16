@@ -1281,11 +1281,7 @@
             const myWin = player === onlineMyColor;
             document.getElementById('onlineStatusText').textContent = myWin ? '你赢了！' : '你输了！';
             showToast(myWin ? '你赢了！' : '你输了！', !myWin);
-            if (myWin) {
-                await apiCall('/api/records', 'POST', { result: 'win', opponent: onlineOpponent, mode: 'online', timestamp: Math.floor(Date.now() / 1000) });
-            } else {
-                await apiCall('/api/records', 'POST', { result: 'lose', opponent: onlineOpponent, mode: 'online', timestamp: Math.floor(Date.now() / 1000) });
-            }
+            saveGameRecord(myWin ? 'win' : 'lose', 'online', onlineOpponent);
             startRestartCountdown();
             return true;
         }
@@ -1459,11 +1455,7 @@
                     const myWin = res.winner === onlineMyColor;
                     document.getElementById('onlineStatusText').textContent = myWin ? '你赢了！' : '你输了！';
                     showToast(myWin ? '你赢了！' : '你输了！', !myWin);
-                    if (myWin) {
-                        await apiCall('/api/records', 'POST', { result: 'win', opponent: onlineOpponent, mode: 'online' });
-                    } else {
-                        await apiCall('/api/records', 'POST', { result: 'lose', opponent: onlineOpponent, mode: 'online' });
-                    }
+                    saveGameRecord(myWin ? 'win' : 'lose', 'online', onlineOpponent);
                     // 显示重新开始请求按钮（双方都需要手动请求）
                     showRestartRequestUI();
                     return;
@@ -1923,9 +1915,17 @@
         document.getElementById('winnerText').textContent = winner===0 ? '平局' : `${winner===1?'黑棋':'白棋'} 胜利`;
         document.getElementById('winMessage').textContent = isPlayerWin ? '恭喜获胜！' : (winner===0 ? '势均力敌' : '继续努力');
         document.getElementById('winModal').classList.remove('hidden');
-        if(currentUser && winner !== 0 && gameMode !== 'online'){
-            const result = winner===playerColor ? 'win' : 'lose';
-            saveGameRecord(result);
+        if(currentUser){
+            if (gameMode === 'ai') {
+                if (winner === 0) {
+                    saveGameRecord('draw', 'ai');
+                } else {
+                    const result = winner===playerColor ? 'win' : 'lose';
+                    saveGameRecord(result, 'ai');
+                }
+            } else if (gameMode === 'pvp') {
+                saveGameRecord(winner === 0 ? 'draw' : (winner === 1 ? 'win' : 'lose'), 'pvp');
+            }
         }
     }
 
@@ -2024,22 +2024,222 @@
         }
     }
 
-    async function saveGameRecord(result){
-        const difficultyText = aiDifficulty==='easy'?'简单':(aiDifficulty==='medium'?'中等':'困难');
+    async function saveGameRecord(result, mode, opponent){
+        mode = mode || gameMode || 'ai';
+        const modeLabels = { ai: '人机对战', pvp: '双人对战', online: '联机对战' };
+        const modeLabel = modeLabels[mode] || mode;
+        let opponentLabel = opponent || '';
+        if (mode === 'ai' && !opponent) {
+            const difficultyText = aiDifficulty==='easy'?'简单':(aiDifficulty==='medium'?'中等':'困难');
+            opponentLabel = 'AI (' + difficultyText + ')';
+        } else if (mode === 'pvp' && !opponent) {
+            opponentLabel = '玩家对战';
+        }
+        const resultLabel = result === 'win' ? '胜利' : (result === 'lose' ? '失败' : '平局');
         const record = { 
             date: new Date().toLocaleString(), 
-            result: result==='win'?'胜利':'失败', 
-            mode: 'ai',
-            opponent: 'AI (' + difficultyText + ')',
+            result: resultLabel,
+            resultKey: result,
+            mode: mode,
+            modeLabel: modeLabel,
+            opponent: opponentLabel,
             timestamp: Math.floor(Date.now() / 1000)
         };
         await apiCall('/api/records','POST',record);
-        let scoreChange = result==='win'?50:-20;
-        currentUser.score = Math.max(0, (currentUser.score||0)+scoreChange);
-        if(result==='win') currentUser.wins = (currentUser.wins||0)+1;
-        currentUser.games = (currentUser.games||0)+1;
-        await apiCall('/api/user/update','POST',{score:currentUser.score, wins:currentUser.wins, games:currentUser.games});
-        updateUserDisplay();
+        if (result !== 'draw') {
+            let scoreChange = result==='win'?50:-20;
+            currentUser.score = Math.max(0, (currentUser.score||0)+scoreChange);
+            if(result==='win') currentUser.wins = (currentUser.wins||0)+1;
+            currentUser.games = (currentUser.games||0)+1;
+            await apiCall('/api/user/update','POST',{score:currentUser.score, wins:currentUser.wins, games:currentUser.games});
+            updateUserDisplay();
+        }
+    }
+
+    let historyPageSize = 10;
+    let historyCurrentPage = 1;
+    let historyAllRecords = [];
+
+    async function loadHistory(){
+        try {
+            const data = await apiCall('/api/statistics');
+            historyAllRecords = data.records || [];
+            renderHistory();
+        } catch(e) {
+            console.error('加载游戏记录失败', e);
+        }
+    }
+
+    function renderHistory(){
+        const modeFilter = document.getElementById('historyModeFilter').value;
+        const resultFilter = document.getElementById('historyResultFilter').value;
+        let filtered = historyAllRecords;
+        if (modeFilter !== 'all') {
+            filtered = filtered.filter(r => r.mode === modeFilter);
+        }
+        if (resultFilter !== 'all') {
+            filtered = filtered.filter(r => r.resultKey === resultFilter || 
+                (resultFilter === 'win' && r.result === '胜利') ||
+                (resultFilter === 'lose' && r.result === '失败') ||
+                (resultFilter === 'draw' && r.result === '平局'));
+        }
+        const totalPages = Math.max(1, Math.ceil(filtered.length / historyPageSize));
+        if (historyCurrentPage > totalPages) historyCurrentPage = totalPages;
+        const start = (historyCurrentPage - 1) * historyPageSize;
+        const end = start + historyPageSize;
+        const pageRecords = filtered.slice(start, end);
+
+        const tbody = document.getElementById('historyTableBody');
+        const emptyDiv = document.getElementById('historyEmpty');
+        const paginationDiv = document.getElementById('historyPagination');
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = '';
+            emptyDiv.classList.remove('hidden');
+            paginationDiv.classList.add('hidden');
+            return;
+        }
+        emptyDiv.classList.add('hidden');
+        if (totalPages > 1) {
+            paginationDiv.classList.remove('hidden');
+            document.getElementById('historyPageInfo').textContent = `第 ${historyCurrentPage}/${totalPages} 页 (共 ${filtered.length} 条)`;
+            document.getElementById('historyPrevPage').disabled = historyCurrentPage <= 1;
+            document.getElementById('historyNextPage').disabled = historyCurrentPage >= totalPages;
+        } else {
+            paginationDiv.classList.add('hidden');
+        }
+
+        tbody.innerHTML = pageRecords.map(r => {
+            const modeLabel = r.modeLabel || r.mode || '未知';
+            const resultLabel = r.result || '未知';
+            const resultClass = resultLabel === '胜利' ? 'text-green-600' : (resultLabel === '失败' ? 'text-red-600' : 'text-yellow-600');
+            const opponent = r.opponent || '-';
+            const scoreChange = resultLabel === '胜利' ? '+50' : (resultLabel === '失败' ? '-20' : '0');
+            const scoreClass = resultLabel === '胜利' ? 'text-green-600' : (resultLabel === '失败' ? 'text-red-600' : 'text-gray-500');
+            return `<tr class="border-b hover:bg-gray-50">
+                <td class="border px-4 py-2.5 text-sm">${r.date || '-'}</td>
+                <td class="border px-4 py-2.5 text-sm">${modeLabel}</td>
+                <td class="border px-4 py-2.5 text-sm">${opponent}</td>
+                <td class="border px-4 py-2.5 text-sm font-medium ${resultClass}">${resultLabel}</td>
+                <td class="border px-4 py-2.5 text-sm font-medium ${scoreClass}">${scoreChange}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    let winLossChartInstance = null;
+    let modeChartInstance = null;
+    let scoreTrendChartInstance = null;
+
+    async function loadStats(){
+        try {
+            const data = await apiCall('/api/statistics');
+            document.getElementById('statTotalGames').textContent = data.total;
+            document.getElementById('statWins').textContent = data.wins;
+            document.getElementById('statLosses').textContent = data.losses;
+            document.getElementById('statDraws').textContent = data.draws;
+            document.getElementById('statWinRate').textContent = data.winRate + '%';
+
+            if (winLossChartInstance) winLossChartInstance.destroy();
+            if (modeChartInstance) modeChartInstance.destroy();
+            if (scoreTrendChartInstance) scoreTrendChartInstance.destroy();
+
+            const winLossCtx = document.getElementById('winLossChart').getContext('2d');
+            winLossChartInstance = new Chart(winLossCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['胜利', '失败', '平局'],
+                    datasets: [{
+                        data: [data.wins, data.losses, data.draws],
+                        backgroundColor: ['#22c55e', '#ef4444', '#eab308'],
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { padding: 12, usePointStyle: true } }
+                    }
+                }
+            });
+
+            const modeLabels = { ai: '人机对战', pvp: '双人对战', online: '联机对战' };
+            const modeData = data.modeDistribution || {};
+            const modeKeys = Object.keys(modeData);
+            const modeColors = ['#3b82f6', '#8b5cf6', '#f59e0b'];
+            const modeChartLabels = modeKeys.map(k => modeLabels[k] || k);
+            const modeChartValues = modeKeys.map(k => modeData[k]);
+
+            const modeCtx = document.getElementById('modeChart').getContext('2d');
+            modeChartInstance = new Chart(modeCtx, {
+                type: 'bar',
+                data: {
+                    labels: modeChartLabels,
+                    datasets: [{
+                        label: '对局数',
+                        data: modeChartValues,
+                        backgroundColor: modeColors.slice(0, modeKeys.length),
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+
+            const records = data.records || [];
+            const scoreRecords = records.filter(r => r.timestamp).sort((a, b) => a.timestamp - b.timestamp);
+            let cumulativeScore = 0;
+            const scoreLabels = [];
+            const scoreValues = [];
+            scoreRecords.forEach((r, i) => {
+                const rKey = r.resultKey || (r.result === '胜利' ? 'win' : (r.result === '失败' ? 'lose' : 'draw'));
+                if (rKey !== 'draw') {
+                    cumulativeScore += (rKey === 'win' ? 50 : -20);
+                    cumulativeScore = Math.max(0, cumulativeScore);
+                }
+                scoreLabels.push((i + 1).toString());
+                scoreValues.push(cumulativeScore);
+            });
+
+            const scoreCtx = document.getElementById('scoreTrendChart').getContext('2d');
+            scoreTrendChartInstance = new Chart(scoreCtx, {
+                type: 'line',
+                data: {
+                    labels: scoreLabels.length ? scoreLabels : [''],
+                    datasets: [{
+                        label: '积分',
+                        data: scoreValues.length ? scoreValues : [0],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: scoreLabels.length > 1 ? 3 : 0,
+                        pointHoverRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { beginAtZero: true }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        } catch(e) {
+            console.error('加载统计数据失败', e);
+        }
     }
 
     async function loadSavedGames(){
@@ -2302,7 +2502,46 @@
         });
     }
 
-
+    // 加载积分排行榜
+    async function loadLeaderboard() {
+        try {
+            const data = await apiCall('/api/leaderboard');
+            const tbody = document.getElementById('leaderboardTable');
+            
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-500">暂无数据</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = data.map((u, index) => {
+                const rank = index + 1;
+                let rankDisplay = '';
+                if (rank === 1) {
+                    rankDisplay = '<span class="text-xl">🥇</span>';
+                } else if (rank === 2) {
+                    rankDisplay = '<span class="text-xl">🥈</span>';
+                } else if (rank === 3) {
+                    rankDisplay = '<span class="text-xl">🥉</span>';
+                } else {
+                    rankDisplay = `<span class="font-medium text-gray-600">${rank}</span>`;
+                }
+                
+                const isCurrentUser = currentUser && currentUser.username === u.username;
+                const rowClass = isCurrentUser ? 'bg-yellow-50 font-semibold' : '';
+                
+                return `<tr class="${rowClass}">
+                    <td class="border px-4 py-3 text-center">${rankDisplay}</td>
+                    <td class="border px-4 py-3">${u.username} ${isCurrentUser ? '<span class="text-xs text-primary">(我)</span>' : ''}</td>
+                    <td class="border px-4 py-3 font-bold text-primary">${u.score}</td>
+                    <td class="border px-4 py-3">${u.wins}</td>
+                    <td class="border px-4 py-3">${u.games}</td>
+                    <td class="border px-4 py-3 text-gray-500 text-sm">${u.joinDate || '-'}</td>
+                </tr>`;
+            }).join('');
+        } catch (error) {
+            document.getElementById('leaderboardTable').innerHTML = '<tr><td colspan="6" class="text-center py-8 text-red-500">加载失败: ' + error.message + '</td></tr>';
+        }
+    }
 
     // 密码修改功能
     async function changePassword() {
@@ -2547,6 +2786,13 @@
         if(tabId==='leaderboardContent') {
             loadLeaderboard();
         }
+        if(tabId==='historyContent') {
+            historyCurrentPage = 1;
+            loadHistory();
+        }
+        if(tabId==='statsContent') {
+            loadStats();
+        }
         if(tabId==='onlineContent'){
             onlineCanvas = document.getElementById('onlineCanvas');
             onlineCtx = onlineCanvas?.getContext('2d');
@@ -2644,6 +2890,7 @@
         document.getElementById('profileTab').addEventListener('click', ()=>showTab('profileContent'));
         document.getElementById('historyTab').addEventListener('click', ()=>showTab('historyContent'));
         document.getElementById('statsTab').addEventListener('click', ()=>showTab('statsContent'));
+        document.getElementById('leaderboardTab').addEventListener('click', ()=>showTab('leaderboardContent'));
         document.getElementById('adminTab').addEventListener('click', ()=>showTab('adminContent'));
         
         // 联机对战事件监听器
@@ -2727,6 +2974,16 @@
             saveBoardColorSettings();
         });
         document.getElementById('loadBackgroundsBtn').addEventListener('click', loadBackgrounds);
+        
+        // 积分排行榜刷新
+        document.getElementById('refreshLeaderboardBtn').addEventListener('click', loadLeaderboard);
+        
+        // 游戏记录事件
+        document.getElementById('historyModeFilter').addEventListener('change', () => { historyCurrentPage = 1; renderHistory(); });
+        document.getElementById('historyResultFilter').addEventListener('change', () => { historyCurrentPage = 1; renderHistory(); });
+        document.getElementById('refreshHistoryBtn').addEventListener('click', () => { historyCurrentPage = 1; loadHistory(); });
+        document.getElementById('historyPrevPage').addEventListener('click', () => { if (historyCurrentPage > 1) { historyCurrentPage--; renderHistory(); } });
+        document.getElementById('historyNextPage').addEventListener('click', () => { historyCurrentPage++; renderHistory(); });
         
         // 联机对局监控事件
         document.getElementById('refreshMatchListBtn')?.addEventListener('click', loadMatchList);

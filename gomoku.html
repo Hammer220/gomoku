@@ -427,7 +427,7 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full border">
                     <thead class="bg-gray-50">
-                        <tr><th class="border px-2 py-2"><input type="checkbox" id="selectAllUsers" class="w-4 h-4"></th><th class="border px-4 py-2">用户名</th><th class="border px-4 py-2">密码</th><th class="border px-4 py-2">积分</th><th class="border px-4 py-2">胜场</th><th class="border px-4 py-2">对局数</th><th class="border px-4 py-2">封禁状态</th><th class="border px-4 py-2">在线状态</th><th class="border px-4 py-2">操作</th></tr>
+                        <tr><th class="border px-2 py-2"><input type="checkbox" id="selectAllUsers" class="w-4 h-4"></th><th class="border px-4 py-2">用户名</th><th class="border px-4 py-2">积分</th><th class="border px-4 py-2">胜场</th><th class="border px-4 py-2">对局数</th><th class="border px-4 py-2">封禁状态</th><th class="border px-4 py-2">在线状态</th><th class="border px-4 py-2">操作</th></tr>
                     </thead>
                     <tbody id="adminUserTable"></tbody>
                 </table>
@@ -723,8 +723,8 @@
             }
             
             if (!res.ok) {
-                // 检测封禁错误
-                if (res.status === 403 && data.error && data.error.includes('封禁')) {
+                // 检测封禁错误（只有"被封禁"才强制登出，而不是所有包含"封禁"的错误）
+                if (res.status === 403 && data.error && (data.error.includes('已被封禁') || data.error.includes('账号已被封禁'))) {
                     handleForceLogout(data.error);
                     throw new Error(data.error);
                 }
@@ -2376,7 +2376,9 @@
         const isSuperAdmin = currentUser && currentUser.isSuperAdmin;
         
         tbody.innerHTML = users.map(u=>{
-            const isBanned = u.bannedUntil && new Date(u.bannedUntil*1000) > new Date();
+            const isBanned = u.isBanned;
+            const remainingMinutes = u.remainingMinutes;
+            const isOnline = u.isOnline;
             const isTargetSuperAdmin = u.isSuperAdmin;
             const canOperate = !isTargetSuperAdmin && (isSuperAdmin || (currentUser && currentUser.canManage !== false)); // 是否可以操作
             
@@ -2391,9 +2393,6 @@
                 roleTag = `<span class="text-xs px-2 py-1 rounded ${canManage ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'}">${canManage ? '管理员' : '已禁用'}</span>`;
             }
             
-            // 密码显示（已隐藏，出于安全考虑）
-            let passwordDisplay = '<span class="text-gray-400 text-xs">***</span>';
-            
             // 其他字段显示
             const scoreDisplay = canOperate || isSuperAdmin ? u.score : '<span class="text-gray-400">权限不足</span>';
             const winsDisplay = canOperate || isSuperAdmin ? u.wins : '<span class="text-gray-400">权限不足</span>';
@@ -2401,12 +2400,13 @@
             let bannedDisplay = '正常';
             if (canOperate || isSuperAdmin) {
                 if (isBanned) {
-                    const bannedUntilMs = u.bannedUntil * 1000;
-                    bannedDisplay = `<span class="text-red-600 banned-countdown" data-username="${u.username}" data-until="${bannedUntilMs}">${formatRemainingTime(bannedUntilMs)}</span>`;
+                    bannedDisplay = `<span class="text-red-600">封禁中 (${remainingMinutes}分钟)</span>`;
                 }
             } else {
                 bannedDisplay = '<span class="text-gray-400">权限不足</span>';
             }
+            
+            const onlineDisplay = isOnline ? '<span class="text-green-600">在线</span>' : '<span class="text-gray-400">离线</span>';
             
             // 操作按钮
             let actionBtns = '';
@@ -2429,12 +2429,11 @@
             return `<tr>
                 <td class="border px-2 py-2"><input type="checkbox" class="user-checkbox w-4 h-4" value="${u.username}" ${checkboxDisabled} ${isChecked}></td>
                 <td class="border px-4 py-2">${u.username} ${roleTag}</td>
-                <td class="border px-4 py-2 text-sm">${passwordDisplay}</td>
                 <td class="border px-4 py-2">${scoreDisplay}</td>
                 <td class="border px-4 py-2">${winsDisplay}</td>
                 <td class="border px-4 py-2">${gamesDisplay}</td>
                 <td class="border px-4 py-2">${bannedDisplay}</td>
-                <td class="border px-4 py-2">-</td>
+                <td class="border px-4 py-2">${onlineDisplay}</td>
                 <td class="border px-4 py-2">${actionBtns}</td>
             </tr>`;
         }).join('');

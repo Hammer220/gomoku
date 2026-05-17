@@ -688,10 +688,19 @@ def delete_save(user, save_id):
 def admin_get_users(admin_user):
     """管理员获取所有用户信息"""
     users = load_json_with_lock(USERS_FILE)
+    tokens = load_json_with_lock(TOKENS_FILE)
+    online_usernames = set(tokens.values())
     is_super = admin_user.get('isSuperAdmin', False)
     
     user_list = []
     for username, user_data in users.items():
+        # 检查是否在线
+        is_online = username in online_usernames
+        # 检查封禁状态和剩余时间
+        banned_until = user_data.get('bannedUntil')
+        is_banned = banned_until and banned_until > time.time()
+        remaining_minutes = round((banned_until - time.time()) / 60) if is_banned else None
+        
         # 普通管理员不能查看超级管理员的信息
         if user_data.get('isSuperAdmin') and not is_super:
             user_info = {
@@ -704,7 +713,10 @@ def admin_get_users(admin_user):
                 'isAdmin': True,
                 'isSuperAdmin': True,
                 'canManage': True,
-                'bannedUntil': None
+                'bannedUntil': None,
+                'isOnline': False,
+                'isBanned': False,
+                'remainingMinutes': None
             }
         else:
             user_info = {
@@ -717,7 +729,10 @@ def admin_get_users(admin_user):
                 'isAdmin': user_data.get('isAdmin', False),
                 'isSuperAdmin': user_data.get('isSuperAdmin', False),
                 'canManage': user_data.get('canManage', True),
-                'bannedUntil': user_data.get('bannedUntil')
+                'bannedUntil': banned_until,
+                'isOnline': is_online,
+                'isBanned': is_banned,
+                'remainingMinutes': remaining_minutes
             }
         user_list.append(user_info)
     

@@ -1646,7 +1646,7 @@ def close_match(user):
 @app.route('/api/match/restart', methods=['POST'])
 @require_auth
 def restart_match(user):
-    """请求重新开始游戏"""
+    """重新开始游戏（任何一方点击即可重新开始）"""
     data = request.json
     match_id = data.get('matchId')
     
@@ -1663,69 +1663,29 @@ def restart_match(user):
         if match['status'] not in ['finished', 'playing']:
             return jsonify({'error': '游戏无法重新开始'}), 400
         
-        # 检查是否已经有一方请求了重新开始
-        if match.get('restartRequestedBy'):
-            return jsonify({'error': '对方已经请求重新开始，请等待对方确认或拒绝'}), 400
-        
-        # 设置重新开始请求
-        match['restartRequestedBy'] = username
-        match['restartRequested'] = True
+        match['board'] = [[0] * 15 for _ in range(15)]
+        match['currentPlayer'] = 1
+        match['moves'] = []
+        match['winner'] = None
+        match['status'] = 'playing'
+        match['startTime'] = time.time()
+        match['creatorLeft'] = False
+        match['opponentLeft'] = False
+        match['restartRequestedBy'] = None
+        match['restartRequested'] = False
+        match['restartAccepted'] = False
+        match['restartAcceptedBy'] = None
+        match['restartDeclinedBy'] = None
+        save_matches()
     
-    save_matches()
-    
-    return jsonify({'success': True, 'message': '已发送重新开始请求，等待对方确认'})
+    return jsonify({'success': True, 'message': '游戏已重新开始'})
 
 
 @app.route('/api/match/restart/respond', methods=['POST'])
 @require_auth
 def respond_restart(user):
-    """响应重新开始请求"""
-    data = request.json
-    match_id = data.get('matchId')
-    accept = data.get('accept', False)
-    
-    with active_matches_lock:
-        if not match_id or match_id not in active_matches:
-            return jsonify({'error': '房间不存在'}), 404
-        
-        match = active_matches[match_id]
-        username = user['username']
-        
-        if match['creator'] != username and match.get('opponent') != username:
-            return jsonify({'error': '您不在这个房间中'}), 403
-        
-        if not match.get('restartRequestedBy'):
-            return jsonify({'error': '没有收到重新开始请求'}), 400
-        
-        requester = match['restartRequestedBy']
-        
-        # 不能响应自己的请求
-        if requester == username:
-            return jsonify({'error': '不能响应自己的请求'}), 400
-        
-        if accept:
-            # 重新开始游戏
-            match['board'] = [[0] * 15 for _ in range(15)]
-            match['currentPlayer'] = 1
-            match['moves'] = []
-            match['winner'] = None
-            match['status'] = 'playing'
-            match['startTime'] = time.time()
-            match['creatorLeft'] = False
-            match['opponentLeft'] = False
-            match['restartRequestedBy'] = None
-            match['restartRequested'] = False
-            match['restartAccepted'] = True
-            match['restartAcceptedBy'] = username
-            save_matches()
-            return jsonify({'success': True, 'accepted': True, 'message': '已重新开始游戏'})
-        else:
-            # 拒绝重新开始
-            match['restartRequestedBy'] = None
-            match['restartRequested'] = False
-            match['restartDeclinedBy'] = username
-            save_matches()
-            return jsonify({'success': True, 'accepted': False, 'message': '已拒绝重新开始请求'})
+    """响应重新开始请求（已弃用，现在任何一方点击即可重新开始）"""
+    return jsonify({'success': True, 'message': '重新开始功能已简化，请直接点击重新开始按钮'})
 
 
 @app.route('/api/admin/matches', methods=['GET'])

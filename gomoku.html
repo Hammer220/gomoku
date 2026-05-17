@@ -296,7 +296,20 @@
                     <div id="backgroundImageGrid" class="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto p-2 bg-gray-50 rounded-lg">
                         <div class="text-gray-500 text-sm text-center py-4 col-span-4">暂无背景图片</div>
                     </div>
-                    <button id="loadBackgroundsBtn" class="mt-2 text-sm text-primary hover:text-primary/80"><i class="fa-solid fa-refresh mr-1"></i>刷新图片列表</button>
+                    <div class="flex gap-2 mt-2 items-center flex-wrap">
+                        <button id="loadBackgroundsBtn" class="text-sm text-primary hover:text-primary/80"><i class="fa-solid fa-refresh mr-1"></i>刷新图片列表</button>
+                        <label class="text-sm text-blue-600 hover:text-blue-700 cursor-pointer">
+                            <i class="fa-solid fa-upload mr-1"></i>上传图片
+                            <input type="file" id="uploadBackgroundInput" accept="image/*" class="hidden" onchange="handleBackgroundUpload(this)">
+                        </label>
+                        <label class="flex items-center text-sm">
+                            <input type="checkbox" id="saveUploadToServer" class="mr-1 rounded">
+                            <span class="text-gray-600">保存到服务器</span>
+                        </label>
+                    </div>
+                    <div id="uploadProgress" class="hidden mt-2 text-sm text-primary">
+                        <i class="fa-solid fa-spinner fa-spin mr-1"></i>上传中...
+                    </div>
                 </div>
                 <div class="flex gap-3 mt-4">
                     <button id="saveBoardColorBtn" class="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-save mr-1"></i>保存设置</button>
@@ -678,6 +691,61 @@
             }
         } catch (err) {
             console.error('加载背景设置失败:', err);
+        }
+    }
+
+    // 处理背景图片上传
+    async function handleBackgroundUpload(input) {
+        if (!token) {
+            showToast('请先登录', true);
+            return;
+        }
+
+        const file = input.files[0];
+        if (!file) return;
+
+        const saveToServer = document.getElementById('saveUploadToServer').checked;
+        const progress = document.getElementById('uploadProgress');
+
+        progress.classList.remove('hidden');
+        input.disabled = true;
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('saveToServer', saveToServer);
+
+            const response = await fetch('/api/backgrounds/upload', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || '上传失败');
+            }
+
+            if (data.success) {
+                showToast(data.message);
+
+                if (data.savedToServer) {
+                    await loadBackgrounds();
+                    window.selectBackground(data.path);
+                } else {
+                    window.selectBackground(data.dataUrl);
+                }
+            }
+        } catch (err) {
+            showToast(err.message, true);
+            console.error('上传失败:', err);
+        } finally {
+            progress.classList.add('hidden');
+            input.disabled = false;
+            input.value = '';
         }
     }
     

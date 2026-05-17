@@ -1298,6 +1298,67 @@ def get_background_images(user):
     
     return jsonify({'backgrounds': backgrounds})
 
+@app.route('/api/backgrounds/upload', methods=['POST'])
+@require_auth
+def upload_background_image(user):
+    """上传背景图片"""
+    if 'file' not in request.files:
+        return jsonify({'error': '没有上传文件'}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({'error': '文件名为空'}), 400
+    
+    save_to_server = request.form.get('saveToServer', 'false').lower() == 'true'
+    
+    supported_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp']
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    
+    if file_ext not in supported_extensions:
+        return jsonify({'error': f'不支持的文件格式。支持：{", ".join(supported_extensions)}'}), 400
+    
+    import uuid
+    
+    if save_to_server:
+        picture_dir = 'picture'
+        os.makedirs(picture_dir, exist_ok=True)
+        
+        name_without_ext = os.path.splitext(file.filename)[0]
+        ext = os.path.splitext(file.filename)[1]
+        unique_filename = f"{name_without_ext}({user['username']}){ext}"
+        file_path = os.path.join(picture_dir, unique_filename)
+        file.save(file_path)
+        
+        return jsonify({
+            'success': True,
+            'savedToServer': True,
+            'path': f'{picture_dir}/{unique_filename}',
+            'name': unique_filename,
+            'message': '图片已保存到服务器'
+        })
+    else:
+        import base64
+        import io
+        
+        img_bytes = file.read()
+        
+        if len(img_bytes) > 500 * 1024:
+            return jsonify({'error': '图片大小不能超过500KB（不保存到服务器时）'}), 400
+        
+        img_base64 = base64.b64encode(img_bytes).decode('utf-8')
+        
+        mime_type = 'image/jpeg' if file_ext in ['.jpg', '.jpeg'] else f'image/{file_ext[1:]}'
+        data_url = f'data:{mime_type};base64,{img_base64}'
+        
+        return jsonify({
+            'success': True,
+            'savedToServer': False,
+            'dataUrl': data_url,
+            'name': file.filename,
+            'message': '图片已转换为Base64，仅当前会话可用'
+        })
+
 @app.route('/api/match/my', methods=['GET'])
 @require_auth
 def get_my_match(user):

@@ -967,7 +967,8 @@
             onlineBoard = Array(BOARD_SIZE).fill().map(()=>Array(BOARD_SIZE).fill(0));
             drawOnlineBoard();
             updateOnlineUI();
-            showRestartRequestUI();
+            document.getElementById('roomActions').innerHTML = '<button id="closeRoomBtn" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm">关闭房间</button>';
+            attachCloseRoomHandler();
         } catch (err) {
             showToast(err.message, true);
         }
@@ -1532,30 +1533,29 @@
     function startOnlinePolling() {
         if (onlinePollingInterval) clearInterval(onlinePollingInterval);
         onlinePollingInterval = setInterval(async () => {
-            if (!onlineMatchId || !onlineGameActive) return;
+            if (!onlineMatchId) return;
             try {
                 const res = await apiCall(`/api/match/status/${onlineMatchId}`, 'GET');
                 
-                // 检测游戏重新开始：如果之前步数大于0，现在步数为0，并且状态是playing，说明游戏重新开始了
-                if (res.status === 'playing' && lastMoveCount > 0 && res.moves.length === 0) {
+                // 检测游戏重新开始：服务器棋盘已重置，但本地棋盘还有棋子
+                const hasLocalPieces = onlineBoard && onlineBoard.some(row => row && row.some(cell => cell !== 0));
+                const hasServerPieces = res.board && res.board.some(row => row && row.some(cell => cell !== 0));
+                
+                if (res.status === 'playing' && hasLocalPieces && !hasServerPieces) {
                     showToast('游戏重新开始！');
-                    initOnlineBoard();
+                    onlineBoard = Array(BOARD_SIZE).fill().map(()=>Array(BOARD_SIZE).fill(0));
                     onlineMoveHistory = [];
                     onlineGameActive = true;
                     onlineGameTime = 0;
-                    onlineCurrentPlayer = 1;
+                    onlineCurrentPlayer = res.currentPlayer || 1;
                     lastMoveCount = 0;
                     drawOnlineBoard();
                     updateOnlineUI();
-                    // 确保轮询继续运行
-                    return;
                 }
                 
                 if (res.status === 'finished') {
                     onlineGameActive = false;
-                    stopOnlinePolling();
                     stopOnlineTimer();
-                    // 同步最终棋盘状态（包括管理员强制落子）
                     if (res.board) {
                         onlineBoard = res.board;
                         drawOnlineBoard();
@@ -1564,7 +1564,6 @@
                     document.getElementById('onlineStatusText').textContent = myWin ? '你赢了！' : '你输了！';
                     showToast(myWin ? '你赢了！' : '你输了！', !myWin);
                     saveGameRecord(myWin ? 'win' : 'lose', 'online', onlineOpponent);
-                    // 显示重新开始请求按钮（双方都需要手动请求）
                     showRestartRequestUI();
                     return;
                 }
@@ -1595,26 +1594,31 @@
                     return;
                 }
                 if (res.board) {
-                    onlineBoard = res.board;
-                    const lastMove = res.moves[res.moves.length - 1];
-                    if (lastMove && (lastMove.forced || lastMove.player !== onlineMyColor)) {
-                        const alreadyTracked = onlineMoveHistory.some(m => m.row === lastMove.row && m.col === lastMove.col);
-                        if (!alreadyTracked) {
-                            onlineMoveHistory.push({ row: lastMove.row, col: lastMove.col });
-                        }
+                    const oldHasPieces = onlineBoard && onlineBoard.some(row => row && row.some(cell => cell !== 0));
+                    const newHasPieces = res.board.some(row => row.some(cell => cell !== 0));
+                    
+                    if (oldHasPieces && !newHasPieces) {
+                        showToast('游戏重新开始！');
                     }
+                    
+                    onlineBoard = res.board;
+                    onlineMoveHistory = res.moves.map(m => ({ row: m.row, col: m.col }));
                     onlineCurrentPlayer = res.currentPlayer;
-                    // 只有在初始状态或状态同步时更新颜色
+                    
                     if (res.myColor !== undefined && res.myColor !== null) {
                         onlineMyColor = res.myColor;
                     } else if (res.creatorColor && !onlineMyColor) {
                         onlineMyColor = currentUser?.username === res.opponent ? (res.creatorColor === 1 ? 2 : 1) : res.creatorColor;
                     }
+                    
+                    onlineGameActive = res.status === 'playing';
+                    if (onlineGameActive) {
+                        startOnlineTimer();
+                    }
+                    
                     drawOnlineBoard();
                     updateOnlineUI();
-                    // 更新步数显示
                     document.getElementById('onlineMoveCount').textContent = res.moves.length;
-                    // 更新步数跟踪
                     lastMoveCount = res.moves.length;
                 }
                 // 更新房间状态
@@ -2070,11 +2074,11 @@
     function undoMove(){
         if(!gameActive || moveHistory.length===0) { showToast('没有可悔棋的操作',true); return; }
         if(undoCount>=3) { showToast('悔棋次数已用完',true); return; }
-        // 每次只悔一步（一个棋子）
         const m = moveHistory.pop();
         gameBoard[m.row][m.col] = 0;
         undoCount++; currentPlayer = (currentPlayer === 1 ? 2 : 1); winningCells=[];
         drawBoard(); updateUI(); showToast('悔棋1步');
+        if(gameMode==='ai' && gameActive && currentPlayer === getAIColor()) setTimeout(aiMove, 200);
     }
 
     function startTimer(){ if(timerInterval) clearInterval(timerInterval); timerInterval = setInterval(()=>{ if(gameActive){ gameTime++; document.getElementById('gameTimeDisplay').textContent=formatTime(gameTime); } },1000); }

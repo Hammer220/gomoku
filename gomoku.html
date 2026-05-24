@@ -392,6 +392,16 @@
                 <p class="text-sm text-gray-500">胜率</p>
             </div>
         </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+            <div class="bg-white rounded-lg shadow-md p-3" style="min-height:250px;">
+                <h3 class="font-semibold mb-2 text-sm text-gray-600">胜负统计</h3>
+                <canvas id="winLossChart"></canvas>
+            </div>
+            <div class="bg-white rounded-lg shadow-md p-3" style="min-height:250px;">
+                <h3 class="font-semibold mb-2 text-sm text-gray-600">模式分布</h3>
+                <canvas id="modeChart"></canvas>
+            </div>
+        </div>
         <div class="bg-white rounded-lg shadow-md p-3" style="min-height:250px;height:38vh;max-height:480px;">
             <h3 class="font-semibold mb-2 text-sm text-gray-600">积分走势</h3>
             <canvas id="scoreTrendChart"></canvas>
@@ -983,6 +993,10 @@
         restartCountdownSeconds = 10;
         
         document.getElementById('roomActions').innerHTML = `
+            <div class="text-center mb-2">
+                <span class="text-sm text-gray-600">重新开始倒计时: </span>
+                <span id="countdownSeconds" class="font-bold text-primary">${restartCountdownSeconds}</span>
+            </div>
             <button id="requestRestartBtn" class="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg text-sm mb-2">重新开始</button>
             <button id="closeRoomBtn" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm">关闭房间</button>
         `;

@@ -1660,8 +1660,7 @@
     }
 
     async function makeOnlineMove(row, col) {
-        console.log('makeOnlineMove调用 - 位置:', row, col, '我的颜色:', onlineMyColor);
-        if (!onlineMatchId || gameMode !== 'online') { console.log('无效游戏状态'); return; }
+        if (!onlineMatchId || gameMode !== 'online') { return; }
         
         // 立即禁用点击，防止重复提交
         const originalClickHandler = onlineCanvas.onclick;
@@ -1672,15 +1671,12 @@
             onlineBoard[row][col] = onlineMyColor;
             onlineMoveHistory.push({ row, col, player: onlineMyColor });
             drawOnlineBoard();
-            console.log('本地棋盘已更新');
             
             // 发送移动请求到服务器
             const res = await apiCall('/api/match/move', 'POST', { matchId: onlineMatchId, row, col });
-            console.log('服务器响应:', res);
             
             // 服务器确认后更新当前玩家状态
             onlineCurrentPlayer = onlineMyColor === 1 ? 2 : 1;
-            console.log('切换玩家, 新currentPlayer:', onlineCurrentPlayer);
             updateOnlineUI();
             
             // 如果收到胜负信息，更新游戏状态
@@ -1700,7 +1696,7 @@
             }
         } catch (err) {
             // 如果请求失败，回滚本地状态
-            console.log('落子失败:', err);
+            console.error('落子失败:', err);
             onlineBoard[row][col] = 0;
             onlineMoveHistory.pop();
             drawOnlineBoard();
@@ -2937,18 +2933,14 @@
     }
     
     function handleOnlineClick(e) {
-        console.log('点击检测 - onlineGameActive:', onlineGameActive, 'onlineMatchId:', onlineMatchId);
-        console.log('点击检测 - onlineCurrentPlayer:', onlineCurrentPlayer, 'onlineMyColor:', onlineMyColor);
         
         // 检查游戏状态
         if(!onlineGameActive || !onlineMatchId) { 
-            console.log('游戏未激活或未加入房间'); 
             return; 
         }
         
         // 检查颜色是否已设置
         if(onlineMyColor === null || onlineMyColor === undefined) {
-            console.log('颜色未设置，等待同步...');
             return;
         }
         
@@ -2956,7 +2948,6 @@
         const myColor = Number(onlineMyColor);
         
         if(currentPlayer !== myColor) {
-            console.log('不是你的回合 - currentPlayer:', currentPlayer, 'myColor:', myColor);
             return;
         }
         
@@ -3036,7 +3027,6 @@
             const row = Math.round(y / cellSize);
             
             if(row>=0&&row<BOARD_SIZE&&col>=0&&col<BOARD_SIZE){
-                console.log('监控落子: 行', row, '列', col);
                 const player = parseInt(document.getElementById('monitorPlayerSelect').value);
                 forceMove(row, col, player);
             }

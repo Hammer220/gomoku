@@ -1290,8 +1290,8 @@ def get_background_images(user):
                         'name': filename,
                         'path': f'{picture_dir}/{filename}'
                     })
-    except OSError:
-        pass
+    except OSError as e:
+        print(f"[WARN] 读取背景图片目录失败: {e}")
     
     # 按文件名排序
     backgrounds.sort(key=lambda x: x['name'])

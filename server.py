@@ -1343,8 +1343,8 @@ def upload_background_image(user):
         
         img_bytes = file.read()
         
-        if len(img_bytes) > 500 * 1024:
-            return jsonify({'error': '图片大小不能超过500KB（不保存到服务器时）'}), 400
+        if len(img_bytes) > 2 * 1024 * 1024:
+            return jsonify({'error': '图片大小不能超过2MB（不保存到服务器时）'}), 400
         
         img_base64 = base64.b64encode(img_bytes).decode('utf-8')
         

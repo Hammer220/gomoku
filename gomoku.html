@@ -983,11 +983,7 @@
             showToast(err.message, true);
         }
     }
-    
-    async function respondRestart(accept) {
-        showToast('重新开始功能已简化，请直接点击重新开始按钮');
-    }
-    
+
     function startRestartCountdown() {
         stopRestartCountdown();
         restartCountdownSeconds = 10;
@@ -1393,27 +1389,6 @@
         }
     }
 
-    async function onlinePlacePiece(row, col, player) {
-        if (!onlineGameActive || row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE || onlineBoard[row][col] !== 0) return false;
-        onlineBoard[row][col] = player;
-        onlineMoveHistory.push({ row, col, player });
-        drawOnlineBoard();
-        if (checkWin(row, col, player)) {
-            onlineGameActive = false;
-            stopOnlineTimer();
-            const myWin = player === onlineMyColor;
-            document.getElementById('onlineStatusText').textContent = myWin ? '你赢了！' : '你输了！';
-            showToast(myWin ? '你赢了！' : '你输了！', !myWin);
-            saveGameRecord(myWin ? 'win' : 'lose', 'online', onlineOpponent);
-            startRestartCountdown();
-            return true;
-        }
-        // 更新联机对战的当前玩家（而不是本地游戏的currentPlayer）
-        onlineCurrentPlayer = player === 1 ? 2 : 1;
-        updateOnlineUI();
-        return true;
-    }
-
     function updateOnlineUI() {
         if (!onlineGameActive) return;
         const isMyTurn = onlineCurrentPlayer === onlineMyColor;
@@ -1687,11 +1662,7 @@
                 const myWin = res.winner === onlineMyColor;
                 document.getElementById('onlineStatusText').textContent = myWin ? '你赢了！' : '你输了！';
                 showToast(myWin ? '你赢了！' : '你输了！', !myWin);
-                if (myWin) {
-                    await apiCall('/api/records', 'POST', { result: 'win', opponent: onlineOpponent, mode: 'online' });
-                } else {
-                    await apiCall('/api/records', 'POST', { result: 'lose', opponent: onlineOpponent, mode: 'online' });
-                }
+                saveGameRecord(myWin ? 'win' : 'lose', 'online', onlineOpponent);
                 startRestartCountdown();
             }
         } catch (err) {

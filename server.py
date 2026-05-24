@@ -1681,13 +1681,6 @@ def restart_match(user):
     return jsonify({'success': True, 'message': '游戏已重新开始'})
 
 
-@app.route('/api/match/restart/respond', methods=['POST'])
-@require_auth
-def respond_restart(user):
-    """响应重新开始请求（已弃用，现在任何一方点击即可重新开始）"""
-    return jsonify({'success': True, 'message': '重新开始功能已简化，请直接点击重新开始按钮'})
-
-
 @app.route('/api/admin/matches', methods=['GET'])
 @require_super_admin
 def get_all_matches(user):
@@ -1838,16 +1831,15 @@ def start_cleanup_task():
 start_cleanup_task()
 
 if __name__ == '__main__':
-    # 启动服务器，保留网络地址输出
-    # 跨平台启动服务器
-    import platform
+    # 启动服务器
     import socket
+    import webbrowser
     
     # 检查端口是否可用
     def is_port_available(port):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             try:
-                s.bind(('0.0.0.0', port))
+                s.bind(('127.0.0.1', port))
                 return True
             except OSError:
                 return False
@@ -1861,4 +1853,21 @@ if __name__ == '__main__':
                 print(f"使用端口 {port}")
                 break
     
-    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False, threaded=True)
+    url = f'http://127.0.0.1:{port}'
+    print(f'正在启动服务器...')
+    print(f'本地访问: {url}')
+    print(f'按 Ctrl+C 停止服务器')
+    
+    # 抑制 Werkzeug 的 HTTP 请求日志，保留警告和错误
+    class RequestLogFilter(logging.Filter):
+        def filter(self, record):
+            msg = record.getMessage()
+            return not ('GET' in msg or 'POST' in msg or 'PUT' in msg or 'DELETE' in msg)
+    
+    werkzeug_log = logging.getLogger('werkzeug')
+    werkzeug_log.addFilter(RequestLogFilter())
+    
+    # 延迟自动打开浏览器，等待服务器就绪
+    threading.Timer(1.5, lambda: webbrowser.open(url)).start()
+    
+    app.run(host='127.0.0.1', port=port, debug=False, use_reloader=False, threaded=True)

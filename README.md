@@ -1,6 +1,6 @@
-> **主仓库**：[Gitee](https://gitee.com/Guoguo220/gomoku) | **镜像**：[GitHub](https://github.com/Hammer220/gomoku)
-
 # 🎯 五子棋 · 全能联机对战平台
+
+> **主仓库**：[Gitee](https://gitee.com/Guoguo220/gomoku) | **镜像**：[GitHub](https://github.com/Hammer220/gomoku)
 
 > 现代 Web 五子棋 —— AI 对战 · 好友联机 · 全功能管理后台\
 > **一台服务器，你和你的朋友随时开战！**

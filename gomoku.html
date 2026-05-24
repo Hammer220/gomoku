@@ -1194,7 +1194,7 @@
         }
         
         // 绘制星位点
-        const dotSize = Math.max(2, cellSize * 0.15);
+        const dotSize = Math.max(2, cellSize * 0.08);
         [[3,3],[3,11],[7,7],[11,3],[11,11]].forEach(([x,y]) => {
             ctx.beginPath();
             ctx.arc(x * cellSize, y * cellSize, dotSize, 0, Math.PI * 2);

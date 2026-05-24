@@ -1853,9 +1853,23 @@ if __name__ == '__main__':
                 print(f"使用端口 {port}")
                 break
     
-    url = f'http://127.0.0.1:{port}'
+    local_url = f'http://127.0.0.1:{port}'
+    
+    import socket
+    def get_local_ip():
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                s.connect(('8.8.8.8', 80))
+                return s.getsockname()[0]
+        except:
+            return '127.0.0.1'
+    
+    lan_ip = get_local_ip()
+    lan_url = f'http://{lan_ip}:{port}'
+    
     print(f'正在启动服务器...')
-    print(f'本地访问: {url}')
+    print(f'本地访问: {local_url}')
+    print(f'网络访问: {lan_url}')
     print(f'按 Ctrl+C 停止服务器')
     
     # 抑制 Werkzeug 的 HTTP 请求日志，保留警告和错误
@@ -1866,8 +1880,5 @@ if __name__ == '__main__':
     
     werkzeug_log = logging.getLogger('werkzeug')
     werkzeug_log.addFilter(RequestLogFilter())
-    
-    # 延迟自动打开浏览器，等待服务器就绪
-    threading.Timer(1.5, lambda: webbrowser.open(url)).start()
     
     app.run(host='127.0.0.1', port=port, debug=False, use_reloader=False, threaded=True)

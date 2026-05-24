@@ -1,4 +1,4 @@
-> **同步部署**：[Gitee](https://gitee.com/Guoguo220/gomoku) | [GitHub](https://github.com/Hammer220/gomoku)
+> **主仓库**：[Gitee](https://gitee.com/Guoguo220/gomoku) | **镜像**：[GitHub](https://github.com/Hammer220/gomoku)
 
 # 🎯 五子棋 · 全能联机对战平台
 

@@ -6,7 +6,6 @@
     <title>五子棋</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* 保留原版样式 */
         .board-grid {
@@ -391,20 +390,6 @@
                 <p class="text-xl font-bold text-blue-600" id="statWinRate">0%</p>
                 <p class="text-sm text-gray-500">胜率</p>
             </div>
-        </div>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-            <div class="bg-white rounded-lg shadow-md p-3" style="min-height:250px;">
-                <h3 class="font-semibold mb-2 text-sm text-gray-600">胜负统计</h3>
-                <canvas id="winLossChart"></canvas>
-            </div>
-            <div class="bg-white rounded-lg shadow-md p-3" style="min-height:250px;">
-                <h3 class="font-semibold mb-2 text-sm text-gray-600">模式分布</h3>
-                <canvas id="modeChart"></canvas>
-            </div>
-        </div>
-        <div class="bg-white rounded-lg shadow-md p-3" style="min-height:250px;height:38vh;max-height:480px;">
-            <h3 class="font-semibold mb-2 text-sm text-gray-600">积分走势</h3>
-            <canvas id="scoreTrendChart"></canvas>
         </div>
     </div>
     
@@ -2055,11 +2040,32 @@
     function undoMove(){
         if(!gameActive || moveHistory.length===0) { showToast('没有可悔棋的操作',true); return; }
         if(undoCount>=3) { showToast('悔棋次数已用完',true); return; }
-        const m = moveHistory.pop();
-        gameBoard[m.row][m.col] = 0;
-        undoCount++; currentPlayer = (currentPlayer === 1 ? 2 : 1); winningCells=[];
-        drawBoard(); updateUI(); showToast('悔棋1步');
-        if(gameMode==='ai' && gameActive && currentPlayer === getAIColor()) setTimeout(aiMove, 200);
+        
+        let stepsToUndo = 1;
+        if (gameMode === 'ai') {
+            stepsToUndo = (currentPlayer === playerColor) ? 2 : 1;
+        }
+        
+        if (moveHistory.length < stepsToUndo) {
+            showToast('无法悔棋', true);
+            return;
+        }
+        
+        for (let i = 0; i < stepsToUndo; i++) {
+            const m = moveHistory.pop();
+            if (m) {
+                gameBoard[m.row][m.col] = 0;
+            }
+        }
+        
+        undoCount++;
+        if (gameMode === 'ai') {
+            currentPlayer = playerColor;
+        } else {
+            currentPlayer = (currentPlayer === 1 ? 2 : 1);
+        }
+        winningCells=[];
+        drawBoard(); updateUI(); showToast(`已悔${stepsToUndo}步`);
     }
 
     function startTimer(){ if(timerInterval) clearInterval(timerInterval); timerInterval = setInterval(()=>{ if(gameActive){ gameTime++; document.getElementById('gameTimeDisplay').textContent=formatTime(gameTime); } },1000); }
@@ -2205,10 +2211,6 @@
         }).join('');
     }
 
-    let winLossChartInstance = null;
-    let modeChartInstance = null;
-    let scoreTrendChartInstance = null;
-
     async function loadStats(){
         try {
             const data = await apiCall('/api/statistics');
@@ -2217,111 +2219,6 @@
             document.getElementById('statLosses').textContent = data.losses;
             document.getElementById('statDraws').textContent = data.draws;
             document.getElementById('statWinRate').textContent = data.winRate + '%';
-
-            if (winLossChartInstance) winLossChartInstance.destroy();
-            if (modeChartInstance) modeChartInstance.destroy();
-            if (scoreTrendChartInstance) scoreTrendChartInstance.destroy();
-
-            const winLossCtx = document.getElementById('winLossChart').getContext('2d');
-            winLossChartInstance = new Chart(winLossCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['胜利', '失败', '平局'],
-                    datasets: [{
-                        data: [data.wins, data.losses, data.draws],
-                        backgroundColor: ['#22c55e', '#ef4444', '#eab308'],
-                        borderWidth: 2,
-                        borderColor: '#fff'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom', labels: { padding: 8, usePointStyle: true, boxWidth: 8, font: { size: 10 } } }
-                    }
-                }
-            });
-
-            const modeLabels = { ai: '人机对战', pvp: '双人对战', online: '联机对战' };
-            const modeData = data.modeDistribution || {};
-            const modeKeys = Object.keys(modeData);
-            const modeColors = ['#3b82f6', '#8b5cf6', '#f59e0b'];
-            const modeChartLabels = modeKeys.map(k => modeLabels[k] || k);
-            const modeChartValues = modeKeys.map(k => modeData[k]);
-
-            const modeCtx = document.getElementById('modeChart').getContext('2d');
-            modeChartInstance = new Chart(modeCtx, {
-                type: 'bar',
-                data: {
-                    labels: modeChartLabels,
-                    datasets: [{
-                        label: '对局数',
-                        data: modeChartValues,
-                        backgroundColor: modeColors.slice(0, modeKeys.length),
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: { beginAtZero: true, ticks: { stepSize: 1 } }
-                    },
-                    plugins: {
-                        legend: { display: false }
-                    }
-                }
-            });
-
-            const records = data.records || [];
-            const scoreRecords = records.filter(r => r.timestamp).sort((a, b) => a.timestamp - b.timestamp);
-            let cumulativeScore = 0;
-            const scoreLabels = [];
-            const scoreValues = [];
-            scoreRecords.forEach((r, i) => {
-                const rKey = r.resultKey || (r.result === '胜利' ? 'win' : (r.result === '失败' ? 'lose' : 'draw'));
-                if (rKey !== 'draw') {
-                    cumulativeScore += (rKey === 'win' ? 50 : -20);
-                    cumulativeScore = Math.max(0, cumulativeScore);
-                }
-                scoreLabels.push((i + 1).toString());
-                scoreValues.push(cumulativeScore);
-            });
-
-            const scoreCtx = document.getElementById('scoreTrendChart').getContext('2d');
-            scoreTrendChartInstance = new Chart(scoreCtx, {
-                type: 'line',
-                data: {
-                    labels: scoreLabels.length ? scoreLabels : [''],
-                    datasets: [{
-                        label: '积分',
-                        data: scoreValues.length ? scoreValues : [0],
-                        borderColor: '#3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        fill: true,
-                        tension: 0.3,
-                        pointRadius: scoreLabels.length > 1 ? 3 : 0,
-                        pointHoverRadius: 5
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: { 
-                            beginAtZero: true,
-                            grace: '10%',
-                            ticks: {
-                                precision: 0
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: { display: false }
-                    }
-                }
-            });
         } catch(e) {
             console.error('加载统计数据失败', e);
         }

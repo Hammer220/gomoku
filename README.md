@@ -1,7 +1,5 @@
 # 🎯 五子棋 · 全能联机对战平台
 
-> **试玩链接**：<https://hammer2026.pythonanywhere.com>
-
 > **仓库**：[Gitee](https://gitee.com/Guoguo220/gomoku) | [GitHub](https://github.com/Hammer220/gomoku)
 
 > 现代 Web 五子棋 —— AI 对战 · 好友联机 · 全功能管理后台\
@@ -12,6 +10,15 @@
 [![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-F7DF1E.svg?style=flat\&logo=javascript\&logoColor=black)](https://developer.mozilla.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/Hammer220/gomoku?style=social)](https://github.com/Hammer220/gomoku)
+
+## 🎮 完整在线试玩：[https://hammer2026.pythonanywhere.com](https://hammer2026.pythonanywhere.com)
+> **📝 示例账号**：
+> - 普通管理员：`test1` / `123456`
+> - 普通管理员：`test2` / `123456`
+> - 超级管理员账号不公开
+
+## 🌐 静态版在线体验（GitHub Pages）
+您可以直接访问 **<https://hammer220.github.io/gomoku/>** 体验本项目的静态版。
 
 ***
 
@@ -41,25 +48,6 @@
 
 ***
 
-## 🌐 在线体验
-
-您可以直接访问 **<https://hammer220.github.io/gomoku/>** 体验本项目。
-
-> **⚠️ 注意**：由于 GitHub Pages 只能部署静态网页，无法运行 Flask 后端服务器，因此在线演示版本缺少以下核心功能：
->
-> - ❌ 用户系统（注册、登录、修改密码）
-> - ❌ 联机对战（创建房间、加入房间、实时同步）
-> - ❌ 管理员后台（用户管理、对局监控）
-> - ❌ 积分系统与战绩统计
-> - ❌ 存档系统
-> - ❌ 个人数据看板
->
-> **可用功能**：人机对战（三档难度）、双人同机对战等功能。
->
-> 如需体验完整功能，请按照下方「快速开始」指南在本地部署运行。
-
-***
-
 ## 🚀 快速开始（三步跑起来）
 
 ### 1️⃣ 克隆仓库
@@ -80,7 +68,7 @@ pip install flask
 ### 3️⃣ 启动服务器
 
 ```bash
-python server.py
+python3 server.py
 ```
 
 终端会输出：
@@ -267,8 +255,7 @@ A：所有数据以 JSON 形式持久化到硬盘，正常关闭服务器不丢�
 
 ## 📬 联系方式
 
-- 作者：Hammer220
-- 项目地址：<https://github.com/Hammer220/gomoku>
+- 作者：Hammer
 - Issue / PR：随时欢迎！
 
 ***

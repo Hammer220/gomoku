@@ -11,13 +11,16 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/Hammer220/gomoku?style=social)](https://github.com/Hammer220/gomoku)
 
-## 🎮 完整在线试玩：[https://hammer2026.pythonanywhere.com](https://hammer2026.pythonanywhere.com)
+## 🎮 完整在线试玩：<https://hammer2026.pythonanywhere.com>
+
 > **📝 示例账号**：
+>
 > - 普通管理员：`test1` / `123456`
-> - 普通管理员：`test2` / `123456`
+> - 普通用户：`test2` / `123456`
 > - 超级管理员账号不公开
 
 ## 🌐 静态版在线体验（GitHub Pages）
+
 您可以直接访问 **<https://hammer220.github.io/gomoku/>** 体验本项目的静态版。
 
 ***

@@ -10,10 +10,10 @@ from flask import Flask, request, jsonify, send_from_directory
 import logging
 import secrets
 
-app = Flask(__name__, static_folder='.', static_url_path='')
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+app = Flask(__name__, static_folder=SCRIPT_DIR, static_url_path='')
 app.secret_key = secrets.token_hex(32)
-
-DATA_DIR = 'data'
+DATA_DIR = os.path.join(SCRIPT_DIR, 'data')
 os.makedirs(DATA_DIR, exist_ok=True)
 
 USERS_FILE = os.path.join(DATA_DIR, 'users.json')
@@ -339,7 +339,7 @@ def require_super_admin(f):
 # 路由
 @app.route('/')
 def index():
-    return send_from_directory('.', 'gomoku.html')
+    return send_from_directory(SCRIPT_DIR, 'gomoku.html')
 
 @app.route('/api/register', methods=['POST'])
 def register():
@@ -1273,7 +1273,7 @@ def save_user_settings(user):
 @require_auth
 def get_background_images(user):
     """获取可用的背景图片列表"""
-    picture_dir = 'picture'
+    picture_dir = os.path.join(SCRIPT_DIR, 'picture')
     supported_extensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp']
     
     if not os.path.exists(picture_dir):
@@ -1321,7 +1321,7 @@ def upload_background_image(user):
     import uuid
     
     if save_to_server:
-        picture_dir = 'picture'
+        picture_dir = os.path.join(SCRIPT_DIR, 'picture')
         os.makedirs(picture_dir, exist_ok=True)
         
         name_without_ext = os.path.splitext(file.filename)[0]

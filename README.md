@@ -11,7 +11,7 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/Hammer220/gomoku?style=social)](https://github.com/Hammer220/gomoku)
 
-## 🎮 完整在线试玩：<https://hammer2026.pythonanywhere.com>
+## 🎮 完整在线试玩：<https://hammer2026.eu.pythonanywhere.com>
 
 > **📝 示例账号**：
 >

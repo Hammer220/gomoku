@@ -1288,7 +1288,7 @@ def get_background_images(user):
                 if ext in supported_extensions:
                     backgrounds.append({
                         'name': filename,
-                        'path': f'{picture_dir}/{filename}'
+                        'path': f'picture/{filename}'
                     })
     except OSError as e:
         print(f"[WARN] 读取背景图片目录失败: {e}")
@@ -1333,7 +1333,7 @@ def upload_background_image(user):
         return jsonify({
             'success': True,
             'savedToServer': True,
-            'path': f'{picture_dir}/{unique_filename}',
+            'path': f'picture/{unique_filename}',
             'name': unique_filename,
             'message': '图片已保存到服务器'
         })

@@ -1819,6 +1819,10 @@ def force_move(user):
 
 
 # 启动后台清理任务
+@app.route("/picture/<filename>")
+def serve_picture(filename):
+    return send_from_directory(os.path.join(SCRIPT_DIR, "picture"), filename)
+
 def start_cleanup_task():
     def cleanup_loop():
         while True:

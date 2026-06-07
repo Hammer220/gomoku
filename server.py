@@ -33,7 +33,7 @@ logging.basicConfig(
 logger = logging.getLogger('gomoku')
 
 # 连接管理配置
-CONNECT_TIMEOUT = 300  # 5分钟连接超时
+CONNECT_TIMEOUT = 600  # 10分钟连接超时（延长时间减少频繁断线）
 HEARTBEAT_INTERVAL = 30  # 心跳间隔30秒
 MAX_RECONNECT_ATTEMPTS = 3  # 最大重连尝试次数
 DATA_DIR = os.path.join(SCRIPT_DIR, 'data')
@@ -72,22 +72,34 @@ user_connections_lock = threading.Lock()
 
 def update_user_connection(username):
     """更新用户连接时间戳"""
-    with user_connections_lock:
-        user_connections[username] = {
-            'lastHeartbeat': time.time(),
-            'isOnline': True
-        }
+    try:
+        with user_connections_lock:
+            user_connections[username] = {
+                'lastHeartbeat': time.time(),
+                'isOnline': True
+            }
+        logger.debug(f"User connection updated: {username}")
+    except Exception as e:
+        logger.error(f"Error updating user connection for {username}: {e}")
 
 def get_user_connection(username):
     """获取用户连接状态"""
-    with user_connections_lock:
-        return user_connections.get(username)
+    try:
+        with user_connections_lock:
+            return user_connections.get(username)
+    except Exception as e:
+        logger.error(f"Error getting user connection for {username}: {e}")
+        return None
 
 def remove_user_connection(username):
     """移除用户连接状态"""
-    with user_connections_lock:
-        if username in user_connections:
-            del user_connections[username]
+    try:
+        with user_connections_lock:
+            if username in user_connections:
+                del user_connections[username]
+                logger.info(f"User connection removed: {username}")
+    except Exception as e:
+        logger.error(f"Error removing user connection for {username}: {e}")
 
 # 读取现有匹配信息
 try:
@@ -110,39 +122,75 @@ def cleanup_expired_matches():
     expired_matches = []
     current_time = time.time()
     
-    with active_matches_lock:
-        for match_id, match in active_matches.items():
-            if 'startTime' in match and (current_time - match['startTime']) > 3600:
-                expired_matches.append(match_id)
-                logger.info(f"清理过期房间: {match_id}")
+    try:
+        with active_matches_lock:
+            for match_id, match in active_matches.items():
+                try:
+                    # 检查是否超过2小时无活动，或者状态为closed/finished且超过1小时
+                    if 'startTime' in match and (current_time - match['startTime']) > 7200:
+                        expired_matches.append(match_id)
+                        logger.info(f"清理过期房间: {match_id}")
+                    elif match.get('status') in ['closed', 'finished'] and 'startTime' in match and (current_time - match['startTime']) > 3600:
+                        expired_matches.append(match_id)
+                        logger.info(f"清理已结束房间: {match_id}")
+                except Exception as e:
+                    logger.error(f"Error checking match {match_id}: {e}")
+            
+            for match_id in expired_matches:
+                try:
+                    del active_matches[match_id]
+                except Exception as e:
+                    logger.error(f"Error deleting match {match_id}: {e}")
         
-        for match_id in expired_matches:
-            del active_matches[match_id]
-    
-    if expired_matches:
-        save_matches()
+        if expired_matches:
+            save_matches()
+            logger.info(f"Cleaned up {len(expired_matches)} expired matches")
+    except Exception as e:
+        logger.error(f"Error in cleanup_expired_matches: {e}")
 
 def cleanup_inactive_connections():
     """清理长时间未活动的连接"""
     current_time = time.time()
     inactive_users = []
     
-    with user_connections_lock:
-        for username, conn in user_connections.items():
-            if current_time - conn['lastHeartbeat'] > CONNECT_TIMEOUT:
-                inactive_users.append(username)
-                conn['isOnline'] = False
-        
-        for username in inactive_users:
-            del user_connections[username]
-            logger.info(f"清理超时连接: {username}")
+    try:
+        with user_connections_lock:
+            for username, conn in list(user_connections.items()):
+                try:
+                    if current_time - conn['lastHeartbeat'] > CONNECT_TIMEOUT:
+                        inactive_users.append(username)
+                except Exception as e:
+                    logger.error(f"Error checking connection for {username}: {e}")
+            
+            for username in inactive_users:
+                try:
+                    del user_connections[username]
+                    logger.info(f"清理超时连接: {username}")
+                except Exception as e:
+                    logger.error(f"Error removing connection for {username}: {e}")
+    except Exception as e:
+        logger.error(f"Error in cleanup_inactive_connections: {e}")
     
     return inactive_users
 
 
 def save_matches():
-    with open(MATCHES_FILE, 'w', encoding='utf-8') as f:
-        json.dump(active_matches, f, ensure_ascii=False, indent=2)
+    try:
+        with open(MATCHES_FILE, 'w', encoding='utf-8') as f:
+            json.dump(active_matches, f, ensure_ascii=False, indent=2)
+        logger.debug("Matches saved successfully")
+    except Exception as e:
+        logger.error(f"Error saving matches: {e}")
+        # 尝试备份现有文件
+        try:
+            if os.path.exists(MATCHES_FILE):
+                backup_file = MATCHES_FILE + '.bak'
+                if os.path.exists(backup_file):
+                    os.remove(backup_file)
+                os.rename(MATCHES_FILE, backup_file)
+                logger.info(f"Backup created at {backup_file}")
+        except Exception as backup_error:
+            logger.error(f"Failed to create backup: {backup_error}")
 
 
 # 启动时清理过期匹配
@@ -662,26 +710,33 @@ def get_user_info(user):
 @require_auth
 def heartbeat(user):
     """心跳检测接口"""
-    username = user['username']
-    update_user_connection(username)
-    
-    # 检查用户是否在某个房间中
-    match_info = None
-    with active_matches_lock:
-        for match_id, match in active_matches.items():
-            if match['creator'] == username or match.get('opponent') == username:
-                match_info = {
-                    'matchId': match_id,
-                    'status': match['status'],
-                    'opponent': match.get('opponent') if match['creator'] == username else match['creator']
-                }
-                break
-    
-    return jsonify({
-        'success': True,
-        'timestamp': int(time.time()),
-        'match': match_info
-    })
+    try:
+        username = user['username']
+        update_user_connection(username)
+        
+        # 检查用户是否在某个房间中
+        match_info = None
+        try:
+            with active_matches_lock:
+                for match_id, match in active_matches.items():
+                    if match['creator'] == username or match.get('opponent') == username:
+                        match_info = {
+                            'matchId': match_id,
+                            'status': match['status'],
+                            'opponent': match.get('opponent') if match['creator'] == username else match['creator']
+                        }
+                        break
+        except Exception as e:
+            logger.error(f"Error checking match for user {username} in heartbeat: {e}")
+        
+        return jsonify({
+            'success': True,
+            'timestamp': int(time.time()),
+            'match': match_info
+        })
+    except Exception as e:
+        logger.error(f"Heartbeat error for user {user.get('username', 'unknown')}: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/user/update', methods=['POST'])
 @require_auth
@@ -1493,61 +1548,78 @@ def get_my_match(user):
 @require_auth
 def create_match(user):
     """创建联机对战房间"""
-    match_id = str(uuid.uuid4())[:8]
-    # 创建房间时就确定创建者颜色（随机选择）
-    import random
-    creator_color = random.choice([1, 2])
-    with active_matches_lock:
-        active_matches[match_id] = {
-            'id': match_id,
-            'creator': user['username'],
-            'opponent': None,
-            'status': 'waiting',
-            'board': [[0] * 15 for _ in range(15)],
-            'currentPlayer': creator_color,
-            'moves': [],
-            'winner': None,
-            'startTime': time.time(),
-            'creatorColor': creator_color
-        }
-    save_matches()
-    return jsonify({'success': True, 'matchId': match_id, 'creatorColor': creator_color})
+    try:
+        match_id = str(uuid.uuid4())[:8]
+        # 创建房间时就确定创建者颜色（随机选择）
+        import random
+        creator_color = random.choice([1, 2])
+        
+        try:
+            with active_matches_lock:
+                active_matches[match_id] = {
+                    'id': match_id,
+                    'creator': user['username'],
+                    'opponent': None,
+                    'status': 'waiting',
+                    'board': [[0] * 15 for _ in range(15)],
+                    'currentPlayer': creator_color,
+                    'moves': [],
+                    'winner': None,
+                    'startTime': time.time(),
+                    'creatorColor': creator_color,
+                    'lastActivity': time.time()
+                }
+            save_matches()
+            logger.info(f"Match created: {match_id} by {user['username']}")
+            return jsonify({'success': True, 'matchId': match_id, 'creatorColor': creator_color})
+        except Exception as e:
+            logger.error(f"Error creating match: {e}")
+            return jsonify({'error': 'Failed to create match'}), 500
+    except Exception as e:
+        logger.error(f"Create match error for user {user.get('username', 'unknown')}: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/match/join', methods=['POST'])
 @require_auth
 def join_match(user):
     """加入联机对战房间"""
-    data = request.json
-    match_id = data.get('matchId', '').strip()
-    
-    with active_matches_lock:
-        if not match_id or match_id not in active_matches:
-            return jsonify({'error': '房间不存在'}), 404
+    try:
+        data = request.json
+        match_id = data.get('matchId', '').strip()
         
-        match = active_matches[match_id]
+        with active_matches_lock:
+            if not match_id or match_id not in active_matches:
+                return jsonify({'error': '房间不存在'}), 404
+            
+            match = active_matches[match_id]
+            
+            if match['status'] != 'waiting':
+                return jsonify({'error': '房间已开始或已结束'}), 400
+            
+            if match['creator'] == user['username']:
+                return jsonify({'error': '不能加入自己创建的房间'}), 400
+            
+            # 使用创建房间时已确定的颜色
+            creator_color = match['creatorColor']
+            
+            match['opponent'] = user['username']
+            match['status'] = 'playing'
+            match['currentPlayer'] = creator_color
+            match['lastActivity'] = time.time()
         
-        if match['status'] != 'waiting':
-            return jsonify({'error': '房间已开始或已结束'}), 400
+        save_matches()
+        logger.info(f"User {user['username']} joined match {match_id}")
         
-        if match['creator'] == user['username']:
-            return jsonify({'error': '不能加入自己创建的房间'}), 400
-        
-        # 使用创建房间时已确定的颜色
-        creator_color = match['creatorColor']
-        
-        match['opponent'] = user['username']
-        match['status'] = 'playing'
-        match['currentPlayer'] = creator_color
-    
-    save_matches()
-    
-    return jsonify({
-        'success': True,
-        'matchId': match_id,
-        'yourColor': 2 if creator_color == 1 else 1,
-        'opponent': match['creator'],
-        'currentPlayer': creator_color
-    })
+        return jsonify({
+            'success': True,
+            'matchId': match_id,
+            'yourColor': 2 if creator_color == 1 else 1,
+            'opponent': match['creator'],
+            'currentPlayer': creator_color
+        })
+    except Exception as e:
+        logger.error(f"Join match error for user {user.get('username', 'unknown')}: {e}")
+        return jsonify({'error': 'Failed to join match'}), 500
 
 @app.route('/api/match/list', methods=['GET'])
 @require_auth
@@ -1568,92 +1640,118 @@ def list_matches(user):
 @require_auth
 def get_match_status(user, match_id):
     """获取比赛状态（轮询）"""
-    with active_matches_lock:
-        if match_id not in active_matches:
-            return jsonify({'error': '房间不存在'}), 404
+    try:
+        with active_matches_lock:
+            if match_id not in active_matches:
+                return jsonify({'error': '房间不存在'}), 404
+            
+            match = active_matches[match_id]
+            username = user['username']
+            
+            if match['creator'] != username and match['opponent'] != username:
+                return jsonify({'error': '您不在这个房间中'}), 403
+            
+            # 更新活动时间
+            match['lastActivity'] = time.time()
+            
+            my_color = None
+            opponent_name = None
+            if match['creator'] == username:
+                my_color = match['creatorColor']
+                opponent_name = match['opponent']
+            else:
+                my_color = 2 if match['creatorColor'] == 1 else 1
+                opponent_name = match['creator']
+            
+            # 复制匹配数据，避免锁竞争
+            match_data = {
+                'id': match_id,
+                'status': match['status'],
+                'board': [row[:] for row in match['board']],
+                'currentPlayer': match['currentPlayer'],
+                'moves': match['moves'][:],
+                'winner': match['winner'],
+                'myColor': my_color,
+                'creatorColor': match['creatorColor'],
+                'opponent': opponent_name,
+                'restartRequested': match.get('restartRequested', False),
+                'restartRequestedBy': match.get('restartRequestedBy'),
+                'restartDeclinedBy': match.get('restartDeclinedBy'),
+                'restartAccepted': match.get('restartAccepted', False)
+            }
         
-        match = active_matches[match_id]
-        username = user['username']
-        
-        if match['creator'] != username and match['opponent'] != username:
-            return jsonify({'error': '您不在这个房间中'}), 403
-        
-        my_color = None
-        opponent_name = None
-        if match['creator'] == username:
-            my_color = match['creatorColor']
-            opponent_name = match['opponent']
-        else:
-            my_color = 2 if match['creatorColor'] == 1 else 1
-            opponent_name = match['creator']
-    
-    return jsonify({
-        'id': match_id,
-        'status': match['status'],
-        'board': match['board'],
-        'currentPlayer': match['currentPlayer'],
-        'moves': match['moves'],
-        'winner': match['winner'],
-        'myColor': my_color,
-        'creatorColor': match['creatorColor'],
-        'opponent': opponent_name,
-        'restartRequested': match.get('restartRequested', False),
-        'restartRequestedBy': match.get('restartRequestedBy'),
-        'restartDeclinedBy': match.get('restartDeclinedBy'),
-        'restartAccepted': match.get('restartAccepted', False)
-    })
+        return jsonify(match_data)
+    except Exception as e:
+        logger.error(f"Get match status error for match {match_id}: {e}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/match/move', methods=['POST'])
 @require_auth
 def make_move(user):
     """落子"""
-    data = request.json
-    match_id = data.get('matchId')
-    row = data.get('row')
-    col = data.get('col')
-    
-    if not all([match_id, row is not None, col is not None]):
-        return jsonify({'error': '参数无效'}), 400
-    
-    with active_matches_lock:
-        if match_id not in active_matches:
-            return jsonify({'error': '房间不存在'}), 404
+    try:
+        data = request.json
+        match_id = data.get('matchId')
+        row = data.get('row')
+        col = data.get('col')
         
-        match = active_matches[match_id]
-        username = user['username']
+        if not all([match_id, row is not None, col is not None]):
+            return jsonify({'error': '参数无效'}), 400
         
-        if match['status'] != 'playing':
-            return jsonify({'error': '游戏未在进行中', 'status': match['status']}), 400
+        # 验证 row 和 col 在有效范围内
+        if not (0 <= row < 15 and 0 <= col < 15):
+            return jsonify({'error': '无效的棋盘位置'}), 400
         
-        if match['creator'] != username and match['opponent'] != username:
-            return jsonify({'error': '您不在这个房间中'}), 403
+        with active_matches_lock:
+            if match_id not in active_matches:
+                return jsonify({'error': '房间不存在'}), 404
+            
+            match = active_matches[match_id]
+            username = user['username']
+            
+            if match['status'] != 'playing':
+                return jsonify({'error': '游戏未在进行中', 'status': match['status']}), 400
+            
+            if match['creator'] != username and match['opponent'] != username:
+                return jsonify({'error': '您不在这个房间中'}), 403
+            
+            my_color = None
+            if match['creator'] == username:
+                my_color = match['creatorColor']
+            else:
+                my_color = 2 if match['creatorColor'] == 1 else 1
+            
+            if match['currentPlayer'] != my_color:
+                return jsonify({'error': '不是您的回合', 'currentPlayer': match['currentPlayer'], 'myColor': my_color}), 400
+            
+            if match['board'][row][col] != 0:
+                return jsonify({'error': '该位置已有棋子'}), 400
+            
+            # 落子
+            match['board'][row][col] = my_color
+            match['moves'].append({'row': row, 'col': col, 'player': my_color})
+            match['lastActivity'] = time.time()
+            
+            # 检查胜利
+            if check_win(match['board'], row, col, my_color):
+                match['winner'] = my_color
+                match['status'] = 'finished'
+                board_copy = [row[:] for row in match['board']]
+                save_matches()
+                logger.info(f"Game finished in match {match_id}, winner: {my_color}")
+                return jsonify({'success': True, 'win': True, 'winner': my_color, 'board': board_copy})
+            
+            # 切换回合
+            match['currentPlayer'] = 2 if my_color == 1 else 1
+            board_copy = [row[:] for row in match['board']]
         
-        my_color = None
-        if match['creator'] == username:
-            my_color = match['creatorColor']
-        else:
-            my_color = 2 if match['creatorColor'] == 1 else 1
+        save_matches()
         
-        if match['currentPlayer'] != my_color:
-            return jsonify({'error': '不是您的回合', 'currentPlayer': match['currentPlayer'], 'myColor': my_color}), 400
-        
-        if match['board'][row][col] != 0:
-            return jsonify({'error': '该位置已有棋子'}), 400
-        
-        match['board'][row][col] = my_color
-        match['moves'].append({'row': row, 'col': col, 'player': my_color})
-        
-        if check_win(match['board'], row, col, my_color):
-            match['winner'] = my_color
-            match['status'] = 'finished'
-            save_matches()
-            return jsonify({'success': True, 'win': True, 'winner': my_color, 'board': match['board']})
-        
-        match['currentPlayer'] = 2 if my_color == 1 else 1
-    
-    save_matches()
-    
-    return jsonify({'success': True, 'win': False, 'board': match['board']})
+        return jsonify({'success': True, 'win': False, 'board': board_copy})
+    except Exception as e:
+        logger.error(f"Make move error for user {user.get('username', 'unknown')}: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({'error': 'Internal server error'}), 500
 
 def check_win(board, row, col, player):
     """检查是否五子连珠"""

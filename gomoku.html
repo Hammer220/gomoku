@@ -811,10 +811,13 @@
     // 连接管理变量
     let heartbeatInterval = null;  // 心跳定时器
     let reconnectAttempts = 0;  // 重连尝试次数
-    let basePollingInterval = 1000;  // 基础轮询间隔
-    let currentPollingInterval = 1000;  // 当前轮询间隔
-    let maxPollingInterval = 10000;  // 最大轮询间隔
+    let maxReconnectAttempts = 20;  // 最大重连尝试次数
+    let basePollingInterval = 800;  // 基础轮询间隔（毫秒）
+    let currentPollingInterval = 800;  // 当前轮询间隔
+    let maxPollingInterval = 15000;  // 最大轮询间隔
     let isReconnecting = false;  // 是否正在重连
+    let lastSuccessfulPoll = Date.now();  // 最后成功轮询时间
+    let pollTimeout = null;  // 轮询超时计时器
 
     async function onlineCreateMatch() {
         try {
@@ -1311,22 +1314,45 @@
         if (!onlineMatchId) return;
         try {
             await apiCall('/api/match/leave', 'POST', { matchId: onlineMatchId });
-        } catch (err) {}
+        } catch (err) {
+            console.warn('离开房间时出错:', err);
+        }
+        // 完整清理联机状态
+        cleanupOnlineState();
+        showToast('已离开房间');
+    }
+    
+    // 新增：完整的联机状态清理函数
+    function cleanupOnlineState() {
         stopRestartCountdown();
+        stopOnlinePolling();
+        stopOnlineTimer();
+        stopHeartbeat();
+        
         onlineMatchId = null;
         onlineMyColor = null;
         onlineOpponent = null;
         onlineGameActive = false;
-        stopOnlinePolling();
-        stopOnlineTimer();
-        stopHeartbeat();
+        onlineBoard = Array(BOARD_SIZE).fill().map(()=>Array(BOARD_SIZE).fill(0));
+        onlineMoveHistory = [];
+        onlineCurrentPlayer = 1;
+        reconnectAttempts = 0;
+        currentPollingInterval = basePollingInterval;
+        isReconnecting = false;
+        lastMoveCount = 0;
+        
+        // 更新UI
         document.getElementById('onlineMatchIdDisplay').textContent = '-';
         document.getElementById('roomInfo').innerHTML = '<p class="text-gray-500">未加入房间</p>';
+        document.getElementById('roomActions').classList.add('hidden');
         document.getElementById('onlineLeaveBtn').classList.add('hidden');
         document.getElementById('onlineCreateBtn').classList.remove('hidden');
         document.getElementById('onlineJoinBtn').parentElement.classList.remove('hidden');
         document.getElementById('onlineStatusText').textContent = '等待加入房间...';
-        showToast('已离开房间');
+        document.getElementById('onlineMoveCount').textContent = '0';
+        
+        drawOnlineBoard();
+        updateOnlineUI();
     }
     
     async function closeOnlineRoom() {
@@ -1359,24 +1385,9 @@
             }
         }
         
-        stopRestartCountdown();
-        onlineMatchId = null;
-        onlineMyColor = null;
-        onlineOpponent = null;
-        onlineGameActive = false;
-        stopOnlinePolling();
-        stopOnlineTimer();
-        stopHeartbeat();
-        initOnlineBoard();
-        document.getElementById('onlineMatchIdDisplay').textContent = '-';
-        document.getElementById('roomInfo').innerHTML = '<p class="text-gray-500">未加入房间</p>';
-        document.getElementById('roomActions').classList.add('hidden');
-        document.getElementById('onlineLeaveBtn').classList.add('hidden');
-        document.getElementById('onlineCreateBtn').classList.remove('hidden');
-        document.getElementById('onlineJoinBtn').parentElement.classList.remove('hidden');
-        document.getElementById('onlineStatusText').textContent = '等待加入房间...';
+        // 使用统一的清理函数
+        cleanupOnlineState();
         showToast('房间已关闭');
-        drawOnlineBoard();
     }
 
     function startOnlineTimer() {
@@ -1531,6 +1542,9 @@
 
     function startOnlinePolling() {
         stopOnlinePolling();
+        reconnectAttempts = 0;
+        currentPollingInterval = basePollingInterval;
+        lastSuccessfulPoll = Date.now();
         scheduleOnlinePoll();
     }
 
@@ -1540,12 +1554,16 @@
         onlinePollingInterval = setTimeout(async () => {
             if (!onlineMatchId) return;
             
+            let pollSuccess = false;
             try {
                 const res = await apiCall(`/api/match/status/${onlineMatchId}`, 'GET');
+                pollSuccess = true;
                 
                 // 重置重连计数器和轮询间隔（连接成功）
                 reconnectAttempts = 0;
                 currentPollingInterval = basePollingInterval;
+                lastSuccessfulPoll = Date.now();
+                isReconnecting = false;
                 
                 // 检测游戏重新开始：服务器棋盘已重置，但本地棋盘还有棋子
                 const hasLocalPieces = onlineBoard && onlineBoard.some(row => row && row.some(cell => cell !== 0));
@@ -1604,6 +1622,10 @@
                     updateOnlineUI();
                     return;
                 }
+                if (res.status === 'waiting' && res.opponent) {
+                    // 房间已被加入，状态更新为 playing
+                    res.status = 'playing';
+                }
                 if (res.board) {
                     const oldHasPieces = onlineBoard && onlineBoard.some(row => row && row.some(cell => cell !== 0));
                     const newHasPieces = res.board.some(row => row.some(cell => cell !== 0));
@@ -1622,7 +1644,7 @@
                         onlineMyColor = currentUser?.username === res.opponent ? (res.creatorColor === 1 ? 2 : 1) : res.creatorColor;
                     }
                     
-                    onlineGameActive = res.status === 'playing';
+                    onlineGameActive = res.status === 'playing' || res.status === 'waiting';
                     if (onlineGameActive) {
                         startOnlineTimer();
                     }
@@ -1636,11 +1658,13 @@
                 const currentMyColor = onlineMyColor;
                 const currentOpponent = res.opponent || onlineOpponent;
                 if (currentMyColor !== null && currentMyColor !== undefined) {
+                    let statusText = res.status === 'waiting' ? '等待对手加入' : '对战进行中';
+                    let statusColor = res.status === 'waiting' ? 'text-amber-600' : 'text-green-600';
                     document.getElementById('roomInfo').innerHTML = `
                         <p>房间号: <span class="font-mono font-bold text-lg">${onlineMatchId}</span></p>
                         <p>你的棋子: <span class="font-bold">${currentMyColor === 1 ? '黑棋' : '白棋'}</span></p>
-                        <p>对手: <span class="font-bold">${currentOpponent || '对手'}</span></p>
-                        <p>状态: <span class="text-green-600">对战进行中</span></p>
+                        <p>对手: <span class="font-bold">${currentOpponent || '等待对手'}</span></p>
+                        <p>状态: <span class="${statusColor}">${statusText}</span></p>
                     `;
                 }
             } catch (err) {
@@ -1649,19 +1673,20 @@
                 // 实现指数退避策略
                 reconnectAttempts++;
                 currentPollingInterval = Math.min(
-                    basePollingInterval * Math.pow(2, reconnectAttempts),
+                    basePollingInterval * Math.pow(1.5, Math.min(reconnectAttempts, 10)),
                     maxPollingInterval
                 );
                 
                 // 显示重连提示
-                if (reconnectAttempts === 1) {
-                    showToast('网络连接不稳定，正在尝试重连...', true);
-                    document.getElementById('onlineStatusText').textContent = '连接中...';
+                if (reconnectAttempts === 1 || (reconnectAttempts % 5 === 0 && reconnectAttempts <= maxReconnectAttempts)) {
+                    showToast(`网络连接不稳定，正在尝试重连... (${reconnectAttempts}/${maxReconnectAttempts})`, true);
+                    document.getElementById('onlineStatusText').textContent = `连接中... (${reconnectAttempts})`;
+                    isReconnecting = true;
                 }
                 
                 // 检查是否超过最大重连次数
-                if (reconnectAttempts >= 10) {
-                    showToast('网络连接失败，请检查网络或重新登录', true);
+                if (reconnectAttempts >= maxReconnectAttempts) {
+                    showToast('网络连接失败，请检查网络或尝试重新加入房间', true);
                     document.getElementById('onlineStatusText').textContent = '连接失败';
                     stopOnlinePolling();
                     stopHeartbeat();
@@ -1670,20 +1695,35 @@
             }
             
             // 继续轮询
-            scheduleOnlinePoll();
+            if (onlineMatchId) {
+                scheduleOnlinePoll();
+            }
         }, currentPollingInterval);
     }
     
+    let heartbeatFailures = 0; // 心跳失败计数
+    let maxHeartbeatFailures = 3; // 最大心跳失败次数
+    
     function startHeartbeat() {
         stopHeartbeat();
+        heartbeatFailures = 0;
         heartbeatInterval = setInterval(async () => {
             if (!token || !isLoggedIn) return;
             try {
                 await apiCall('/api/heartbeat', 'POST', {});
+                heartbeatFailures = 0; // 成功后重置失败计数
             } catch (err) {
                 console.error('心跳失败:', err);
+                heartbeatFailures++;
+                // 如果心跳连续失败多次，可能需要处理
+                if (heartbeatFailures >= maxHeartbeatFailures) {
+                    console.warn('心跳连续失败多次，可能存在连接问题');
+                    // 可以在这里添加用户提示或重连逻辑
+                    heartbeatFailures = 0; // 重置计数
+                }
             }
-        }, 30000); // 每30秒发送一次心跳
+        }, 25000); // 每25秒发送一次心跳，稍微增加频率
+
     }
     
     function stopHeartbeat() {
@@ -1750,6 +1790,12 @@
         isLoggedIn = false;
         stopStatusCheck();
         stopTimer();
+        
+        // 清理所有联机状态
+        cleanupOnlineState();
+        stopMatchListRefresh();
+        stopBannedCountdown();
+        
         token = '';
         localStorage.removeItem('token');
         currentUser = null;

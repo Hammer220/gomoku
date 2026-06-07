@@ -807,6 +807,14 @@
     let matchListInterval = null;  // 房间列表刷新定时器
     let bannedCountdownInterval = null;  // 封禁倒计时定时器
     let lastMoveCount = 0;  // 跟踪之前的步数，用于检测重新开始
+    
+    // 连接管理变量
+    let heartbeatInterval = null;  // 心跳定时器
+    let reconnectAttempts = 0;  // 重连尝试次数
+    let basePollingInterval = 1000;  // 基础轮询间隔
+    let currentPollingInterval = 1000;  // 当前轮询间隔
+    let maxPollingInterval = 10000;  // 最大轮询间隔
+    let isReconnecting = false;  // 是否正在重连
 
     async function onlineCreateMatch() {
         try {
@@ -819,6 +827,10 @@
             onlineGameActive = true;
             onlineGameTime = 0;
             onlineCurrentPlayer = res.creatorColor;  // 使用服务器返回的当前玩家
+            
+            // 重置重连计数器
+            reconnectAttempts = 0;
+            currentPollingInterval = basePollingInterval;
             
             stopMatchListRefresh();
             
@@ -840,6 +852,7 @@
             updateOnlineUI();
             startOnlinePolling();
             startOnlineTimer();
+            startHeartbeat();
         } catch (err) {
             showToast(err.message, true);
         }
@@ -860,6 +873,10 @@
             onlineGameTime = 0;
             onlineCurrentPlayer = 1;
             
+            // 重置重连计数器
+            reconnectAttempts = 0;
+            currentPollingInterval = basePollingInterval;
+            
             // 停止房间列表刷新
             stopMatchListRefresh();
             
@@ -879,6 +896,7 @@
             updateOnlineUI();
             startOnlinePolling();
             startOnlineTimer();
+            startHeartbeat();
         } catch (err) {
             showToast(err.message, true);
         }
@@ -1301,6 +1319,7 @@
         onlineGameActive = false;
         stopOnlinePolling();
         stopOnlineTimer();
+        stopHeartbeat();
         document.getElementById('onlineMatchIdDisplay').textContent = '-';
         document.getElementById('roomInfo').innerHTML = '<p class="text-gray-500">未加入房间</p>';
         document.getElementById('onlineLeaveBtn').classList.add('hidden');
@@ -1347,6 +1366,7 @@
         onlineGameActive = false;
         stopOnlinePolling();
         stopOnlineTimer();
+        stopHeartbeat();
         initOnlineBoard();
         document.getElementById('onlineMatchIdDisplay').textContent = '-';
         document.getElementById('roomInfo').innerHTML = '<p class="text-gray-500">未加入房间</p>';
@@ -1435,8 +1455,13 @@
                 // 确保画布尺寸已计算
                 calcOnlineCanvasSize();
                 
+                // 重置重连计数器
+                reconnectAttempts = 0;
+                currentPollingInterval = basePollingInterval;
+                
                 startOnlinePolling();
                 startOnlineTimer();
+                startHeartbeat();
                 
                 drawOnlineBoard();
                 updateOnlineUI();
@@ -1505,11 +1530,22 @@
     }
 
     function startOnlinePolling() {
-        if (onlinePollingInterval) clearInterval(onlinePollingInterval);
-        onlinePollingInterval = setInterval(async () => {
+        stopOnlinePolling();
+        scheduleOnlinePoll();
+    }
+
+    function scheduleOnlinePoll() {
+        if (!onlineMatchId) return;
+        
+        onlinePollingInterval = setTimeout(async () => {
             if (!onlineMatchId) return;
+            
             try {
                 const res = await apiCall(`/api/match/status/${onlineMatchId}`, 'GET');
+                
+                // 重置重连计数器和轮询间隔（连接成功）
+                reconnectAttempts = 0;
+                currentPollingInterval = basePollingInterval;
                 
                 // 检测游戏重新开始：服务器棋盘已重置，但本地棋盘还有棋子
                 const hasLocalPieces = onlineBoard && onlineBoard.some(row => row && row.some(cell => cell !== 0));
@@ -1546,6 +1582,7 @@
                     onlineGameActive = false;
                     stopOnlinePolling();
                     stopOnlineTimer();
+                    stopHeartbeat();
                     document.getElementById('onlineStatusText').textContent = '房间已被关闭';
                     showToast('房间已被创建者关闭', true);
                     
@@ -1607,14 +1644,58 @@
                     `;
                 }
             } catch (err) {
-                console.error(err);
+                console.error('轮询失败:', err);
+                
+                // 实现指数退避策略
+                reconnectAttempts++;
+                currentPollingInterval = Math.min(
+                    basePollingInterval * Math.pow(2, reconnectAttempts),
+                    maxPollingInterval
+                );
+                
+                // 显示重连提示
+                if (reconnectAttempts === 1) {
+                    showToast('网络连接不稳定，正在尝试重连...', true);
+                    document.getElementById('onlineStatusText').textContent = '连接中...';
+                }
+                
+                // 检查是否超过最大重连次数
+                if (reconnectAttempts >= 10) {
+                    showToast('网络连接失败，请检查网络或重新登录', true);
+                    document.getElementById('onlineStatusText').textContent = '连接失败';
+                    stopOnlinePolling();
+                    stopHeartbeat();
+                    return;
+                }
             }
-        }, 1000);
+            
+            // 继续轮询
+            scheduleOnlinePoll();
+        }, currentPollingInterval);
+    }
+    
+    function startHeartbeat() {
+        stopHeartbeat();
+        heartbeatInterval = setInterval(async () => {
+            if (!token || !isLoggedIn) return;
+            try {
+                await apiCall('/api/heartbeat', 'POST', {});
+            } catch (err) {
+                console.error('心跳失败:', err);
+            }
+        }, 30000); // 每30秒发送一次心跳
+    }
+    
+    function stopHeartbeat() {
+        if (heartbeatInterval) {
+            clearInterval(heartbeatInterval);
+            heartbeatInterval = null;
+        }
     }
 
     function stopOnlinePolling() {
         if (onlinePollingInterval) {
-            clearInterval(onlinePollingInterval);
+            clearTimeout(onlinePollingInterval);
             onlinePollingInterval = null;
         }
     }

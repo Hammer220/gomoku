@@ -9,10 +9,33 @@ from functools import wraps
 from flask import Flask, request, jsonify, send_from_directory
 import logging
 import secrets
+import traceback
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, static_folder=SCRIPT_DIR, static_url_path='')
 app.secret_key = secrets.token_hex(32)
+
+# 端口配置
+port = int(os.environ.get('PORT', 5000))
+
+# 配置日志记录
+LOG_DIR = os.path.join(SCRIPT_DIR, 'logs')
+os.makedirs(LOG_DIR, exist_ok=True)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(os.path.join(LOG_DIR, 'gomoku.log')),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger('gomoku')
+
+# 连接管理配置
+CONNECT_TIMEOUT = 300  # 5分钟连接超时
+HEARTBEAT_INTERVAL = 30  # 心跳间隔30秒
+MAX_RECONNECT_ATTEMPTS = 3  # 最大重连尝试次数
 DATA_DIR = os.path.join(SCRIPT_DIR, 'data')
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -43,6 +66,29 @@ cache = {
 
 active_matches_lock = threading.Lock()
 
+# 用户连接状态跟踪
+user_connections = {}
+user_connections_lock = threading.Lock()
+
+def update_user_connection(username):
+    """更新用户连接时间戳"""
+    with user_connections_lock:
+        user_connections[username] = {
+            'lastHeartbeat': time.time(),
+            'isOnline': True
+        }
+
+def get_user_connection(username):
+    """获取用户连接状态"""
+    with user_connections_lock:
+        return user_connections.get(username)
+
+def remove_user_connection(username):
+    """移除用户连接状态"""
+    with user_connections_lock:
+        if username in user_connections:
+            del user_connections[username]
+
 # 读取现有匹配信息
 try:
     with open(MATCHES_FILE, 'r', encoding='utf-8') as f:
@@ -68,12 +114,30 @@ def cleanup_expired_matches():
         for match_id, match in active_matches.items():
             if 'startTime' in match and (current_time - match['startTime']) > 3600:
                 expired_matches.append(match_id)
+                logger.info(f"清理过期房间: {match_id}")
         
         for match_id in expired_matches:
             del active_matches[match_id]
     
     if expired_matches:
         save_matches()
+
+def cleanup_inactive_connections():
+    """清理长时间未活动的连接"""
+    current_time = time.time()
+    inactive_users = []
+    
+    with user_connections_lock:
+        for username, conn in user_connections.items():
+            if current_time - conn['lastHeartbeat'] > CONNECT_TIMEOUT:
+                inactive_users.append(username)
+                conn['isOnline'] = False
+        
+        for username in inactive_users:
+            del user_connections[username]
+            logger.info(f"清理超时连接: {username}")
+    
+    return inactive_users
 
 
 def save_matches():
@@ -424,6 +488,10 @@ def login():
     # 清除token缓存
     cache['tokens']['data'] = None
     
+    # 更新用户连接状态
+    update_user_connection(username)
+    logger.info(f"用户登录: {username}")
+    
     return jsonify({
         'success': True,
         'token': token,
@@ -584,9 +652,36 @@ def logout(user):
 @require_auth
 def get_user_info(user):
     """获取用户信息（优化接口）"""
+    # 更新连接状态
+    update_user_connection(user['username'])
     # 返回用户信息，排除密码字段
     user_info = {k: v for k, v in user.items() if k != 'password'}
     return jsonify(user_info)
+
+@app.route('/api/heartbeat', methods=['POST'])
+@require_auth
+def heartbeat(user):
+    """心跳检测接口"""
+    username = user['username']
+    update_user_connection(username)
+    
+    # 检查用户是否在某个房间中
+    match_info = None
+    with active_matches_lock:
+        for match_id, match in active_matches.items():
+            if match['creator'] == username or match.get('opponent') == username:
+                match_info = {
+                    'matchId': match_id,
+                    'status': match['status'],
+                    'opponent': match.get('opponent') if match['creator'] == username else match['creator']
+                }
+                break
+    
+    return jsonify({
+        'success': True,
+        'timestamp': int(time.time()),
+        'match': match_info
+    })
 
 @app.route('/api/user/update', methods=['POST'])
 @require_auth
@@ -1826,11 +1921,21 @@ def serve_picture(filename):
 def start_cleanup_task():
     def cleanup_loop():
         while True:
-            time.sleep(3600)  # 每小时清理一次
-            cleanup_expired_matches()
+            time.sleep(60)  # 每分钟检查一次
+            try:
+                # 清理过期匹配（每小时一次）
+                if int(time.time()) % 3600 == 0:
+                    cleanup_expired_matches()
+                
+                # 清理超时连接
+                cleanup_inactive_connections()
+            except Exception as e:
+                logger.error(f"清理任务异常: {str(e)}")
+                logger.error(traceback.format_exc())
     
     cleanup_thread = threading.Thread(target=cleanup_loop, daemon=True)
     cleanup_thread.start()
+    logger.info("后台清理任务已启动")
 
 start_cleanup_task()
 

@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>五子棋</title>
-    <script src="static/js/tailwind.min.js"></script>
-    <link href="static/css/font-awesome.min.css" rel="stylesheet">
+    <script src="/static/js/tailwind.min.js"></script>
+    <link href="/static/css/font-awesome.min.css" rel="stylesheet">
     <style>
         /* 保留原版样式 */
         .board-grid {
@@ -55,20 +55,28 @@
         }
     </style>
 
-<!-- 登录/注册模态框保持不变 -->
+<!-- 登录后 Turnstile 验证模态框 -->
+<div id="postLoginTurnstileModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="modal-content bg-white rounded-xl p-8 max-w-md w-full mx-4">
+        <h2 class="text-2xl font-bold mb-6 text-center text-primary">安全验证</h2>
+        <p class="text-gray-600 text-center mb-6">请完成安全验证以进入游戏</p>
+        <div id="postLoginTurnstileWidget" class="w-full h-16"></div>
+    </div>
+</div>
+
+<!-- 未完成验证提示条（已移除）-->
+
+<!-- 登录/注册模态框 -->
 <div id="loginModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
     <div class="modal-content bg-white rounded-xl p-8 max-w-md w-full mx-4">
         <h2 class="text-2xl font-bold mb-6 text-center text-primary">登录五子棋</h2>
         <form id="loginForm" class="space-y-4">
             <input type="text" id="username" placeholder="用户名" required class="w-full px-4 py-2 border rounded-lg">
             <input type="password" id="password" placeholder="密码" required class="w-full px-4 py-2 border rounded-lg">
-            <div class="flex items-center space-x-2">
-                <input type="text" id="captchaInput" placeholder="验证码" required class="flex-1 px-4 py-2 border rounded-lg">
-                <canvas id="captchaCanvas" width="120" height="40" class="border rounded cursor-pointer"></canvas>
-            </div>
+            <div id="geetestLoginWidget" class="w-full h-12 border rounded cursor-pointer bg-gray-100 flex items-center justify-center text-sm text-gray-500"></div>
             <button type="submit" class="w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-lg font-medium">登录</button>
             <p class="text-center text-gray-600">没有账号? <a href="#" id="showRegister" class="text-primary">立即注册</a></p>
-            <p class="text-center text-gray-600 text-sm mt-2">想快速体验? <a href="#" id="showPasswordless" class="text-primary">免密登录</a></p>
+            <p class="text-center text-gray-500 text-sm"><a href="#" id="showPasswordFreeLogin" class="text-primary hover:underline">免密登录</a></p>
         </form>
     </div>
 </div>
@@ -80,27 +88,30 @@
             <input type="text" id="regUsername" placeholder="用户名" required class="w-full px-4 py-2 border rounded-lg">
             <input type="password" id="regPassword" placeholder="密码(至少6位)" required class="w-full px-4 py-2 border rounded-lg">
             <input type="password" id="confirmPassword" placeholder="确认密码" required class="w-full px-4 py-2 border rounded-lg">
-            <div class="flex items-center space-x-2">
-                <input type="text" id="regCaptchaInput" placeholder="验证码" required class="flex-1 px-4 py-2 border rounded-lg">
-                <canvas id="regCaptchaCanvas" width="120" height="40" class="border rounded cursor-pointer"></canvas>
-            </div>
+            <div id="geetestRegisterWidget" class="w-full h-12 border rounded cursor-pointer bg-gray-100 flex items-center justify-center text-sm text-gray-500"></div>
             <button type="submit" class="w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-lg font-medium">注册</button>
             <p class="text-center text-gray-600">已有账号? <a href="#" id="showLogin" class="text-primary">立即登录</a></p>
         </form>
     </div>
 </div>
 
-<div id="passwordlessModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+<!-- 免密登录页面 -->
+<div id="passwordFreeLoginPage" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
     <div class="modal-content bg-white rounded-xl p-8 max-w-md w-full mx-4">
-        <h2 class="text-2xl font-bold mb-6 text-center text-primary">免密登录</h2>
-        <form id="passwordlessForm" class="space-y-4">
-            <input type="text" id="plUsername" placeholder="输入用户名直接登录" required class="w-full px-4 py-2 border rounded-lg">
-            <p class="text-xs text-gray-500 text-center">
-                <i class="fa-solid fa-info-circle mr-1"></i>
-                新用户名将自动创建账号，无需注册
-            </p>
-            <button type="submit" class="w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-lg font-medium">立即登录</button>
-            <p class="text-center text-gray-600">想使用密码? <a href="#" id="showLoginFromPwdless" class="text-primary">返回登录</a></p>
+        <h2 class="text-2xl font-bold mb-2 text-center text-primary">免密登录</h2>
+        <p class="text-center text-gray-400 text-xs mb-6">需管理员开启免密权限后方可使用</p>
+        <form id="passwordFreeLoginForm" class="space-y-4">
+            <div>
+                <input type="text" id="passwordFreeUsername" placeholder="请输入用户名" required class="w-full px-4 py-2 border rounded-lg">
+            </div>
+            <div id="passwordFreeAttemptsInfo" class="hidden text-center text-sm text-gray-600 bg-gray-100 rounded-lg p-2">
+                <span id="passwordFreeAttemptsText"></span>
+            </div>
+            <button type="submit" class="w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-lg font-medium">免密登录</button>
+            <div class="text-center space-y-2">
+                <p class="text-gray-600">普通登录? <a href="#" id="showLoginFromFree" class="text-primary hover:underline font-medium">立即登录</a></p>
+                <p class="text-gray-500 text-sm">没有账号? <a href="#" id="showRegisterFromFree" class="text-primary hover:underline">立即注册</a></p>
+            </div>
         </form>
     </div>
 </div>
@@ -172,8 +183,22 @@
             <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
                 <h3 class="font-semibold mb-3"><i class="fa-solid fa-sliders mr-2 text-primary"></i>设置</h3>
                 <div class="space-y-3">
-                    <div><label class="block text-sm mb-1">你的棋子</label><div class="flex"><button id="playerColorBlack" class="flex-1 py-2 border rounded-l-lg bg-primary text-white">黑棋</button><button id="playerColorWhite" class="flex-1 py-2 border rounded-r-lg">白棋</button></div></div>
-                    <div><label class="block text-sm mb-1">AI难度</label><div class="grid grid-cols-3 gap-1"><button id="aiEasy" class="py-2 border rounded-lg">简单</button><button id="aiMedium" class="py-2 border rounded-lg bg-primary text-white">中等</button><button id="aiHard" class="py-2 border rounded-lg">困难</button></div></div>
+                    <!-- 人机对战设置 -->
+                    <div id="aiSettings">
+                        <div><label class="block text-sm mb-1">你的棋子</label><div class="flex"><button id="playerColorBlack" class="flex-1 py-2 border rounded-l-lg bg-primary text-white">黑棋</button><button id="playerColorWhite" class="flex-1 py-2 border rounded-r-lg">白棋</button></div></div>
+                        <div><label class="block text-sm mb-1">AI难度</label><div class="grid grid-cols-3 gap-1"><button id="aiEasy" class="py-2 border rounded-lg">简单</button><button id="aiMedium" class="py-2 border rounded-lg bg-primary text-white">中等</button><button id="aiHard" class="py-2 border rounded-lg">困难</button></div></div>
+                        <div class="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-600"><i class="fa-solid fa-info-circle mr-1"></i>人机对战默认启用禁手规则</div>
+                    </div>
+                    <!-- 双人对战设置 -->
+                    <div id="pvpSettings" class="hidden">
+                        <div><label class="block text-sm mb-1">禁手规则</label><div class="flex items-center gap-2"><input type="checkbox" id="pvpForbidden" class="w-4 h-4 rounded" checked><span class="text-sm">启用禁手（三三、四四、长连）</span></div></div>
+                        <div><label class="block text-sm mb-1 mt-2">时间限制</label><div class="grid grid-cols-4 gap-1"><button id="timeNone" class="py-2 border rounded-lg bg-primary text-white text-xs">无限制</button><button id="time5min" class="py-2 border rounded-lg text-xs">5分钟</button><button id="time10min" class="py-2 border rounded-lg text-xs">10分钟</button><button id="time30min" class="py-2 border rounded-lg text-xs">30分钟</button></div></div>
+                        <div id="pvpTimerDisplay" class="mt-2 p-2 bg-yellow-50 rounded text-xs text-yellow-600 hidden"><i class="fa-solid fa-clock mr-1"></i>每步限时: <span id="pvpTimeLimitText">无限制</span></div>
+                    </div>
+                    <!-- 联机对战设置提示 -->
+                    <div id="onlineSettingsHint" class="hidden">
+                        <div class="p-2 bg-green-50 rounded text-xs text-green-600"><i class="fa-solid fa-info-circle mr-1"></i>联机对战强制启用禁手规则</div>
+                    </div>
                 </div>
             </div>
             <div class="flex gap-3">
@@ -451,7 +476,7 @@
             <div class="overflow-x-auto">
                 <table class="min-w-full border">
                     <thead class="bg-gray-50">
-                        <tr><th class="border px-2 py-2"><input type="checkbox" id="selectAllUsers" class="w-4 h-4"></th><th class="border px-4 py-2">用户名</th><th class="border px-4 py-2">积分</th><th class="border px-4 py-2">胜场</th><th class="border px-4 py-2">对局数</th><th class="border px-4 py-2">封禁状态</th><th class="border px-4 py-2">在线状态</th><th class="border px-4 py-2">操作</th></tr>
+                        <tr><th class="border px-2 py-2"><input type="checkbox" id="selectAllUsers" class="w-4 h-4"></th><th class="border px-4 py-2">用户名</th><th class="border px-4 py-2">积分</th><th class="border px-4 py-2">胜场</th><th class="border px-4 py-2">对局数</th><th class="border px-4 py-2">封禁状态</th><th class="border px-4 py-2">在线状态</th><th class="border px-2 py-2">验证码</th><th class="border px-2 py-2">免密登录</th><th class="border px-4 py-2">操作</th></tr>
                     </thead>
                     <tbody id="adminUserTable"></tbody>
                 </table>
@@ -487,6 +512,7 @@
                 <div class="flex gap-3">
                     <button id="createAdminBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-user-plus mr-1"></i>创建管理员</button>
                     <button id="refreshAdminsBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-refresh mr-1"></i>刷新列表</button>
+                    <button id="viewAllRecordsBtn" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-file-text mr-1"></i>查看所有游戏记录</button>
                 </div>
                 <div class="bg-gray-50 p-3 rounded-lg">
                     <h4 class="font-semibold mb-2">管理员列表</h4>
@@ -505,7 +531,10 @@
                 <div>
                     <div class="flex justify-between items-center mb-3">
                         <h4 class="font-medium">房间列表</h4>
-                        <button id="refreshMatchListBtn" class="text-sm bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg"><i class="fa-solid fa-refresh mr-1"></i>刷新</button>
+                        <div class="flex gap-2">
+                            <button id="forceCloseAllRoomsBtn" class="text-sm bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg">一键关闭所有</button>
+                            <button id="refreshMatchListBtn" class="text-sm bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg"><i class="fa-solid fa-refresh mr-1"></i>刷新</button>
+                        </div>
                     </div>
                     <div id="matchListContainer" class="max-h-96 overflow-y-auto space-y-2">
                         <div class="text-gray-500 text-center py-4">加载中...</div>
@@ -555,6 +584,28 @@
 
 <div id="toastContainer" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50"></div>
 
+<!-- 所有游戏记录弹窗 -->
+<div id="allRecordsModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-xl p-6 max-w-3xl w-full mx-4 max-h-[80vh] flex flex-col">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-primary">所有游戏记录</h2>
+            <button id="closeAllRecordsBtn" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">筛选用户</label>
+            <select id="recordsUserFilter" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                <option value="">所有用户</option>
+            </select>
+        </div>
+        <div id="allRecordsContent" class="flex-1 overflow-y-auto">
+            <div class="text-gray-500 text-center py-4">加载中...</div>
+        </div>
+        <div class="mt-4 pt-4 border-t">
+            <button id="exportRecordsBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-download mr-1"></i>导出记录</button>
+        </div>
+    </div>
+</div>
+
 <script>
 (function(){
     "use strict";
@@ -572,12 +623,18 @@
     let monitorBoard = [];  // 监控的棋盘状态
     let gameBoard = [], currentPlayer = 1, onlineCurrentPlayer = 1, gameActive = false, moveHistory = [], gameTime = 0, timerInterval = null;
     let playerColor = 1, aiDifficulty = 'medium', winningCells = [], undoCount = 0;
+    let pvpForbidden = true;  // 双人对战禁手规则开关
+    let pvpTimeLimit = 0;     // 双人对战时间限制（秒），0表示无限制
+    let pvpTurnStartTime = 0; // 当前回合开始时间
+    let pvpTurnTimer = null;  // 回合计时器
     let canvas, ctx, onlineCanvas, onlineCtx;
     let onlineBoard = [], onlineMoveHistory = [], onlineGameActive = false;
     let onlineGameTime = 0, onlineTimerInterval = null;
     let restartCountdownTimer = null;
     let restartCountdownSeconds = 0;
+    let lastRestartVersion = 0;  // 跟踪重新开始版本号，用于可靠检测重新开始
     let onlineCellSizeGlobal = 30, onlinePieceSizeGlobal = 24;
+    let allRecordsData = null;  // 保存所有游戏记录数据用于筛选
     
     function initOnlineBoard() { 
         onlineBoard = Array(BOARD_SIZE).fill().map(()=>Array(BOARD_SIZE).fill(0)); 
@@ -840,6 +897,80 @@
     let lastSuccessfulPoll = Date.now();  // 最后成功轮询时间
     let pollTimeout = null;  // 轮询超时计时器
 
+    // 恢复联机对战房间状态
+    async function recoverOnlineMatch() {
+        try {
+            const res = await apiCall('/api/match/my', 'GET');
+            if (res.match) {
+                const match = res.match;
+                onlineMatchId = match.id;
+                onlineMyColor = match.myColor;
+                onlineOpponent = match.opponent;
+                gameMode = 'online';
+                onlineBoard = match.board || Array(BOARD_SIZE).fill().map(()=>Array(BOARD_SIZE).fill(0));
+                onlineMoveHistory = match.moves || [];
+                onlineCurrentPlayer = match.currentPlayer || 1;
+                onlineGameActive = match.status === 'playing' || match.status === 'waiting' || match.status === 'waiting_for_reconnect';
+                lastRestartVersion = 0;
+                
+                // 重置重连计数器
+                reconnectAttempts = 0;
+                currentPollingInterval = basePollingInterval;
+                
+                // 更新UI
+                document.getElementById('onlineMatchIdDisplay').textContent = match.id;
+                document.getElementById('roomInfo').innerHTML = `
+                    <p>房间号: <span class="font-mono font-bold text-lg">${match.id}</span></p>
+                    <p>你的棋子: <span class="font-bold">${match.myColor === 1 ? '黑棋' : '白棋'}</span></p>
+                    <p>对手: <span class="font-bold">${match.opponent || '等待对手...'}</span></p>
+                `;
+                document.getElementById('onlineCreateBtn').classList.add('hidden');
+                document.getElementById('onlineJoinBtn').parentElement.classList.add('hidden');
+                document.getElementById('onlineLeaveBtn').classList.remove('hidden');
+                
+                drawOnlineBoard();
+                updateOnlineUI();
+                startOnlinePolling();
+                
+                // 根据房间状态更新UI
+                if (match.status === 'waiting') {
+                    showToast('已恢复到之前的房间，等待对手...');
+                } else if (match.status === 'playing') {
+                    showToast(`已恢复到房间 ${match.id}，对手: ${match.opponent}`);
+                } else if (match.status === 'waiting_for_reconnect') {
+                    showToast('已恢复到房间，对手暂时离开，等待重连...', true);
+                } else if (match.status === 'closed') {
+                    // 房间已关闭，清除所有状态和UI
+                    onlineMatchId = null;
+                    onlineMyColor = null;
+                    onlineOpponent = null;
+                    gameMode = 'ai';
+                    initOnlineBoard();
+                    document.getElementById('onlineMatchIdDisplay').textContent = '-';
+                    document.getElementById('roomInfo').innerHTML = '<p class="text-gray-500">未加入房间</p>';
+                    document.getElementById('onlineCreateBtn').classList.remove('hidden');
+                    document.getElementById('onlineJoinBtn').parentElement.classList.remove('hidden');
+                    document.getElementById('onlineLeaveBtn').classList.add('hidden');
+                    drawOnlineBoard();
+                    updateOnlineUI();
+                    showToast('房间已被关闭', true);
+                } else if (match.status === 'finished') {
+                    // 游戏已结束，显示最终状态
+                    const myWin = match.winner === match.myColor;
+                    document.getElementById('onlineStatusText').textContent = myWin ? '🎉 你赢了！' : '😢 你输了！';
+                    document.getElementById('onlineStatusText').className = myWin 
+                        ? 'text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 animate-pulse' 
+                        : 'text-xl font-semibold text-gray-400';
+                    showToast(`游戏已结束：${myWin ? '你赢了' : '你输了'}，对手: ${match.opponent}`);
+                } else {
+                    showToast(`已恢复到房间，状态: ${match.status}`);
+                }
+            }
+        } catch (e) {
+            console.error('恢复联机房间失败:', e);
+        }
+    }
+
     async function onlineCreateMatch() {
         try {
             const res = await apiCall('/api/match/create', 'POST', {});
@@ -851,6 +982,7 @@
             onlineGameActive = true;
             onlineGameTime = 0;
             onlineCurrentPlayer = res.creatorColor;  // 使用服务器返回的当前玩家
+            lastRestartVersion = 0;
             
             // 重置重连计数器
             reconnectAttempts = 0;
@@ -896,6 +1028,7 @@
             onlineGameActive = true;
             onlineGameTime = 0;
             onlineCurrentPlayer = 1;
+            lastRestartVersion = 0;
             
             // 重置重连计数器
             reconnectAttempts = 0;
@@ -980,7 +1113,10 @@
     }
     
     function showRestartRequestUI() {
-        document.getElementById('roomActions').innerHTML = `
+        // 游戏结束后显示重新开始按钮（使用新API）
+        const roomActions = document.getElementById('roomActions');
+        roomActions.classList.remove('hidden');
+        roomActions.innerHTML = `
             <button id="requestRestartBtn" class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 rounded-lg text-sm mb-2 font-medium shadow-md transition-all">
                 <i class="fa-solid fa-rotate-right mr-1"></i> 重新开始
             </button>
@@ -992,24 +1128,106 @@
         document.getElementById('requestRestartBtn').addEventListener('click', requestRestart);
         attachCloseRoomHandler();
     }
-    
+
+    function showOnlineRoomActions() {
+        // 游戏进行中显示重新开始和关闭房间按钮
+        const roomActions = document.getElementById('roomActions');
+        roomActions.classList.remove('hidden');
+        roomActions.innerHTML = `
+            <button id="requestRestartBtn" class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 rounded-lg text-sm mb-2 font-medium shadow-md transition-all">
+                <i class="fa-solid fa-rotate-right mr-1"></i> 重新开始
+            </button>
+            <button id="closeRoomBtn" class="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-3 rounded-lg text-sm font-medium shadow-md transition-all">
+                <i class="fa-solid fa-xmark mr-1"></i> 关闭房间
+            </button>
+        `;
+        
+        document.getElementById('requestRestartBtn').addEventListener('click', requestRestart);
+        attachCloseRoomHandler();
+    }
+
+    function showOnlineWaitingForRestartUI() {
+        // 已请求重新开始，等待对手确认
+        const roomActions = document.getElementById('roomActions');
+        roomActions.classList.remove('hidden');
+        roomActions.innerHTML = `
+            <div class="text-center mb-2">
+                <span class="text-sm text-amber-600"><i class="fa-solid fa-hourglass-half mr-1"></i>等待对手确认重新开始...</span>
+            </div>
+            <button id="cancelRestartBtn" class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded-lg text-sm mb-2 transition-all">
+                <i class="fa-solid fa-times mr-1"></i> 取消请求
+            </button>
+            <button id="closeRoomBtn" class="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-3 rounded-lg text-sm font-medium shadow-md transition-all">
+                <i class="fa-solid fa-xmark mr-1"></i> 关闭房间
+            </button>
+        `;
+        
+        document.getElementById('cancelRestartBtn').addEventListener('click', requestRestart);
+        attachCloseRoomHandler();
+    }
+
+    function showOnlineRestartRequestedUI(requesterName) {
+        // 对手请求了重新开始，显示接受按钮
+        const roomActions = document.getElementById('roomActions');
+        roomActions.classList.remove('hidden');
+        roomActions.innerHTML = `
+            <div class="text-center mb-2">
+                <span class="text-sm text-blue-600"><i class="fa-solid fa-info-circle mr-1"></i>对手 <strong>${requesterName}</strong> 请求重新开始</span>
+            </div>
+            <button id="acceptRestartBtn" class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 rounded-lg text-sm mb-2 font-medium shadow-md transition-all">
+                <i class="fa-solid fa-check mr-1"></i> 接受重新开始
+            </button>
+            <button id="closeRoomBtn" class="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-3 rounded-lg text-sm font-medium shadow-md transition-all">
+                <i class="fa-solid fa-xmark mr-1"></i> 关闭房间
+            </button>
+        `;
+        
+        document.getElementById('acceptRestartBtn').addEventListener('click', requestRestart);
+        attachCloseRoomHandler();
+    }
+
     async function requestRestart() {
         if (!onlineMatchId) return;
         
         try {
             const res = await apiCall('/api/match/restart', 'POST', { matchId: onlineMatchId });
-            showToast('游戏已重新开始');
-            initOnlineBoard();
-            onlineMoveHistory = [];
-            onlineGameActive = true;
-            onlineGameTime = 0;
-            onlineCurrentPlayer = 1;
-            lastMoveCount = 0;
-            onlineBoard = Array(BOARD_SIZE).fill().map(()=>Array(BOARD_SIZE).fill(0));
-            drawOnlineBoard();
-            updateOnlineUI();
-            document.getElementById('roomActions').innerHTML = '<button id="closeRoomBtn" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm">关闭房间</button>';
-            attachCloseRoomHandler();
+            
+            if (res.restartInitiated) {
+                // 重新开始已执行，更新本地状态
+                const newCreatorColor = res.creatorColor;
+                // 计算自己的新颜色
+                if (currentUser) {
+                    if (currentUser.username === onlineOpponent) {
+                        // 自己是加入者
+                        onlineMyColor = newCreatorColor === 1 ? 2 : 1;
+                    } else {
+                        // 自己是创建者
+                        onlineMyColor = newCreatorColor;
+                    }
+                }
+                
+                initOnlineBoard();
+                onlineMoveHistory = [];
+                onlineGameActive = true;
+                onlineGameTime = 0;
+                onlineCurrentPlayer = res.currentPlayer || 1;
+                lastMoveCount = 0;
+                lastRestartVersion = res.restartVersion || 0;
+                drawOnlineBoard();
+                updateOnlineUI();
+                showOnlineRoomActions();
+                startOnlinePolling();
+                startOnlineTimer();
+                showToast('游戏已重新开始');
+            } else if (res.restartRequested) {
+                // 已发起请求，等待对手确认
+                showToast('已请求重新开始，等待对手确认');
+                showOnlineWaitingForRestartUI();
+            } else if (res.restartCancelled) {
+                // 已取消请求
+                showToast('已取消重新开始请求');
+                showOnlineRoomActions();
+            }
         } catch (err) {
             showToast(err.message, true);
         }
@@ -1019,7 +1237,9 @@
         stopRestartCountdown();
         restartCountdownSeconds = 10;
         
-        document.getElementById('roomActions').innerHTML = `
+        const roomActions = document.getElementById('roomActions');
+        roomActions.classList.remove('hidden');
+        roomActions.innerHTML = `
             <div class="text-center mb-2">
                 <span class="text-sm text-gray-600">重新开始倒计时: </span>
                 <span id="countdownSeconds" class="font-bold text-primary">${restartCountdownSeconds}</span>
@@ -1041,36 +1261,6 @@
                 requestRestart();
             }
         }, 1000);
-    }
-    
-    async function doRestartOnlineGame() {
-        try {
-            initOnlineBoard();
-            onlineMoveHistory = [];
-            onlineGameActive = true;
-            onlineGameTime = 0;
-            onlineCurrentPlayer = 1;
-            
-            await apiCall('/api/match/restart', 'POST', { matchId: onlineMatchId });
-            
-            document.getElementById('onlineStatusText').textContent = '游戏重新开始';
-            document.getElementById('roomActions').innerHTML = '<button id="closeRoomBtn" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm">关闭房间</button>';
-            attachCloseRoomHandler();
-            
-            startOnlinePolling();
-            startOnlineTimer();
-            
-            drawOnlineBoard();
-            updateOnlineUI();
-            showToast('游戏已重新开始');
-        } catch (err) {
-            showToast('重新开始失败: ' + err.message, true);
-        }
-    }
-    
-    async function restartOnlineGame() {
-        stopRestartCountdown();
-        await doRestartOnlineGame();
     }
     
     // 联机对局监控相关函数
@@ -1280,7 +1470,6 @@
     
     async function forceCloseMatch() {
         if (!monitorMatchId) return;
-        if (!confirm('确定要强制关闭此房间吗？')) return;
         try {
             stopMonitor();
             await apiCall('/api/admin/match/force_close', 'POST', { matchId: monitorMatchId });
@@ -1296,10 +1485,23 @@
             }
         }
     }
+
+    async function forceCloseAllRooms() {
+        try {
+            stopMonitor();
+            const data = await apiCall('/api/admin/match/force_close_all', 'POST', {});
+            showToast(`已关闭 ${data.closed_count} 个房间`);
+            monitorMatchId = null;
+            document.getElementById('monitorMatchId').textContent = '未选择房间';
+            document.getElementById('monitorControls').classList.add('hidden');
+            await loadMatchList();
+        } catch (err) {
+            showToast('关闭所有房间失败: ' + err.message, true);
+        }
+    }
     
     async function forceRestartMatch() {
         if (!monitorMatchId) return;
-        if (!confirm('确定要强制重新开始此对局吗？')) return;
         try {
             stopMonitor();
             await apiCall('/api/admin/match/force_restart', 'POST', { matchId: monitorMatchId });
@@ -1509,9 +1711,19 @@
                 
                 drawOnlineBoard();
                 updateOnlineUI();
+            } else {
+                // 服务器上没有匹配，清理本地状态
+                if (onlineMatchId) {
+                    console.log('服务器上没有找到匹配，清理本地状态');
+                    cleanupOnlineState();
+                }
             }
         } catch (err) {
             console.error('检查现有游戏时出错:', err);
+            // 即使出错，也清理状态以避免不一致
+            if (onlineMatchId) {
+                cleanupOnlineState();
+            }
         }
     }
 
@@ -1604,29 +1816,50 @@
                 const hasServerPieces = res.board && res.board.some(row => row && row.some(cell => cell !== 0));
                 const serverMoveCount = res.moves ? res.moves.length : 0;
                 
-                // 检测重新开始的条件：
-                // 1. 服务器状态是playing
-                // 2. 本地有棋子但服务器没有，或者服务器moveCount从大于0变为0，或者之前游戏已结束现在重新开始
-                const wasNotPlaying = !onlineGameActive;
-                const isRestart = res.status === 'playing' && 
-                                  ((hasLocalPieces && !hasServerPieces) || 
-                                   (lastMoveCount > 0 && serverMoveCount === 0) ||
-                                   (wasNotPlaying && !hasServerPieces));
+                // 检测重新开始：通过 restartVersion 可靠检测
+                const serverRestartVersion = res.restartVersion || 0;
+                const isRestartByVersion = serverRestartVersion > lastRestartVersion;
                 
-                if (isRestart) {
+                if (isRestartByVersion) {
+                    lastRestartVersion = serverRestartVersion;
                     showToast('游戏重新开始！');
+                    // 清空本地棋盘
                     onlineBoard = Array(BOARD_SIZE).fill().map(()=>Array(BOARD_SIZE).fill(0));
                     onlineMoveHistory = [];
                     onlineGameActive = true;
                     onlineGameTime = 0;
+                    // 从服务器获取最新的当前玩家和颜色
                     onlineCurrentPlayer = res.currentPlayer || 1;
+                    onlineMyColor = res.myColor;
                     lastMoveCount = 0;
                     // 更新在线状态文本并重置样式
                     const statusElement = document.getElementById('onlineStatusText');
-                    statusElement.textContent = '游戏重新开始';
-                    statusElement.className = 'text-lg font-semibold text-gray-700';
+                    statusElement.textContent = '游戏进行中';
+                    statusElement.className = 'text-lg font-semibold text-green-600';
+                    // 重新绘制棋盘和UI
                     drawOnlineBoard();
                     updateOnlineUI();
+                    // 更新房间操作按钮
+                    showOnlineRoomActions();
+                    // 重新开始后黑棋先走，确保正确显示
+                    if (onlineCurrentPlayer === 1) {
+                        showToast('黑棋先走！', false);
+                    }
+                    // 已有重新开始，跳过后续处理
+                }
+                
+                // 处理重新开始请求状态变化（无论游戏状态如何）
+                if (!isRestartByVersion) {
+                    if (res.restartRequested && res.restartRequestedBy !== currentUser?.username) {
+                        // 对手请求了重新开始
+                        showOnlineRestartRequestedUI(res.restartRequestedBy);
+                    } else if (res.restartRequested && res.restartRequestedBy === currentUser?.username) {
+                        // 自己请求了重新开始，等待对手确认
+                        showOnlineWaitingForRestartUI();
+                    } else if (res.status === 'playing') {
+                        // 没有重新开始请求且游戏进行中，显示正常操作按钮
+                        showOnlineRoomActions();
+                    }
                 }
                 
                 if (res.status === 'finished') {
@@ -1644,7 +1877,16 @@
                         : 'text-xl font-semibold text-gray-400';
                     showToast(myWin ? '🎉 恭喜你赢了！' : '😢 很遗憾，你输了！', !myWin);
                     saveGameRecord(myWin ? 'win' : 'lose', 'online', onlineOpponent);
-                    showRestartRequestUI();
+                    // 如果已有重新开始请求，显示相应的UI，否则显示默认的重新开始按钮
+                    if (res.restartRequested) {
+                        if (res.restartRequestedBy !== currentUser?.username) {
+                            showOnlineRestartRequestedUI(res.restartRequestedBy);
+                        } else {
+                            showOnlineWaitingForRestartUI();
+                        }
+                    } else {
+                        showRestartRequestUI();
+                    }
                     return;
                 }
                 if (res.status === 'closed') {
@@ -1672,6 +1914,26 @@
                     
                     drawOnlineBoard();
                     updateOnlineUI();
+                    return;
+                }
+                if (res.status === 'waiting_for_reconnect') {
+                    // 对手暂时离开，等待重新连接
+                    onlineGameActive = true;  // 游戏仍然活跃，只是等待重连
+                    if (res.board) {
+                        onlineBoard = res.board;
+                        drawOnlineBoard();
+                    }
+                    const statusElement = document.getElementById('onlineStatusText');
+                    statusElement.textContent = '对手暂时离开，等待重连...';
+                    statusElement.className = 'text-lg font-semibold text-amber-600';
+                    document.getElementById('roomInfo').innerHTML = `
+                        <p>房间号: <span class="font-mono font-bold text-lg">${onlineMatchId}</span></p>
+                        <p>你的棋子: <span class="font-bold">${onlineMyColor === 1 ? '黑棋' : '白棋'}</span></p>
+                        <p>对手: <span class="font-bold">${onlineOpponent || '未知'}</span></p>
+                        <p>状态: <span class="text-amber-600">等待对手重连...</span></p>
+                    `;
+                    updateOnlineUI();
+                    showToast('对手暂时离开，等待重新连接', true);
                     return;
                 }
                 if (res.status === 'waiting' && res.opponent) {
@@ -1740,8 +2002,8 @@
                 if (reconnectAttempts >= maxReconnectAttempts) {
                     showToast('网络连接失败，请检查网络或尝试重新加入房间', true);
                     document.getElementById('onlineStatusText').textContent = '连接失败';
-                    stopOnlinePolling();
-                    stopHeartbeat();
+                    // 清理本地状态
+                    cleanupOnlineState();
                     return;
                 }
             }
@@ -1976,34 +2238,266 @@
         document.getElementById('profileLastLogin').textContent = currentUser.lastLogin || '从未登录';
     }
 
-    // 验证码
-    function generateCaptcha() { return Math.random().toString(36).substring(2,6).toUpperCase(); }
-    function drawCaptcha(canvasEl, code) {
-        const c = canvasEl.getContext('2d');
-        c.fillStyle = '#f3f4f6'; c.fillRect(0,0,canvasEl.width,canvasEl.height);
-        const colors = ['#8B5A2B', '#2d3748', '#c53030', '#2b6cb0', '#276749'];
-        for(let i=0; i<code.length; i++){
-            c.save();
-            c.font = 'bold 22px Arial';
-            c.fillStyle = colors[i % colors.length];
-            const x = 20 + i * 25;
-            const y = 28;
-            c.translate(x, y);
-            c.rotate((Math.random() - 0.5) * 0.6);
-            c.fillText(code[i], 0, 0);
-            c.restore();
+    // 极验四代验证码
+    let loginGeetestToken = '';
+    let registerGeetestToken = '';
+    let loginFormInteracted = sessionStorage.getItem('loginFormInteracted') === 'true';  // 标记用户是否与登录表单有交互
+    let registerFormInteracted = sessionStorage.getItem('registerFormInteracted') === 'true';  // 标记用户是否与注册表单有交互
+    
+    // Cloudflare Turnstile 验证码
+    let loginTurnstileToken = '';
+    let registerTurnstileToken = '';
+    let turnstileSiteKey = '';
+    
+    // 获取 Turnstile Site Key
+    async function getTurnstileSiteKey() {
+        try {
+            const res = await fetch('/api/captcha/turnstile/sitekey');
+            const data = await res.json();
+            if (data.code === 0) {
+                turnstileSiteKey = data.sitekey;
+                console.log('Turnstile Site Key loaded:', turnstileSiteKey);
+            }
+        } catch (error) {
+            console.error('Failed to get Turnstile site key:', error);
         }
-        // 弯曲干扰线
-        for(let i=0;i<3;i++){
-            c.strokeStyle=`#${Math.floor(Math.random()*16777215).toString(16)}`;
-            c.lineWidth=1.5;
-            c.beginPath();
-            c.moveTo(Math.random()*20, Math.random()*40);
-            c.bezierCurveTo(Math.random()*60, Math.random()*40, Math.random()*100, Math.random()*40, Math.random()*120, Math.random()*40);
-            c.stroke();
+    }
+    
+    // 初始化 Turnstile 验证码
+    function initTurnstileWidget(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        // 等待 Site Key 加载
+        function doInit() {
+            if (!turnstileSiteKey) {
+                setTimeout(doInit, 100);
+                return;
+            }
+            
+            // 检查 Turnstile SDK 是否已加载
+            if (typeof window.turnstile === 'undefined') {
+                const script = document.createElement('script');
+                script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+                script.async = true;
+                script.onload = function() {
+                    renderTurnstile();
+                };
+                script.onerror = function() {
+                    console.error('Failed to load Turnstile script');
+                    container.innerHTML = '<div class="w-full h-full flex items-center justify-center text-red-500 text-sm">安全验证加载失败</div>';
+                };
+                document.head.appendChild(script);
+            } else {
+                renderTurnstile();
+            }
         }
-        // 直线干扰
-        for(let i=0;i<3;i++){ c.strokeStyle=`#${Math.floor(Math.random()*16777215).toString(16)}`; c.beginPath(); c.moveTo(Math.random()*120,Math.random()*40); c.lineTo(Math.random()*120,Math.random()*40); c.stroke(); }
+        
+        function renderTurnstile() {
+            window.turnstile.render('#' + containerId, {
+                sitekey: turnstileSiteKey,
+                theme: 'light',
+                size: 'normal',
+                callback: function(token) {
+                    console.log('Turnstile verified for ' + containerId + ': ', token);
+                    if (containerId === 'turnstileLoginWidget') {
+                        loginTurnstileToken = token;
+                    } else {
+                        registerTurnstileToken = token;
+                    }
+                    showToast('安全验证通过');
+                },
+                'error-callback': function(error) {
+                    console.error('Turnstile error:', error);
+                    if (containerId === 'turnstileLoginWidget') {
+                        loginTurnstileToken = '';
+                    } else {
+                        registerTurnstileToken = '';
+                    }
+                    showToast('安全验证失败，请重试', true);
+                }
+            });
+        }
+        
+        doInit();
+    }
+    
+    // 刷新 Turnstile 验证码
+    function refreshTurnstileCaptcha(isLogin) {
+        const containerId = isLogin ? 'turnstileLoginWidget' : 'turnstileRegisterWidget';
+        const container = document.getElementById(containerId);
+        if (container) {
+            container.innerHTML = '';
+            if (typeof window.turnstile !== 'undefined') {
+                window.turnstile.reset('#' + containerId);
+            } else {
+                initTurnstileWidget(containerId);
+            }
+        }
+    }
+    
+    // 初始化极验四代验证码
+    function initGeetestWidget(containerId, callback) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        // 先清空容器内容（极验appendTo是追加操作，不自动清空）
+        container.innerHTML = '';
+        
+        // 尝试初始化SDK
+        function doInitGeetest() {
+            if (typeof initGeetest4 !== 'function') {
+                console.error('极验SDK初始化失败：initGeetest4未定义');
+                showToast('验证组件加载失败，请刷新页面重试', true);
+                if (callback) callback(); // 确保Promise能resolve，不阻塞后续流程
+                return;
+            }
+            
+            console.log('初始化极验SDK...');
+            // 根据场景使用不同的验证码配置
+            var captchaId = containerId === 'geetestLoginWidget' 
+                ? '4f9d3983ec3e3f57df82b0ccad9e273a'  // 登录专用
+                : 'a02cc5f652aa762b93710d33448f70b5'; // 注册使用原配置
+            
+            initGeetest4({
+                captchaId: captchaId,
+                product: 'float',
+                riskType: 'slide',
+                language: 'zh',
+                onError: function(err) {
+                    console.error('极验SDK初始化错误:', err);
+                    showToast('验证初始化失败，请重试', true);
+                    if (callback) callback(); // 初始化失败也要解阻塞，让页面继续加载
+                }
+            }, function(captchaObj) {
+                console.log('验证码实例创建成功');
+                // 验证码实例已创建完成，立即回调解除阻塞，不等待用户操作
+                if (callback) callback();
+                window['gt4Instance_' + containerId] = captchaObj;
+                // 追加前清空容器，防止残留旧内容
+                const targetContainer = document.getElementById(containerId);
+                if (targetContainer) targetContainer.innerHTML = '';
+                captchaObj.appendTo("#" + containerId);
+                
+                // 验证成功回调
+                // 注意：GT4官方API规定，onSuccess回调不通过参数传递结果，
+                // 必须调用 captchaObj.getValidate() 获取验证数据
+                captchaObj.onSuccess(function() {
+                    // 1. 通过 getValidate() 获取验证结果
+                    const result = captchaObj.getValidate();
+                    console.log('极验返回原始数据：', result);
+
+                    // 2. 兼容两种数据结构：直接返回 或 嵌套在 detail 中
+                    let validateData = result;
+                    if (result && result.detail) {
+                        validateData = result.detail;
+                    }
+
+                    // 3. 校验 validateData 是否存在
+                    if (!validateData) {
+                        console.error('极验返回数据为空');
+                        showToast('验证码验证失败，请重试', true);
+                        captchaObj.reset();
+                        return;
+                    }
+
+                    // 4. 取出4个必填参数
+                    const lotNumber = validateData.lot_number;
+                    const captchaOutput = validateData.captcha_output;
+                    const passToken = validateData.pass_token;
+                    const genTime = validateData.gen_time;
+
+                    // 5. 校验参数是否完整
+                    if (!lotNumber || !captchaOutput || !passToken || !genTime) {
+                        console.error('极验返回数据不完整', validateData);
+                        showToast('验证码参数缺失，请重试', true);
+                        captchaObj.reset();
+                        return;
+                    }
+
+                    // 6. 拼接成 captcha_token（使用JSON序列化避免captcha_output含_导致分割错乱）
+                    const token = JSON.stringify([lotNumber, captchaOutput, passToken, genTime]);
+                    if (containerId === 'geetestLoginWidget') {
+                        loginGeetestToken = token;
+                        sessionStorage.removeItem('loginFormInteracted');
+                    } else {
+                        registerGeetestToken = token;
+                        sessionStorage.removeItem('registerFormInteracted');
+                    }
+                    console.log('生成的captcha_token：', token);
+                    
+                    // 7. 更新UI显示验证通过
+                    container.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-green-500 text-white"><i class="fa-solid fa-check"></i></div>';
+                    showToast('验证成功');
+                });
+                
+                // 验证失败回调
+                captchaObj.onFail(function(err) {
+                    console.error('极验验证失败:', err);
+                    showToast('验证失败，请重试', true);
+                    // 重置token
+                    if (containerId === 'geetestLoginWidget') {
+                        loginGeetestToken = '';
+                    } else {
+                        registerGeetestToken = '';
+                    }
+                });
+                
+                // 组件加载异常回调
+                captchaObj.onError(function(err) {
+                    console.error('极验组件加载异常:', err);
+                    showToast('验证组件加载异常，请重试', true);
+                });
+            });
+        }
+        
+        // 检查SDK是否已加载
+        if (typeof initGeetest4 === 'function') {
+            doInitGeetest();
+            return;
+        }
+        
+        // 加载极验四代SDK - 设置明确的超时处理
+        const script = document.createElement('script');
+        script.src = 'https://static.geetest.com/v4/gt4.js';
+        script.async = true;
+        script.crossOrigin = 'anonymous';
+        
+        // 超时处理 - 3秒后未加载完成则显示错误
+        const loadTimeout = setTimeout(() => {
+            console.error('极验SDK加载超时(3秒)');
+            showToast('验证组件加载超时，请刷新页面重试', true);
+            if (callback) callback(); // 超时也要解阻塞
+        }, 3000);
+        
+        script.onload = function() {
+            clearTimeout(loadTimeout);
+            console.log('极验SDK脚本加载完成');
+            // 立即尝试初始化
+            setTimeout(doInitGeetest, 50);
+        };
+        
+        script.onerror = function(e) {
+            clearTimeout(loadTimeout);
+            console.error('加载极验SDK失败:', e);
+            showToast('加载验证组件失败，请检查网络连接', true);
+            if (callback) callback(); // 加载失败也要解阻塞
+        };
+        
+        // 添加脚本到页面
+        document.head.appendChild(script);
+        console.log('已添加极验SDK脚本到页面');
+    }
+    
+
+    
+    function refreshGeetestCaptcha(isLogin) {
+        const containerId = isLogin ? 'geetestLoginWidget' : 'geetestRegisterWidget';
+        const container = document.getElementById(containerId);
+        if (container) {
+            container.innerHTML = '<span class="text-xs text-gray-500">点击刷新</span>';
+            setTimeout(() => initGeetestWidget(containerId), 100);
+        }
     }
 
     // 棋盘相关函数（保持原版）
@@ -2106,6 +2600,149 @@
 
     function checkDraw(){ return gameBoard.every(row=>row.every(v=>v!==0)); }
 
+    // 禁手规则检查（仅对黑棋有效）
+    // 三三禁手：同时形成两个或以上的活三
+    // 四四禁手：同时形成两个或以上的四（包括活四和冲四）
+    // 长连禁手：形成六子或以上的连珠
+
+    function checkForbidden(row, col, board) {
+        // 禁手规则只对黑棋(1)有效，白棋不受限制
+        if (board[row][col] !== 1) return { forbidden: false, reason: '' };
+        
+        // 检查长连禁手（六子及以上）
+        if (checkOverline(row, col, board)) {
+            return { forbidden: true, reason: '长连禁手（六子及以上）' };
+        }
+        
+        // 统计活三和四的数量
+        let liveThrees = 0;
+        let fours = 0;
+        
+        const directions = [[1,0], [0,1], [1,1], [1,-1]];
+        
+        for (const [dx, dy] of directions) {
+            const lineInfo = analyzeLine(row, col, dx, dy, board);
+            
+            // 活三：两端都空的连续三子
+            if (lineInfo.liveThree) liveThrees++;
+            
+            // 四：包括活四（两端空）和冲四（一端空）
+            if (lineInfo.four) fours++;
+        }
+        
+        // 三三禁手
+        if (liveThrees >= 2) {
+            return { forbidden: true, reason: '三三禁手（同时形成两个活三）' };
+        }
+        
+        // 四四禁手
+        if (fours >= 2) {
+            return { forbidden: true, reason: '四四禁手（同时形成两个四）' };
+        }
+        
+        return { forbidden: false, reason: '' };
+    }
+
+    // 检查长连禁手
+    function checkOverline(row, col, board) {
+        const directions = [[1,0], [0,1], [1,1], [1,-1]];
+        for (const [dx, dy] of directions) {
+            let count = 1;
+            // 正方向
+            for (let i = 1; i < 6; i++) {
+                const nr = row + i * dy, nc = col + i * dx;
+                if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) break;
+                if (board[nr][nc] !== 1) break;
+                count++;
+            }
+            // 反方向
+            for (let i = 1; i < 6; i++) {
+                const nr = row - i * dy, nc = col - i * dx;
+                if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) break;
+                if (board[nr][nc] !== 1) break;
+                count++;
+            }
+            if (count >= 6) return true;
+        }
+        return false;
+    }
+
+    // 分析一条线上的棋型
+    function analyzeLine(row, col, dx, dy, board) {
+        let result = { liveThree: false, four: false };
+        
+        // 获取这条线上的棋子分布
+        let line = [];
+        let centerIndex = 0;
+        
+        // 向负方向延伸最多4格
+        for (let i = -4; i <= 4; i++) {
+            const nr = row + i * dy, nc = col + i * dx;
+            if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) {
+                line.push(-1); // 边界
+            } else {
+                line.push(board[nr][nc]);
+            }
+            if (i === 0) centerIndex = line.length - 1;
+        }
+        
+        // 从中心点向两端扩展，计算连续黑子数量和空点情况
+        let count = 1; // 中心点本身
+        let leftEmpty = 0, rightEmpty = 0;
+        let leftBlocked = false, rightBlocked = false;
+        
+        // 向左（负方向）
+        for (let i = centerIndex - 1; i >= 0; i--) {
+            if (line[i] === 1) {
+                count++;
+            } else if (line[i] === 0) {
+                leftEmpty++;
+                break;
+            } else {
+                leftBlocked = true;
+                break;
+            }
+        }
+        
+        // 向右（正方向）
+        for (let i = centerIndex + 1; i < line.length; i++) {
+            if (line[i] === 1) {
+                count++;
+            } else if (line[i] === 0) {
+                rightEmpty++;
+                break;
+            } else {
+                rightBlocked = true;
+                break;
+            }
+        }
+        
+        // 判断棋型
+        // 活四：4个连续黑子，两端都空
+        if (count === 4 && leftEmpty > 0 && rightEmpty > 0) {
+            result.four = true;
+        }
+        // 冲四：4个连续黑子，只有一端空
+        else if (count === 4 && (leftEmpty > 0 || rightEmpty > 0)) {
+            result.four = true;
+        }
+        // 活三：3个连续黑子，两端都空（且至少一端有两个空位）
+        else if (count === 3 && leftEmpty > 0 && rightEmpty > 0) {
+            // 需要进一步检查是否是真正的活三（两端都有延伸空间）
+            result.liveThree = true;
+        }
+        
+        return result;
+    }
+
+    // 判断是否应该启用禁手规则
+    function shouldCheckForbidden() {
+        if (gameMode === 'ai') return true;  // 人机对战一律禁手
+        if (gameMode === 'online') return true;  // 联机对战必须禁手
+        if (gameMode === 'pvp') return pvpForbidden;  // 双人对战根据设置
+        return false;
+    }
+
     // AI逻辑（保持原版）
     function getAIColor(){ return playerColor===1?2:1; }
     function evaluatePosition(row,col,player){
@@ -2149,19 +2786,45 @@
         
         let candidates = nearPieces.length > 0 ? nearPieces : empty;
 
-        // 检查己方是否可以直接获胜
+        // 检查己方是否可以直接获胜（5连）
         for (const {row:i, col:j} of candidates) {
             gameBoard[i][j] = ai;
             if (checkWin(i, j, ai)) {
                 gameBoard[i][j] = 0;
                 return {row:i, col:j};
             }
+            gameBoard[i][j] = 0;
+        }
+
+        // 检查对方是否可以直接获胜（防守5连）
+        for (const {row:i, col:j} of candidates) {
             gameBoard[i][j] = hu;
             if (checkWin(i, j, hu)) {
                 gameBoard[i][j] = 0;
                 return {row:i, col:j};
             }
             gameBoard[i][j] = 0;
+        }
+
+        // 检测活3并防守
+        // 活3：连续3个同色棋子，两端都空，对方下一步可形成活4
+        const liveThreeBlocks = findLiveThreeBlocks(hu);
+        if (liveThreeBlocks.length > 0) {
+            // 优先防守活3的延伸点
+            for (const block of liveThreeBlocks) {
+                // 检查两端是否在候选位置中
+                const end1 = {row: block.end1.row, col: block.end1.col};
+                const end2 = {row: block.end2.row, col: block.end2.col};
+                
+                // 找到可以防守的位置
+                for (const end of [end1, end2]) {
+                    if (end.row >= 0 && end.row < BOARD_SIZE && 
+                        end.col >= 0 && end.col < BOARD_SIZE && 
+                        gameBoard[end.row][end.col] === 0) {
+                        return end;
+                    }
+                }
+            }
         }
 
         const weights = candidates.map(pos=>{
@@ -2179,6 +2842,80 @@
         }
         
         return candidates[Math.floor(Math.random()*candidates.length)];
+    }
+    
+    // 检测活3函数
+    function findLiveThreeBlocks(player) {
+        const liveThrees = [];
+        const directions = [[1,0], [0,1], [1,1], [1,-1]]; // 垂直、水平、两条对角线
+        
+        for (let i = 0; i < BOARD_SIZE; i++) {
+            for (let j = 0; j < BOARD_SIZE; j++) {
+                if (gameBoard[i][j] === player) {
+                    for (const [dx, dy] of directions) {
+                        // 检查是否是连续3个
+                        let count = 1;
+                        let startRow = i, startCol = j;
+                        
+                        // 向前找起点
+                        while (startRow - dx >= 0 && startCol - dy >= 0 && 
+                               startRow - dx < BOARD_SIZE && startCol - dy < BOARD_SIZE &&
+                               gameBoard[startRow - dx][startCol - dy] === player) {
+                            startRow -= dx;
+                            startCol -= dy;
+                            count++;
+                        }
+                        
+                        // 检查起点前面是否为空（活3的一端）
+                        const end1Row = startRow - dx;
+                        const end1Col = startCol - dy;
+                        const end1Empty = end1Row >= 0 && end1Col >= 0 && 
+                                          end1Row < BOARD_SIZE && end1Col < BOARD_SIZE &&
+                                          gameBoard[end1Row][end1Col] === 0;
+                        
+                        // 向后找终点
+                        let endRow = i, endCol = j;
+                        while (endRow + dx >= 0 && endCol + dy >= 0 && 
+                               endRow + dx < BOARD_SIZE && endCol + dy < BOARD_SIZE &&
+                               gameBoard[endRow + dx][endCol + dy] === player) {
+                            endRow += dx;
+                            endCol += dy;
+                            count++;
+                        }
+                        
+                        // 检查终点后面是否为空（活3的另一端）
+                        const end2Row = endRow + dx;
+                        const end2Col = endCol + dy;
+                        const end2Empty = end2Row >= 0 && end2Col >= 0 && 
+                                          end2Row < BOARD_SIZE && end2Col < BOARD_SIZE &&
+                                          gameBoard[end2Row][end2Col] === 0;
+                        
+                        // 只有恰好3个且两端都空才是活3
+                        if (count === 3 && end1Empty && end2Empty) {
+                            liveThrees.push({
+                                start: {row: startRow, col: startCol},
+                                end: {row: endRow, col: endCol},
+                                end1: {row: end1Row, col: end1Col},
+                                end2: {row: end2Row, col: end2Col},
+                                direction: {dx, dy}
+                            });
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 去重（同一个活3可能被多次检测）
+        const unique = [];
+        for (const t of liveThrees) {
+            const exists = unique.some(u => 
+                u.start.row === t.start.row && u.start.col === t.start.col &&
+                u.end.row === t.end.row && u.end.col === t.end.col
+            );
+            if (!exists) unique.push(t);
+        }
+        
+        return unique;
     }
     
     function findMediumMove(){
@@ -2218,6 +2955,19 @@
     // 游戏流程
     function placePiece(row, col, player){
         if(!gameActive || row<0||row>=BOARD_SIZE||col<0||col>=BOARD_SIZE||gameBoard[row][col]!==0) return false;
+        
+        // 禁手规则检查（仅对黑棋）
+        if (shouldCheckForbidden() && player === 1) {
+            // 临时放置棋子检查禁手
+            const tempBoard = gameBoard.map(r => r.slice());
+            tempBoard[row][col] = 1;
+            const forbiddenCheck = checkForbidden(row, col, tempBoard);
+            if (forbiddenCheck.forbidden) {
+                showToast(`禁手: ${forbiddenCheck.reason}`, true);
+                return false;
+            }
+        }
+        
         gameBoard[row][col] = player;
         moveHistory.push({row,col,player});
         drawBoard();
@@ -2225,8 +2975,42 @@
         if(checkDraw()){ handleGameOver(0); return true; }
         currentPlayer = (player===1?2:1);
         updateUI();
+        
+        // 双人对战时间限制处理
+        if (gameMode === 'pvp' && pvpTimeLimit > 0) {
+            startPvpTurnTimer();
+        }
+        
         if(gameMode==='ai' && gameActive && currentPlayer === getAIColor()) setTimeout(aiMove, 200);
         return true;
+    }
+    
+    // 双人对战回合计时器
+    function startPvpTurnTimer() {
+        stopPvpTurnTimer();
+        pvpTurnStartTime = Date.now();
+        pvpTurnTimer = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - pvpTurnStartTime) / 1000);
+            const remaining = pvpTimeLimit - elapsed;
+            if (remaining <= 0) {
+                stopPvpTurnTimer();
+                // 超时判负
+                const loser = currentPlayer;
+                const winner = loser === 1 ? 2 : 1;
+                showToast(`超时！${loser === 1 ? '黑棋' : '白棋'}判负`, true);
+                handleGameOver(winner);
+            } else if (remaining <= 10) {
+                // 最后10秒提示
+                showToast(`剩余 ${remaining} 秒！`, remaining <= 5);
+            }
+        }, 1000);
+    }
+    
+    function stopPvpTurnTimer() {
+        if (pvpTurnTimer) {
+            clearInterval(pvpTurnTimer);
+            pvpTurnTimer = null;
+        }
     }
 
     function handleGameOver(winner){
@@ -2289,7 +3073,7 @@
     }
 
     function resetGame(){
-        stopTimer(); initBoard(); currentPlayer=1; gameActive=true; moveHistory=[]; gameTime=0; undoCount=0; winningCells=[];
+        stopTimer(); stopPvpTurnTimer(); initBoard(); currentPlayer=1; gameActive=true; moveHistory=[]; gameTime=0; undoCount=0; winningCells=[];
         drawBoard(); updateUI();
         document.getElementById('winModal').classList.add('hidden');
         if(gameMode==='ai' && playerColor===2) { startTimer(); setTimeout(()=>aiMove(),300); }
@@ -2331,42 +3115,207 @@
     function startTimer(){ if(timerInterval) clearInterval(timerInterval); timerInterval = setInterval(()=>{ if(gameActive){ gameTime++; document.getElementById('gameTimeDisplay').textContent=formatTime(gameTime); } },1000); }
     function stopTimer(){ clearInterval(timerInterval); timerInterval=null; }
 
+    let postLoginTurnstileToken = '';
+    let turnstileSDKLoaded = false;
+
+    // 预加载 Turnstile SDK（页面加载时立即调用）
+    function loadTurnstileSDK() {
+        if (turnstileSDKLoaded || typeof window.turnstile !== 'undefined') {
+            turnstileSDKLoaded = true;
+            return;
+        }
+        
+        const script = document.createElement('script');
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+        script.async = true;
+        script.onload = function() {
+            turnstileSDKLoaded = true;
+            console.log('Turnstile SDK 加载完成');
+        };
+        script.onerror = function() {
+            console.error('Turnstile SDK 加载失败');
+        };
+        document.head.appendChild(script);
+        console.log('开始加载 Turnstile SDK...');
+    }
+    
+    // 初始化登录后 Turnstile
+    function initPostLoginTurnstile() {
+        if (!turnstileSiteKey) {
+            console.log('Turnstile sitekey not ready, waiting...');
+            setTimeout(initPostLoginTurnstile, 100);
+            return;
+        }
+        
+        // 等待 SDK 加载完成
+        function waitForSDK() {
+            if (typeof window.turnstile === 'undefined') {
+                console.log('Turnstile SDK not ready, waiting...');
+                setTimeout(waitForSDK, 100);
+                return;
+            }
+            console.log('Turnstile SDK ready, rendering...');
+            renderPostLoginTurnstile();
+        }
+        
+        waitForSDK();
+    }
+    
+    function renderPostLoginTurnstile() {
+        window.turnstile.render('#postLoginTurnstileWidget', {
+            sitekey: turnstileSiteKey,
+            theme: 'light',
+            size: 'normal',
+            callback: function(token) {
+                postLoginTurnstileToken = token;
+                showToast('安全验证通过');
+                // 验证成功，自动进入游戏
+                completePostLoginVerification();
+            },
+            'error-callback': function(error) {
+                postLoginTurnstileToken = '';
+                showToast('验证失败，请重试', true);
+            }
+        });
+    }
+    
+    // 完成登录后验证，进入游戏
+    async function completePostLoginVerification() {
+        if (!postLoginTurnstileToken) {
+            showToast('请先完成安全验证', true);
+            return;
+        }
+        
+        try {
+            const res = await fetch('/api/captcha/turnstile/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `response=${encodeURIComponent(postLoginTurnstileToken)}`
+            });
+            const data = await res.json();
+            
+            if (data.code === 0) {
+                document.getElementById('postLoginTurnstileModal').classList.add('hidden');
+                isLoggedIn = true;
+                showGameUI();
+                startStatusCheck();
+                showToast(`欢迎回来，${currentUser.username}！`);
+            } else {
+                showToast('验证失败: ' + data.msg, true);
+                postLoginTurnstileToken = '';
+                document.getElementById('postLoginVerifyBtn').disabled = true;
+                if (typeof window.turnstile !== 'undefined') {
+                    window.turnstile.reset('#postLoginTurnstileWidget');
+                }
+            }
+        } catch (error) {
+            showToast('验证请求失败', true);
+        }
+    }
+
     // API交互
-    async function login(username, password){
-        const res = await apiCall('/api/login','POST',{username,password}, true);
+    async function login(username, password, captchaToken){
+        const res = await apiCall('/api/login','POST',{username,password,captchaToken}, true);
+        token = res.token; localStorage.setItem('token', token);
+        currentUser = res.user;
+        
+        // admin用户跳过Turnstile验证，直接进入游戏
+        if (currentUser && currentUser.isAdmin) {
+            isLoggedIn = true;
+            showGameUI();
+            startStatusCheck();
+            showToast(`欢迎回来，${currentUser.username}！`);
+            return;
+        }
+        
+        // 显示登录后 Turnstile 验证界面
+        document.getElementById('loginModal').classList.add('hidden');
+        const modal = document.getElementById('postLoginTurnstileModal');
+        modal.classList.remove('hidden');
+        
+        // 初始化 Turnstile（模态框显示后再渲染）
+        postLoginTurnstileToken = '';
+        
+        // 等待 DOM 更新后再渲染
+        requestAnimationFrame(() => {
+            initPostLoginTurnstile();
+        });
+    }
+
+    async function loginPasswordFree(username){
+        const res = await apiCall('/api/login/password_free','POST',{username}, true);
         token = res.token; localStorage.setItem('token', token);
         currentUser = res.user;
         isLoggedIn = true;
+        document.getElementById('passwordFreeLoginPage').classList.add('hidden');
         showGameUI();
-        startStatusCheck(); // 启动状态检查
+        startStatusCheck();
         showToast(`欢迎回来，${currentUser.username}！`);
     }
+    
+    // 检查免密登录剩余次数并显示提示
+    async function checkPasswordFreeAttempts(username) {
+        const infoEl = document.getElementById('passwordFreeAttemptsInfo');
+        const textEl = document.getElementById('passwordFreeAttemptsText');
+        if (!username.trim()) {
+            infoEl.classList.add('hidden');
+            return;
+        }
+        try {
+            const res = await apiCall('/api/user/password_free_info', 'POST', {username}, true);
+            if (res.passwordFree) {
+                if (res.maxAttempts > 0) {
+                    if (res.remainingAttempts <= 0) {
+                        textEl.textContent = `免密登录次数已用尽（${res.remainingAttempts}/${res.maxAttempts}），请联系管理员`;
+                        infoEl.classList.remove('hidden');
+                        infoEl.className = 'text-center text-sm text-red-600 bg-red-100 rounded-lg p-2';
+                    } else {
+                        textEl.textContent = `免密登录剩余 ${res.remainingAttempts}/${res.maxAttempts} 次`;
+                        infoEl.classList.remove('hidden');
+                        infoEl.className = 'text-center text-sm text-gray-600 bg-gray-100 rounded-lg p-2';
+                    }
+                } else {
+                    textEl.textContent = '免密登录无次数限制';
+                    infoEl.classList.remove('hidden');
+                    infoEl.className = 'text-center text-sm text-gray-600 bg-gray-100 rounded-lg p-2';
+                }
+            } else {
+                infoEl.classList.add('hidden');
+            }
+        } catch (err) {
+            infoEl.classList.add('hidden');
+        }
+    }
 
-    async function register(username, password){
-        await apiCall('/api/register','POST',{username,password}, true);
+    async function register(username, password, captchaToken){
+        await apiCall('/api/register','POST',{username,password,captchaToken}, true);
         showToast('注册成功，请登录');
         document.getElementById('registerModal').classList.add('hidden');
         document.getElementById('loginModal').classList.remove('hidden');
-    }
-
-    async function passwordlessLogin(username){
-        const res = await apiCall('/api/passwordless_login','POST',{username}, true);
-        token = res.token; localStorage.setItem('token', token);
-        currentUser = res.user;
-        isLoggedIn = true;
-        document.getElementById('passwordlessModal').classList.add('hidden');
-        showGameUI();
-        startStatusCheck(); // 启动状态检查
-        if(res.is_new){
-            showToast(`欢迎新玩家 ${currentUser.username}！账号已自动创建`);
-        }else{
-            showToast(`欢迎回来，${currentUser.username}！`);
-        }
+        sessionStorage.removeItem('registerFormInteracted');
     }
 
     async function logout(){
         if(onlineMatchId) await apiCall('/api/match/leave', 'POST', { matchId: onlineMatchId }).catch(()=>{});
         await apiCall('/api/logout','POST').catch(()=>{});
+        
+        // 自己点击退出时，清除输入框中的用户名、密码和验证码
+        const loginUsername = document.getElementById('username');
+        const loginPassword = document.getElementById('password');
+        const regUsername = document.getElementById('regUsername');
+        const regPassword = document.getElementById('regPassword');
+        const confirmPassword = document.getElementById('confirmPassword');
+        
+        if (loginUsername) loginUsername.value = '';
+        if (loginPassword) loginPassword.value = '';
+        if (regUsername) regUsername.value = '';
+        if (regPassword) regPassword.value = '';
+        if (confirmPassword) confirmPassword.value = '';
+        
+        // 重置验证码状态
+        refreshGeetestCaptcha(true);  // 刷新登录验证码
+        refreshGeetestCaptcha(false); // 刷新注册验证码
+        
         handleForceLogout('已安全退出');
     }
 
@@ -2575,6 +3524,45 @@
             
             const onlineDisplay = isOnline ? '<span class="text-green-600">在线</span>' : '<span class="text-gray-400">离线</span>';
             
+            // 验证码状态显示
+            let captchaDisplay = '';
+            if (canOperate || isSuperAdmin) {
+                const captchaEnabled = u.useCaptcha !== false;
+                captchaDisplay = captchaEnabled ? '<span class="text-green-600">启用</span>' : '<span class="text-red-600">禁用</span>';
+            } else {
+                captchaDisplay = '<span class="text-gray-400">权限不足</span>';
+            }
+            
+            // 免密登录状态显示（仅超级管理员可控制）
+            let passwordFreeDisplay = '';
+            let passwordFreeToggle = '';
+            if (isSuperAdmin && !u.isSuperAdmin) {
+                const passwordFreeEnabled = u.passwordFree === true;
+                const maxAttempts = u.passwordFreeMaxAttempts || 0;
+                const remainingAttempts = u.passwordFreeRemainingAttempts !== undefined ? u.passwordFreeRemainingAttempts : '-';
+                let attemptsInfo = '';
+                if (passwordFreeEnabled && maxAttempts > 0) {
+                    attemptsInfo = `<br><span class="text-xs text-gray-500">剩余 ${remainingAttempts}/${maxAttempts} 次</span>`;
+                } else if (passwordFreeEnabled && maxAttempts === 0) {
+                    attemptsInfo = '<br><span class="text-xs text-gray-500">无次数限制</span>';
+                }
+                passwordFreeDisplay = passwordFreeEnabled ? `<span class="text-green-600">启用</span>${attemptsInfo}` : '<span class="text-gray-400">禁用</span>';
+                passwordFreeToggle = `<div class="flex flex-col items-center gap-1">
+                    <button class="text-indigo-600 hover:underline text-xs admin-toggle-password-free" data-username="${u.username}" data-passwordfree="${!passwordFreeEnabled}">${passwordFreeEnabled ? '禁用' : '启用'}</button>
+                    ${passwordFreeEnabled ? `<button class="text-orange-600 hover:underline text-xs admin-set-password-free-attempts" data-username="${u.username}">设置次数</button>` : ''}
+                </div>`;
+            } else if (u.passwordFree === true) {
+                const maxAttempts = u.passwordFreeMaxAttempts || 0;
+                const remainingAttempts = u.passwordFreeRemainingAttempts !== undefined ? u.passwordFreeRemainingAttempts : '-';
+                if (maxAttempts > 0) {
+                    passwordFreeDisplay = `<span class="text-green-600">启用</span><br><span class="text-xs text-gray-500">剩余 ${remainingAttempts}/${maxAttempts} 次</span>`;
+                } else {
+                    passwordFreeDisplay = '<span class="text-green-600">启用</span><br><span class="text-xs text-gray-500">无次数限制</span>';
+                }
+            } else {
+                passwordFreeDisplay = '<span class="text-gray-400">禁用</span>';
+            }
+            
             // 操作按钮
             let actionBtns = '';
             if (canOperate || isSuperAdmin) {
@@ -2593,6 +3581,16 @@
             }
             
             const checkboxDisabled = !canOperate && !isSuperAdmin ? 'disabled' : '';
+            
+            // 验证码开关按钮
+            let captchaToggle = '';
+            if (canOperate || isSuperAdmin) {
+                const captchaEnabled = u.useCaptcha !== false;
+                if (isSuperAdmin || (!u.isAdmin && !u.isSuperAdmin)) {
+                    captchaToggle = `<button class="text-indigo-600 hover:underline admin-toggle-captcha" data-username="${u.username}" data-usecaptcha="${!captchaEnabled}">${captchaEnabled ? '禁用' : '启用'}</button>`;
+                }
+            }
+            
             return `<tr>
                 <td class="border px-2 py-2"><input type="checkbox" class="user-checkbox w-4 h-4" value="${u.username}" ${checkboxDisabled} ${isChecked}></td>
                 <td class="border px-4 py-2">${u.username} ${roleTag}</td>
@@ -2601,6 +3599,8 @@
                 <td class="border px-4 py-2">${gamesDisplay}</td>
                 <td class="border px-4 py-2">${bannedDisplay}</td>
                 <td class="border px-4 py-2">${onlineDisplay}</td>
+                <td class="border px-2 py-2 text-center">${captchaDisplay}<br>${captchaToggle}</td>
+                <td class="border px-2 py-2 text-center">${passwordFreeDisplay}<br>${passwordFreeToggle}</td>
                 <td class="border px-4 py-2">${actionBtns}</td>
             </tr>`;
         }).join('');
@@ -2639,12 +3639,101 @@
             }
         }));
         
+        // 绑定验证码设置按钮事件
+        tbody.querySelectorAll('.admin-toggle-captcha').forEach(b=>b.addEventListener('click', async ()=>{
+            try {
+                const data = await apiCall('/api/admin/set_captcha', 'POST', {
+                    username: b.dataset.username,
+                    useCaptcha: b.dataset.usecaptcha === 'true'
+                });
+                showToast(data.message);
+                loadAdminUsers();
+            } catch (error) {
+                showToast('设置验证码失败: ' + error.message, true);
+            }
+        }));
+        
+        // 绑定免密登录设置按钮事件
+        tbody.querySelectorAll('.admin-toggle-password-free').forEach(b=>b.addEventListener('click', async ()=>{
+            try {
+                const data = await apiCall('/api/admin/set_password_free', 'POST', {
+                    username: b.dataset.username,
+                    passwordFree: b.dataset.passwordfree === 'true'
+                });
+                showToast(data.message);
+                loadAdminUsers();
+            } catch (error) {
+                showToast('设置免密登录失败: ' + error.message, true);
+            }
+        }));
+        
+        // 绑定免密登录次数设置按钮事件
+        tbody.querySelectorAll('.admin-set-password-free-attempts').forEach(b=>b.addEventListener('click', function() {
+            showPasswordFreeAttemptsModal(this.dataset.username);
+        }));
+        
         // 绑定改积分按钮事件
         tbody.querySelectorAll('.admin-update-score').forEach(b=>b.addEventListener('click', function() {
             showUpdateScoreModal(this.dataset.username);
         }));
         
         startBannedCountdown();
+    }
+    
+    // 显示设置免密登录次数弹窗
+    function showPasswordFreeAttemptsModal(username) {
+        const modalHtml = `
+            <div id="passwordFreeAttemptsModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+                    <h3 class="text-xl font-bold mb-4">设置免密登录次数</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                            <input type="text" id="pfAttemptsUsername" value="${username}" class="w-full px-4 py-2 border rounded-lg bg-gray-100" readonly>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">最大免密登录次数</label>
+                            <input type="number" id="pfMaxAttempts" min="0" value="0" class="w-full px-4 py-2 border rounded-lg">
+                            <p class="text-xs text-gray-500 mt-1">设置为 0 表示无次数限制</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-3 mt-6">
+                        <button id="confirmPfAttemptsBtn" class="flex-1 bg-primary hover:bg-primary/90 text-white py-2 rounded-lg">确认设置</button>
+                        <button id="cancelPfAttemptsBtn" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded-lg">取消</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const existingModal = document.getElementById('passwordFreeAttemptsModal');
+        if (existingModal) existingModal.remove();
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        document.getElementById('cancelPfAttemptsBtn').addEventListener('click', () => {
+            document.getElementById('passwordFreeAttemptsModal').remove();
+        });
+        
+        document.getElementById('confirmPfAttemptsBtn').addEventListener('click', async () => {
+            const maxAttempts = parseInt(document.getElementById('pfMaxAttempts').value);
+            if (isNaN(maxAttempts) || maxAttempts < 0) {
+                showToast('次数必须为非负整数', true);
+                return;
+            }
+            
+            try {
+                const data = await apiCall('/api/admin/set_password_free', 'POST', {
+                    username: username,
+                    passwordFree: true,
+                    maxAttempts: maxAttempts
+                });
+                showToast(data.message);
+                document.getElementById('passwordFreeAttemptsModal').remove();
+                loadAdminUsers();
+            } catch (error) {
+                showToast('设置免密登录次数失败: ' + error.message, true);
+            }
+        });
     }
     
     // 显示修改积分弹窗
@@ -2868,6 +3957,110 @@
         }
     }
 
+    async function viewAllRecords() {
+        try {
+            const records = await apiCall('/api/admin/all_records');
+            const content = document.getElementById('allRecordsContent');
+            const userFilter = document.getElementById('recordsUserFilter');
+            
+            // 保存数据到全局变量供筛选使用
+            allRecordsData = records;
+            
+            // 填充用户下拉框
+            userFilter.innerHTML = '<option value="">所有用户</option>';
+            for (const username of Object.keys(records)) {
+                userFilter.innerHTML += `<option value="${escapeHtml(username)}">${escapeHtml(username)}</option>`;
+            }
+            
+            renderRecords(records, userFilter.value);
+            document.getElementById('allRecordsModal').classList.remove('hidden');
+        } catch (error) {
+            showToast('获取游戏记录失败: ' + error.message, true);
+        }
+    }
+
+    function renderRecords(records, selectedUser = '') {
+        const content = document.getElementById('allRecordsContent');
+        
+        if (!records || Object.keys(records).length === 0) {
+            content.innerHTML = '<div class="text-gray-500 text-center py-4">暂无游戏记录</div>';
+            return;
+        }
+        
+        let html = '';
+        let totalRecords = 0;
+        
+        const usersToShow = selectedUser ? { [selectedUser]: records[selectedUser] } : records;
+        
+        for (const [username, userRecords] of Object.entries(usersToShow)) {
+            if (!userRecords || userRecords.length === 0) continue;
+            
+            html += `
+                <div class="border-b border-gray-200 pb-4 mb-4 last:border-0">
+                    <h3 class="font-semibold text-primary mb-2">${escapeHtml(username)}</h3>
+                    <div class="space-y-2">
+            `;
+            
+            userRecords.forEach((record, index) => {
+                totalRecords++;
+                const time = record.time || '未知时间';
+                const mode = record.mode || '未知模式';
+                const result = record.result || '未知结果';
+                const resultClass = result === 'win' || result === '胜利' ? 'text-green-600' : 
+                                   result === 'lose' || result === '失败' ? 'text-red-600' : 'text-yellow-600';
+                
+                html += `
+                    <div class="flex justify-between items-center text-sm bg-gray-50 p-2 rounded">
+                        <span>#${index + 1}</span>
+                        <span>${mode}</span>
+                        <span class="${resultClass}">${result}</span>
+                        <span class="text-gray-400">${time}</span>
+                    </div>
+                `;
+            });
+            
+            html += `
+                    </div>
+                </div>
+            `;
+        }
+        
+        if (totalRecords === 0) {
+            html = '<div class="text-gray-500 text-center py-4">暂无游戏记录</div>';
+        }
+        
+        content.innerHTML = html;
+    }
+
+    function closeAllRecordsModal() {
+        document.getElementById('allRecordsModal').classList.add('hidden');
+    }
+
+    async function exportRecords() {
+        try {
+            const records = await apiCall('/api/admin/all_records');
+            const dataStr = JSON.stringify(records, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `all_records_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('记录导出成功');
+        } catch (error) {
+            showToast('导出记录失败: ' + error.message, true);
+        }
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     async function loadAdminList() {
         if (!currentUser || !currentUser.isSuperAdmin) return;
         try {
@@ -3007,20 +4200,30 @@
     function updateModeButtons(){
         const isAI = gameMode === 'ai';
         const isOnline = gameMode === 'online';
+        const isPVP = gameMode === 'pvp';
+        
         document.getElementById('modeAI').classList.toggle('bg-primary', isAI);
         document.getElementById('modeAI').classList.toggle('text-white', isAI);
         document.getElementById('modeAI').classList.toggle('border-gray-300', !isAI);
         document.getElementById('modeAI').classList.toggle('text-gray-700', !isAI);
         
-        document.getElementById('modePVP').classList.toggle('bg-primary', gameMode === 'pvp');
-        document.getElementById('modePVP').classList.toggle('text-white', gameMode === 'pvp');
-        document.getElementById('modePVP').classList.toggle('border-gray-300', gameMode !== 'pvp');
-        document.getElementById('modePVP').classList.toggle('text-gray-700', gameMode !== 'pvp');
+        document.getElementById('modePVP').classList.toggle('bg-primary', isPVP);
+        document.getElementById('modePVP').classList.toggle('text-white', isPVP);
+        document.getElementById('modePVP').classList.toggle('border-gray-300', !isPVP);
+        document.getElementById('modePVP').classList.toggle('text-gray-700', !isPVP);
         
         document.getElementById('modeOnline').classList.toggle('bg-primary', isOnline);
         document.getElementById('modeOnline').classList.toggle('text-white', isOnline);
         document.getElementById('modeOnline').classList.toggle('border-gray-300', !isOnline);
         document.getElementById('modeOnline').classList.toggle('text-gray-700', !isOnline);
+        
+        // 设置面板显示/隐藏
+        document.getElementById('aiSettings').classList.toggle('hidden', !isAI);
+        document.getElementById('pvpSettings').classList.toggle('hidden', !isPVP);
+        document.getElementById('onlineSettingsHint').classList.toggle('hidden', !isOnline);
+        
+        // 停止双人对战计时器（切换模式时）
+        if (!isPVP) stopPvpTurnTimer();
     }
 
     function updateColorButtons(){
@@ -3115,50 +4318,109 @@
     async function init(){
         canvas = document.getElementById('gameCanvas'); ctx = canvas.getContext('2d');
         onlineCanvas = document.getElementById('onlineCanvas'); onlineCtx = onlineCanvas.getContext('2d');
-        let captchaCode = generateCaptcha(), regCaptchaCode = generateCaptcha();
-        const capCanvas = document.getElementById('captchaCanvas'), regCapCanvas = document.getElementById('regCaptchaCanvas');
-        drawCaptcha(capCanvas, captchaCode); drawCaptcha(regCapCanvas, regCaptchaCode);
         
+        // 立即预加载 Cloudflare Turnstile SDK（页面加载时就加载）
+        loadTurnstileSDK();
+        
+        // 并行执行：获取 sitekey 和初始化极验验证码
+        await Promise.all([
+            getTurnstileSiteKey(),
+            new Promise(resolve => {
+                initGeetestWidget('geetestLoginWidget', function() {
+                    resolve();
+                });
+            })
+        ]);
+        
+        console.log('初始化完成，Turnstile SDK状态:', typeof window.turnstile !== 'undefined' ? '已加载' : '未加载');
+        console.log('Turnstile Site Key:', turnstileSiteKey || '未获取');
 
-        capCanvas.addEventListener('click', ()=>{ captchaCode=generateCaptcha(); drawCaptcha(capCanvas, captchaCode); });
-        regCapCanvas.addEventListener('click', ()=>{ regCaptchaCode=generateCaptcha(); drawCaptcha(regCapCanvas, regCaptchaCode); });
-
-        document.getElementById('showRegister').addEventListener('click', e=>{ e.preventDefault(); document.getElementById('loginModal').classList.add('hidden'); document.getElementById('registerModal').classList.remove('hidden'); });
-        document.getElementById('showLogin').addEventListener('click', e=>{ e.preventDefault(); document.getElementById('registerModal').classList.add('hidden'); document.getElementById('loginModal').classList.remove('hidden'); });
-
-        document.getElementById('loginForm').addEventListener('submit', async e=>{ e.preventDefault(); 
-            const u=document.getElementById('username').value, p=document.getElementById('password').value, cap=document.getElementById('captchaInput').value;
-            if(cap.toUpperCase()!==captchaCode){ showToast('验证码错误',true); captchaCode=generateCaptcha(); drawCaptcha(capCanvas,captchaCode); return; }
-            try{ await login(u,p); }catch(err){ showToast(err.message,true); }
-        });
-
-        document.getElementById('registerForm').addEventListener('submit', async e=>{ e.preventDefault();
-            const u=document.getElementById('regUsername').value.trim(), p=document.getElementById('regPassword').value, cp=document.getElementById('confirmPassword').value, cap=document.getElementById('regCaptchaInput').value;
-            if(!u){ showToast('用户名不能为空',true); return; }
-            if(p!==cp){ showToast('密码不一致',true); return; } 
-            if(p.length<6){ showToast('密码至少6位',true); return; } 
-            if(cap.toUpperCase()!==regCaptchaCode){ showToast('验证码错误',true); regCaptchaCode=generateCaptcha(); drawCaptcha(regCapCanvas,regCaptchaCode); return; }
-            try{ await register(u,p); }catch(err){ showToast(err.message,true); }
-        });
-
-        // 免密登录相关事件
-        document.getElementById('showPasswordless').addEventListener('click', e=>{ 
+        document.getElementById('showRegister').addEventListener('click', e=>{ 
             e.preventDefault(); 
             document.getElementById('loginModal').classList.add('hidden'); 
-            document.getElementById('passwordlessModal').classList.remove('hidden'); 
+            document.getElementById('registerModal').classList.remove('hidden');
+            // 延迟初始化注册验证码，确保容器可见
+            setTimeout(() => {
+                const regContainer = document.getElementById('geetestRegisterWidget');
+                if (regContainer && !regContainer.hasAttribute('data-initialized')) {
+                    regContainer.setAttribute('data-initialized', 'true');
+                    initGeetestWidget('geetestRegisterWidget', function() {
+                        // 注册验证码初始化完成
+                    });
+                }
+                // 初始化注册 Turnstile
+                initTurnstileWidget('turnstileRegisterWidget');
+            }, 300);
         });
-        document.getElementById('showLoginFromPwdless').addEventListener('click', e=>{ 
+        document.getElementById('showLogin').addEventListener('click', e=>{ e.preventDefault(); document.getElementById('registerModal').classList.add('hidden'); document.getElementById('loginModal').classList.remove('hidden'); });
+
+        // 免密登录
+        document.getElementById('showPasswordFreeLogin').addEventListener('click', e=>{ 
             e.preventDefault(); 
-            document.getElementById('passwordlessModal').classList.add('hidden'); 
+            document.getElementById('loginModal').classList.add('hidden'); 
+            document.getElementById('passwordFreeLoginPage').classList.remove('hidden'); 
+        });
+        document.getElementById('showLoginFromFree').addEventListener('click', e=>{ 
+            e.preventDefault(); 
+            document.getElementById('passwordFreeLoginPage').classList.add('hidden'); 
             document.getElementById('loginModal').classList.remove('hidden'); 
         });
+        document.getElementById('showRegisterFromFree').addEventListener('click', e=>{ 
+            e.preventDefault(); 
+            document.getElementById('passwordFreeLoginPage').classList.add('hidden'); 
+            document.getElementById('registerModal').classList.remove('hidden'); 
+        });
+        document.getElementById('passwordFreeLoginForm').addEventListener('submit', async e=>{ 
+            e.preventDefault(); 
+            const u=document.getElementById('passwordFreeUsername').value;
+            try{ await loginPasswordFree(u); }catch(err){ showToast(err.message,true); }
+        });
+        
+        // 输入用户名时检查免密登录剩余次数
+        document.getElementById('passwordFreeUsername').addEventListener('input', function() {
+            checkPasswordFreeAttempts(this.value);
+        });
 
-        document.getElementById('passwordlessForm').addEventListener('submit', async e=>{ 
-            e.preventDefault();
-            const u=document.getElementById('plUsername').value.trim();
-            if(!u){ showToast('请输入用户名',true); return; }
-            if(u.length<2){ showToast('用户名至少2个字符',true); return; }
-            try{ await passwordlessLogin(u); }catch(err){ showToast(err.message,true); }
+        // 登录表单交互跟踪
+        document.getElementById('loginForm').addEventListener('submit', async e=>{ e.preventDefault(); 
+            const u=document.getElementById('username').value, p=document.getElementById('password').value;
+            if(!loginGeetestToken){ showToast('请完成验证码验证',true); return; }
+            sessionStorage.removeItem('loginFormInteracted');
+            try{ await login(u,p, loginGeetestToken); }catch(err){ showToast(err.message,true); refreshGeetestCaptcha(true); }
+        });
+        
+        // 跟踪登录表单输入
+        document.getElementById('username').addEventListener('input', () => { 
+            loginFormInteracted = true; 
+            sessionStorage.setItem('loginFormInteracted', 'true');
+        });
+        document.getElementById('password').addEventListener('input', () => { 
+            loginFormInteracted = true; 
+            sessionStorage.setItem('loginFormInteracted', 'true');
+        });
+
+        // 注册表单交互跟踪
+        document.getElementById('registerForm').addEventListener('submit', async e=>{ e.preventDefault();
+            const u=document.getElementById('regUsername').value, p=document.getElementById('regPassword').value, cp=document.getElementById('confirmPassword').value;
+            if(p!==cp){ showToast('密码不一致',true); return; } 
+            if(p.length<6){ showToast('密码至少6位',true); return; } 
+            if(!registerGeetestToken){ showToast('请完成验证码验证',true); return; }
+            sessionStorage.removeItem('registerFormInteracted');
+            try{ await register(u,p, registerGeetestToken); }catch(err){ showToast(err.message,true); refreshGeetestCaptcha(false); }
+        });
+        
+        // 跟踪注册表单输入
+        document.getElementById('regUsername').addEventListener('input', () => { 
+            registerFormInteracted = true; 
+            sessionStorage.setItem('registerFormInteracted', 'true');
+        });
+        document.getElementById('regPassword').addEventListener('input', () => { 
+            registerFormInteracted = true; 
+            sessionStorage.setItem('registerFormInteracted', 'true');
+        });
+        document.getElementById('confirmPassword').addEventListener('input', () => { 
+            registerFormInteracted = true; 
+            sessionStorage.setItem('registerFormInteracted', 'true');
         });
 
         document.getElementById('logoutBtn').addEventListener('click', logout);
@@ -3206,6 +4468,14 @@
         // 管理员账号管理相关事件
         document.getElementById('createAdminBtn').addEventListener('click', createAdminAccount);
         document.getElementById('refreshAdminsBtn').addEventListener('click', loadAdminList);
+        document.getElementById('viewAllRecordsBtn').addEventListener('click', viewAllRecords);
+        document.getElementById('closeAllRecordsBtn').addEventListener('click', closeAllRecordsModal);
+        document.getElementById('exportRecordsBtn').addEventListener('click', exportRecords);
+        document.getElementById('recordsUserFilter').addEventListener('change', function() {
+            if (allRecordsData) {
+                renderRecords(allRecordsData, this.value);
+            }
+        });
         
         // 棋盘颜色设置事件（只更新UI显示，不立即应用）
         document.getElementById('boardLineColor').addEventListener('input', function() {
@@ -3257,6 +4527,7 @@
         document.getElementById('refreshMatchListBtn')?.addEventListener('click', loadMatchList);
         document.getElementById('forceCloseMatchBtn')?.addEventListener('click', forceCloseMatch);
         document.getElementById('forceRestartMatchBtn')?.addEventListener('click', forceRestartMatch);
+        document.getElementById('forceCloseAllRoomsBtn')?.addEventListener('click', forceCloseAllRooms);
 
         document.getElementById('modeAI').addEventListener('click', ()=>{ gameMode='ai'; updateModeButtons(); resetGame(); });
         document.getElementById('modePVP').addEventListener('click', ()=>{ gameMode='pvp'; updateModeButtons(); resetGame(); });
@@ -3268,11 +4539,78 @@
             }
             showTab('onlineContent');
         });
-        document.getElementById('playerColorBlack').addEventListener('click', ()=>{ playerColor=1; updateColorButtons(); });
-        document.getElementById('playerColorWhite').addEventListener('click', ()=>{ playerColor=2; updateColorButtons(); });
-        document.getElementById('aiEasy').addEventListener('click', ()=>{ aiDifficulty='easy'; updateDifficultyButtons(); });
-        document.getElementById('aiMedium').addEventListener('click', ()=>{ aiDifficulty='medium'; updateDifficultyButtons(); });
-        document.getElementById('aiHard').addEventListener('click', ()=>{ aiDifficulty='hard'; updateDifficultyButtons(); });
+        document.getElementById('playerColorBlack').addEventListener('click', ()=>{
+            if(playerColor===1) return;
+            playerColor=1; updateColorButtons();
+            if(gameMode==='ai' && gameActive && moveHistory.length>0){ resetGame(); showToast('已切换为黑棋，游戏重新开始'); }
+            else showToast('您将执黑先行');
+        });
+        document.getElementById('playerColorWhite').addEventListener('click', ()=>{
+            if(playerColor===2) return;
+            playerColor=2; updateColorButtons();
+            if(gameMode==='ai' && gameActive && moveHistory.length>0){ resetGame(); showToast('已切换为白棋，游戏重新开始'); }
+            else showToast('您将执白后行');
+        });
+        document.getElementById('aiEasy').addEventListener('click', ()=>{
+            if(aiDifficulty==='easy') return;
+            aiDifficulty='easy'; updateDifficultyButtons();
+            if(gameMode==='ai' && gameActive && moveHistory.length>0){ resetGame(); showToast('AI难度已设为简单，游戏重新开始'); }
+            else showToast('AI难度已设置为简单');
+        });
+        document.getElementById('aiMedium').addEventListener('click', ()=>{
+            if(aiDifficulty==='medium') return;
+            aiDifficulty='medium'; updateDifficultyButtons();
+            if(gameMode==='ai' && gameActive && moveHistory.length>0){ resetGame(); showToast('AI难度已设为中等，游戏重新开始'); }
+            else showToast('AI难度已设置为中等');
+        });
+        document.getElementById('aiHard').addEventListener('click', ()=>{
+            if(aiDifficulty==='hard') return;
+            aiDifficulty='hard'; updateDifficultyButtons();
+            if(gameMode==='ai' && gameActive && moveHistory.length>0){ resetGame(); showToast('AI难度已设为困难，游戏重新开始'); }
+            else showToast('AI难度已设置为困难');
+        });
+        
+        // 双人对战设置事件
+        document.getElementById('pvpForbidden').addEventListener('change', (e)=>{
+            pvpForbidden = e.target.checked;
+            showToast(pvpForbidden ? '已启用禁手规则' : '已禁用禁手规则');
+            if(gameMode==='pvp' && gameActive && moveHistory.length>0) {
+                resetGame();
+                showToast('设置已更改，游戏重新开始');
+            }
+        });
+        
+        // 时间限制按钮
+        const timeButtons = ['timeNone', 'time5min', 'time10min', 'time30min'];
+        const timeLimits = [0, 300, 600, 1800];
+        const timeLabels = ['无限制', '5分钟', '10分钟', '30分钟'];
+        
+        timeButtons.forEach((id, index) => {
+            document.getElementById(id).addEventListener('click', ()=>{
+                pvpTimeLimit = timeLimits[index];
+                // 更新按钮样式
+                timeButtons.forEach(btnId => {
+                    const btn = document.getElementById(btnId);
+                    btn.classList.remove('bg-primary', 'text-white');
+                });
+                document.getElementById(id).classList.add('bg-primary', 'text-white');
+                // 显示时间限制提示
+                const display = document.getElementById('pvpTimerDisplay');
+                const text = document.getElementById('pvpTimeLimitText');
+                if (pvpTimeLimit > 0) {
+                    display.classList.remove('hidden');
+                    text.textContent = timeLabels[index];
+                } else {
+                    display.classList.add('hidden');
+                }
+                showToast(`时间限制: ${timeLabels[index]}`);
+                if(gameMode==='pvp' && gameActive) {
+                    stopPvpTurnTimer();
+                    resetGame();
+                }
+            });
+        });
+        
         document.getElementById('restartBtn').addEventListener('click', resetGame);
         document.getElementById('undoBtn').addEventListener('click', undoMove);
         document.getElementById('saveGameBtn').addEventListener('click', saveGame);
@@ -3478,16 +4816,21 @@
                 isLoggedIn = true;
                 showGameUI(); 
                 startStatusCheck();
+                
+                // 恢复联机对战房间状态
+                await recoverOnlineMatch();
             }catch(e){ 
                 token=''; localStorage.removeItem('token'); 
             }
         }
 
         // 页面关闭时停止检查
-        window.addEventListener('beforeunload', function() {
+        window.addEventListener('beforeunload', function(event) {
             stopStatusCheck();
             stopBannedCountdown();
         });
+        
+        // 检测未完成验证并显示提示（已移除，不再显示黄条提示）
     }
 
     init();

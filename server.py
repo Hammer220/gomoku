@@ -3,59 +3,219 @@ import json
 import uuid
 import time
 import hashlib
+import hmac
 import threading
+import configparser
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import Flask, request, jsonify, send_from_directory
 import logging
 import secrets
 import traceback
+import requests
 
+# 获取脚本所在目录（绝对路径）
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-app = Flask(__name__, static_folder=SCRIPT_DIR, static_url_path='')
+
+# 定义静态文件目录
+STATIC_DIR = os.path.join(SCRIPT_DIR, 'static')
+
+# 确保静态目录存在（防止部署时遗漏）
+os.makedirs(STATIC_DIR, exist_ok=True)
+
+# 初始化Flask应用
+app = Flask(__name__, static_folder=STATIC_DIR, static_url_path='/static')
 app.secret_key = secrets.token_hex(32)
 
-# 端口配置
-port = int(os.environ.get('PORT', 8000))
+# 初始化配置解析器
+cfg = configparser.ConfigParser()
+# 读取同目录下的 config.ini
+cfg.read(os.path.join(SCRIPT_DIR, "config.ini"), encoding="utf-8")
 
-# 配置日志记录
-LOG_DIR = os.path.join(SCRIPT_DIR, 'logs')
-os.makedirs(LOG_DIR, exist_ok=True)
+# 从配置文件读取极验参数（注册用）
+GT4_CAPTCHA_ID = cfg.get("GEETEST", "captcha_id")
+GT4_CAPTCHA_KEY = cfg.get("GEETEST", "captcha_key")
+VERIFY_URL = cfg.get("GEETEST", "verify_url")
 
+# 从配置文件读取登录专用极验参数
+GT4_LOGIN_CAPTCHA_ID = cfg.get("GEETEST_LOGIN", "captcha_id")
+GT4_LOGIN_CAPTCHA_KEY = cfg.get("GEETEST_LOGIN", "captcha_key")
+LOGIN_VERIFY_URL = cfg.get("GEETEST_LOGIN", "verify_url")
+
+# 从配置读取端口（兼容原有逻辑）
+port = int(cfg.get("APP", "port"))
+
+# 从配置文件读取 Cloudflare Turnstile 参数
+TURNSTILE_SITE_KEY = cfg.get("TURNSTILE", "site_key")
+TURNSTILE_SECRET_KEY = cfg.get("TURNSTILE", "secret_key")
+TURNSTILE_VERIFY_URL = cfg.get("TURNSTILE", "verify_url")
+
+def turnstile_verify(response_token):
+    """Cloudflare Turnstile 服务端验证"""
+    if not response_token:
+        logger.warning('Turnstile token为空')
+        return False, '验证码参数缺失'
+    
+    params = {
+        "secret": TURNSTILE_SECRET_KEY,
+        "response": response_token,
+        "remoteip": request.remote_addr if request else None
+    }
+    
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded"
+    }
+    
+    try:
+        resp = requests.post(TURNSTILE_VERIFY_URL, data=params, headers=headers, timeout=10)
+        logger.info(f"Turnstile请求状态码: {resp.status_code}, 原始返回: {repr(resp.text)}")
+        
+        if resp.status_code != 200:
+            return False, f"接口请求异常，状态码：{resp.status_code}"
+        
+        data = resp.json()
+        if data.get("success"):
+            return True, "验证码验证通过"
+        else:
+            return False, f"验证失败：{data.get('error-codes', ['未知原因'])[0]}"
+    
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Turnstile网络请求异常: {str(e)}")
+        return False, "网络请求超时/连接失败"
+    except Exception as e:
+        logger.error(f"Turnstile校验全局异常: {str(e)}")
+        return False, f"系统异常：{str(e)}"
+
+def geetest_verify(lot_number, captcha_output, pass_token, gen_time, captcha_id=None, captcha_key=None, verify_url=None):
+    """极验GT4 官方标准二次校验（修复签名+异常处理）"""
+    # 使用传入的参数或默认值
+    use_captcha_id = captcha_id if captcha_id else GT4_CAPTCHA_ID
+    use_captcha_key = captcha_key if captcha_key else GT4_CAPTCHA_KEY
+    use_verify_url = verify_url if verify_url else VERIFY_URL
+    
+    # 基础参数校验
+    if not all([lot_number, captcha_output, pass_token, gen_time]):
+        logger.warning('极验参数不完整')
+        return False, '验证码参数缺失'
+
+    # ========== 核心：生成官方要求的 sign_token ==========
+    hmac_obj = hmac.new(
+        use_captcha_key.encode("utf-8"),
+        lot_number.encode("utf-8"),
+        hashlib.sha256
+    )
+    sign_token = hmac_obj.hexdigest()
+    # ====================================================
+
+    # 组装完整请求参数（包含6个必填项）
+    params = {
+        "lot_number": lot_number,
+        "captcha_output": captcha_output,
+        "pass_token": pass_token,
+        "gen_time": gen_time,
+        "captcha_id": use_captcha_id,
+        "sign_token": sign_token  # 动态生成签名，不再填空
+    }
+
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+
+    try:
+        resp = requests.post(use_verify_url, data=params, headers=headers, timeout=10)
+        logger.info(f"极验请求状态码: {resp.status_code}, 原始返回: {repr(resp.text)}")
+
+        # 精细化状态码判断
+        if resp.status_code != 200:
+            return False, f"接口请求异常，状态码：{resp.status_code}"
+
+        resp_text = resp.text.strip()
+        # 拦截空内容、非JSON内容（解决你核心报错）
+        if not resp_text:
+            return False, "极验接口返回空数据"
+        if not resp_text.startswith("{"):
+            return False, "接口返回非JSON（域名未授权/请求非法）"
+
+        # 正常解析JSON
+        data = resp.json()
+        if data.get("result") == "success":
+            return True, "验证码验证通过"
+        else:
+            # 返回极验原生错误原因，方便排查
+            return False, f"验证失败：{data.get('reason', '未知原因')}"
+
+    except requests.exceptions.RequestException as e:
+        logger.error(f"极验网络请求异常: {str(e)}")
+        return False, "网络请求超时/连接失败"
+    except Exception as e:
+        logger.error(f"极验校验全局异常: {str(e)}")
+        return False, f"系统异常：{str(e)}"
+
+@app.route('/api/captcha/verify', methods=['POST'])
+def captcha_check():
+    """极验四代验证码校验接口"""
+    # GT4正确参数：lot_number, captcha_output, pass_token, gen_time
+    lot_number = request.form.get("lot_number", "")
+    captcha_output = request.form.get("captcha_output", "")
+    pass_token = request.form.get("pass_token", "")
+    gen_time = request.form.get("gen_time", "")
+    
+    if not (lot_number and captcha_output and pass_token):
+        return jsonify({"code": 1, "msg": "验证码参数缺失"})
+    
+    success, message = geetest_verify(lot_number, captcha_output, pass_token, gen_time)
+    if success:
+        return jsonify({"code": 0, "msg": "验证通过"})
+    else:
+        return jsonify({"code": 1, "msg": message})
+
+@app.route('/api/captcha/turnstile/verify', methods=['POST'])
+def turnstile_check():
+    """Cloudflare Turnstile 验证码校验接口"""
+    response_token = request.form.get("response", "") or request.json.get("response", "")
+    
+    if not response_token:
+        return jsonify({"code": 1, "msg": "验证码参数缺失"})
+    
+    success, message = turnstile_verify(response_token)
+    if success:
+        return jsonify({"code": 0, "msg": "验证通过"})
+    else:
+        return jsonify({"code": 1, "msg": message})
+
+@app.route('/api/captcha/turnstile/sitekey', methods=['GET'])
+def get_turnstile_sitekey():
+    """获取 Turnstile Site Key"""
+    return jsonify({"code": 0, "sitekey": TURNSTILE_SITE_KEY})
+
+# 配置日志记录 - 只输出到控制台，不保存到文件
 def setup_logging():
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)
+    root_logger.setLevel(logging.INFO)
     
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     
+    # 只添加控制台输出，不保存到文件
     stream_handler = logging.StreamHandler()
     stream_handler.setLevel(logging.INFO)
     stream_handler.setFormatter(formatter)
     root_logger.addHandler(stream_handler)
     
-    app_handler = logging.FileHandler(os.path.join(LOG_DIR, 'app.log'), encoding='utf-8')
-    app_handler.setLevel(logging.INFO)
-    app_handler.setFormatter(formatter)
-    
-    error_handler = logging.FileHandler(os.path.join(LOG_DIR, 'error.log'), encoding='utf-8')
-    error_handler.setLevel(logging.ERROR)
-    error_handler.setFormatter(formatter)
-    
-    access_handler = logging.FileHandler(os.path.join(LOG_DIR, 'access.log'), encoding='utf-8')
-    access_handler.setLevel(logging.INFO)
-    access_handler.setFormatter(formatter)
-    
-    root_logger.addHandler(app_handler)
-    root_logger.addHandler(error_handler)
-    
+    # 创建access logger用于访问日志（也只输出到控制台）
     access_logger = logging.getLogger('access')
     access_logger.setLevel(logging.INFO)
-    access_logger.addHandler(access_handler)
+    access_logger.addHandler(stream_handler)
     access_logger.propagate = False
     
     return logging.getLogger('gomoku'), access_logger
 
 logger, access_logger = setup_logging()
+
+# 配置校验：确保极验参数不为空（日志初始化之后再做校验）
+if not GT4_CAPTCHA_ID or not GT4_CAPTCHA_KEY:
+    logger.critical("错误：请在 config.ini 中配置极验 captcha_id 和 captcha_key")
+    raise SystemExit("缺少极验配置项")
 
 # 连接管理配置
 CONNECT_TIMEOUT = 600  # 10分钟连接超时（延长时间减少频繁断线）
@@ -290,6 +450,12 @@ def clear_cache(cache_key=None):
 
 # 初始化内置管理员
 def init_admin():
+    users = load_json_with_lock(USERS_FILE)
+    # 管理员已存在，直接跳过
+    if 'admin' in users:
+        logger.info("管理员账号已存在，跳过初始化")
+        return
+        
     # 生成随机管理员密码
     import random
     import string
@@ -306,44 +472,24 @@ def init_admin():
     print(f"管理员密码: {admin_password}")
     print(f"密码已保存至: {PASSWORD_FILE}")
     
-    users = load_json_with_lock(USERS_FILE)
-    if not users:
-        admin = {
-            'admin': {
-                'username': 'admin',
-                'password': hashlib.sha256(admin_password.encode()).hexdigest(),
-                'score': 1000,
-                'wins': 0,
-                'games': 0,
-                'joinDate': datetime.now().strftime('%Y-%m-%d'),
-                'lastLogin': '',
-                'isAdmin': True,
-                'isSuperAdmin': True,
-                'bannedUntil': None
-            }
+    admin = {
+        'admin': {
+            'username': 'admin',
+            'password': hashlib.sha256(admin_password.encode()).hexdigest(),
+            'score': 1000,
+            'wins': 0,
+            'games': 0,
+            'joinDate': datetime.now().strftime('%Y-%m-%d'),
+            'lastLogin': '',
+            'isAdmin': True,
+            'isSuperAdmin': True,
+            'bannedUntil': None
         }
-        save_json_with_lock(USERS_FILE, admin)
-    else:
-        # 确保admin存在且密码正确
-        if 'admin' not in users:
-            users['admin'] = {
-                'username': 'admin',
-                'password': hashlib.sha256(admin_password.encode()).hexdigest(),
-                'score': 1000,
-                'wins': 0,
-                'games': 0,
-                'joinDate': datetime.now().strftime('%Y-%m-%d'),
-                'lastLogin': '',
-                'isAdmin': True,
-                'isSuperAdmin': True,
-                'bannedUntil': None
-            }
-            save_json_with_lock(USERS_FILE, users)
-        else:
-            # 更新管理员密码
-            users['admin']['password'] = hashlib.sha256(admin_password.encode()).hexdigest()
-            users['admin']['isSuperAdmin'] = True
-            save_json_with_lock(USERS_FILE, users)
+    }
+    users['admin'] = admin['admin']
+    save_json_with_lock(USERS_FILE, users)
+
+    logger.info('管理员账户初始化完成')
 
 init_admin()
 
@@ -480,84 +626,116 @@ def index():
 
 @app.route('/api/register', methods=['POST'])
 def register():
+    data = request.json
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+    captcha_token = data.get('captchaToken', '')
+    
+    # 验证极验验证码（双重验证第二层）
+    if not captcha_token or len(captcha_token) < 5:
+        logger.info(f"极验验证码token为空或过短: {captcha_token}")
+        return jsonify({'error': '请先完成验证码验证'}), 400
+    
+    # 尝试调用极验API进行二次验证
+    # GT4 token格式: JSON数组 [lot_number, captcha_output, pass_token, gen_time]
     try:
-        data = request.json
-        if not data:
-            return jsonify({'error': '无效的请求数据'}), 400
-            
-        username = data.get('username', '').strip()
-        password = data.get('password', '')
-        
-        if not username or not password:
-            return jsonify({'error': '用户名和密码不能为空'}), 400
-        if len(username) < 2 or len(username) > 20:
-            return jsonify({'error': '用户名长度需在2-20个字符之间'}), 400
-        if len(password) < 6:
-            return jsonify({'error': '密码至少6个字符'}), 400
-            
-        users = load_json_with_lock(USERS_FILE)
-        if username in users:
-            return jsonify({'error': '用户名已存在'}), 400
-            
-        new_user = {
-            'username': username,
-            'password': hashlib.sha256(password.encode()).hexdigest(),
-            'score': 1000,
-            'wins': 0,
-            'games': 0,
-            'joinDate': datetime.now().strftime('%Y-%m-%d'),
-            'lastLogin': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'isAdmin': False,
-            'isSuperAdmin': False,
-            'bannedUntil': None
-        }
-        users[username] = new_user
-        save_json_with_lock(USERS_FILE, users)
-        
-        # 保存明文密码
-        try:
-            save_plain_password(username, password)
-        except Exception as e:
-            logger.warning(f"保存明文密码失败: {e}")
-        
-        # 初始化记录和存档
-        try:
-            records = load_json_with_lock(RECORDS_FILE)
-            records[username] = []
-            save_json_with_lock(RECORDS_FILE, records)
-        except Exception as e:
-            logger.warning(f"初始化游戏记录失败: {e}")
-        
-        try:
-            saves = load_json_with_lock(SAVES_FILE)
-            saves[username] = []
-            save_json_with_lock(SAVES_FILE, saves)
-        except Exception as e:
-            logger.warning(f"初始化存档失败: {e}")
-        
-        logger.info(f"用户注册成功: {username}")
-        return jsonify({'success': True, 'user': {k: v for k, v in new_user.items() if k != 'password'}})
+        parts = json.loads(captcha_token)
+        if not isinstance(parts, list) or len(parts) != 4:
+            raise ValueError("Token must be a list of 4 elements")
+        lot_number, captcha_output, pass_token, gen_time = parts
     except Exception as e:
-        logger.error(f"注册失败: {e}")
-        logger.error(traceback.format_exc())
-        return jsonify({'error': '注册失败，请稍后重试'}), 500
+        logger.info(f"验证码token格式错误: {e}, token: {captcha_token}")
+        return jsonify({'error': '验证码数据格式错误'}), 400
+    
+    # 调用极验API进行二次验证
+    success, msg = geetest_verify(lot_number, captcha_output, pass_token, gen_time)
+    if not success:
+        logger.warning(f"极验验证失败: {msg}")
+        return jsonify({'error': f'验证码验证失败: {msg}'}), 400
+
+    if not username or not password:
+        return jsonify({'error': '用户名和密码不能为空'}), 400
+    if len(password) < 6:
+        return jsonify({'error': '密码至少6个字符'}), 400
+        
+    users = load_json_with_lock(USERS_FILE)
+    if username in users:
+        return jsonify({'error': '用户名已存在'}), 400
+        
+    new_user = {
+        'username': username,
+        'password': hashlib.sha256(password.encode()).hexdigest(),
+        'score': 1000,
+        'wins': 0,
+        'games': 0,
+        'joinDate': datetime.now().strftime('%Y-%m-%d'),
+        'lastLogin': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'isAdmin': False,
+        'isSuperAdmin': False,
+        'bannedUntil': None,
+        'useCaptcha': True,
+        'passwordFree': False
+    }
+    users[username] = new_user
+    save_json_with_lock(USERS_FILE, users)
+    
+    # 保存明文密码
+    save_plain_password(username, password)
+    
+    # 初始化记录和存档
+    records = load_json_with_lock(RECORDS_FILE)
+    records[username] = []
+    save_json_with_lock(RECORDS_FILE, records)
+    
+    saves = load_json_with_lock(SAVES_FILE)
+    saves[username] = []
+    save_json_with_lock(SAVES_FILE, saves)
+    
+    return jsonify({'success': True, 'user': {k: v for k, v in new_user.items() if k != 'password'}})
 
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json
     username = data.get('username', '').strip()
     password = data.get('password', '')
+    captcha_token = data.get('captchaToken', '')
     
     user = get_user(username)
     if not user:
         return jsonify({'error': '用户名或密码错误'}), 401
     
-    # 超级管理员本机登录验证
-    #if user.get('isSuperAdmin') and not is_local_admin_login():
-        #return jsonify({'error': '超级管理员必须在服务器本机登录'}), 403
+    # 检查是否是免登录用户（仅需用户名，无需密码和验证码）
+    password_free = user.get('passwordFree', False)
+    
+    # 验证极验验证码（除非用户被禁用验证码或是免登录用户）
+    if not password_free:
+        skip_captcha = not user.get('useCaptcha', True)
+        if not skip_captcha:
+            if not captcha_token or len(captcha_token) < 5:
+                logger.info(f"极验验证码token为空或过短: {captcha_token}")
+                return jsonify({'error': '请先完成验证码验证'}), 400
+            
+            # 尝试调用极验API进行二次验证
+            # GT4 token格式: JSON数组 [lot_number, captcha_output, pass_token, gen_time]
+            try:
+                parts = json.loads(captcha_token)
+                if not isinstance(parts, list) or len(parts) != 4:
+                    raise ValueError("Token must be a list of 4 elements")
+                lot_number, captcha_output, pass_token, gen_time = parts
+            except Exception as e:
+                logger.info(f"验证码token格式错误: {e}, token: {captcha_token}")
+                return jsonify({'error': '验证码数据格式错误'}), 400
+            
+            # 调用极验API进行二次验证（使用登录专用配置）
+            success, msg = geetest_verify(lot_number, captcha_output, pass_token, gen_time, 
+                                           GT4_LOGIN_CAPTCHA_ID, GT4_LOGIN_CAPTCHA_KEY, LOGIN_VERIFY_URL)
+            if not success:
+                logger.warning(f"极验验证失败: {msg}")
+                return jsonify({'error': f'验证码验证失败: {msg}'}), 400
         
-    if hashlib.sha256(password.encode()).hexdigest() != user['password']:
-        return jsonify({'error': '用户名或密码错误'}), 401
+        # 验证密码（除非是免登录用户）
+        if hashlib.sha256(password.encode()).hexdigest() != user['password']:
+            return jsonify({'error': '用户名或密码错误'}), 401
         
     # 检查封禁
     if user.get('bannedUntil'):
@@ -591,78 +769,45 @@ def login():
         'user': {k: v for k, v in user.items() if k != 'password'}
     })
 
-@app.route('/api/passwordless_login', methods=['POST'])
-def passwordless_login():
-    """免密登录：用户存在直接登录，不存在则自动创建"""
+@app.route('/api/login/password_free', methods=['POST'])
+def password_free_login():
+    """免密登录（仅限已授权用户，支持次数限制）"""
     data = request.json
     username = data.get('username', '').strip()
     
     if not username:
         return jsonify({'error': '用户名不能为空'}), 400
     
-    if len(username) < 2 or len(username) > 20:
-        return jsonify({'error': '用户名长度需在2-20个字符之间'}), 400
-    
-    users = load_json_with_lock(USERS_FILE)
-    user = users.get(username)
-    is_new_user = False
-    
+    user = get_user(username)
     if not user:
-        # 用户不存在，自动创建
-        is_new_user = True
-        default_password = '123456'
-        new_user = {
-            'username': username,
-            'password': hashlib.sha256(default_password.encode()).hexdigest(),
-            'score': 1000,
-            'wins': 0,
-            'games': 0,
-            'joinDate': datetime.now().strftime('%Y-%m-%d'),
-            'lastLogin': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'isAdmin': False,
-            'isSuperAdmin': False,
-            'bannedUntil': None
-        }
-        users[username] = new_user
-        save_json_with_lock(USERS_FILE, users)
-        
-        # 保存明文密码
-        try:
-            save_plain_password(username, default_password)
-        except Exception as e:
-            logger.warning(f"保存明文密码失败: {e}")
-        
-        # 初始化记录和存档
-        try:
-            records = load_json_with_lock(RECORDS_FILE)
-            records[username] = []
-            save_json_with_lock(RECORDS_FILE, records)
-        except Exception as e:
-            logger.warning(f"初始化游戏记录失败: {e}")
-        
-        try:
-            saves = load_json_with_lock(SAVES_FILE)
-            saves[username] = []
-            save_json_with_lock(SAVES_FILE, saves)
-        except Exception as e:
-            logger.warning(f"初始化存档失败: {e}")
-        
-        user = new_user
-        logger.info(f"免密登录自动创建用户: {username}")
-    else:
-        # 用户存在，检查封禁
-        if user.get('bannedUntil'):
-            if time.time() < user['bannedUntil']:
-                remain = int(user['bannedUntil'] - time.time())
-                return jsonify({'error': f'账号已被封禁，剩余 {remain // 60} 分钟'}), 403
-            else:
-                user['bannedUntil'] = None
-                save_user(username, user)
-        
-        # 更新最后登录
-        user['lastLogin'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        return jsonify({'error': '用户不存在'}), 401
+    
+    # 检查是否是免密登录用户
+    if not user.get('passwordFree', False):
+        return jsonify({'error': '该用户未启用免密登录'}), 403
+    
+    # 检查免密登录剩余次数
+    max_attempts = user.get('passwordFreeMaxAttempts', 0)
+    remaining_attempts = user.get('passwordFreeRemainingAttempts', 0)
+    if max_attempts > 0:
+        if remaining_attempts <= 0:
+            return jsonify({'error': '免密登录次数已用尽，请联系管理员'}), 403
+        # 扣减剩余次数
+        user['passwordFreeRemainingAttempts'] = remaining_attempts - 1
         save_user(username, user)
-        logger.info(f"用户免密登录: {username}")
+    
+    # 检查封禁
+    if user.get('bannedUntil'):
+        if time.time() < user['bannedUntil']:
+            remain = int(user['bannedUntil'] - time.time())
+            return jsonify({'error': f'账号已被封禁，剩余 {remain // 60} 分钟'}), 403
+        else:
+            user['bannedUntil'] = None
+            save_user(username, user)
+    
+    # 更新最后登录
+    user['lastLogin'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    save_user(username, user)
     
     # 生成token
     token = str(uuid.uuid4())
@@ -675,18 +820,33 @@ def passwordless_login():
     
     # 更新用户连接状态
     update_user_connection(username)
+    logger.info(f"用户免密登录: {username}")
     
     return jsonify({
         'success': True,
         'token': token,
-        'user': {k: v for k, v in user.items() if k != 'password'},
-        'is_new': is_new_user
+        'user': {k: v for k, v in user.items() if k != 'password'}
     })
 
-@app.route('/passwordless')
-def passwordless_login_page():
-    """免密登录页面"""
-    return send_from_directory(SCRIPT_DIR, 'passwordless.html')
+@app.route('/api/user/password_free_info', methods=['POST'])
+def get_password_free_info():
+    """获取用户的免密登录信息（剩余次数等）"""
+    data = request.json
+    username = data.get('username', '').strip()
+    
+    if not username:
+        return jsonify({'error': '用户名不能为空'}), 400
+    
+    user = get_user(username)
+    if not user:
+        return jsonify({'passwordFree': False, 'maxAttempts': 0, 'remainingAttempts': 0})
+    
+    return jsonify({
+        'passwordFree': user.get('passwordFree', False),
+        'maxAttempts': user.get('passwordFreeMaxAttempts', 0),
+        'remainingAttempts': user.get('passwordFreeRemainingAttempts', 0)
+    })
+
 
 @app.route('/api/change_password', methods=['POST'])
 @require_auth
@@ -974,7 +1134,13 @@ def delete_save(user, save_id):
         save_json_with_lock(SAVES_FILE, saves)
     return jsonify({'success': True})
 
-# 管理员API
+@app.route('/api/admin/all_records', methods=['GET'])
+@require_super_admin
+def admin_get_all_records(super_admin):
+    """超级管理员获取所有用户的游戏记录"""
+    records = load_json_with_lock(RECORDS_FILE)
+    return jsonify(records)
+
 @app.route('/api/admin/users', methods=['GET'])
 @require_admin
 def admin_get_users(admin_user):
@@ -1008,7 +1174,11 @@ def admin_get_users(admin_user):
                 'bannedUntil': None,
                 'isOnline': False,
                 'isBanned': False,
-                'remainingMinutes': None
+                'remainingMinutes': None,
+                'useCaptcha': True,
+                'passwordFree': False,
+                'passwordFreeMaxAttempts': 0,
+                'passwordFreeRemainingAttempts': 0
             }
         else:
             user_info = {
@@ -1024,7 +1194,11 @@ def admin_get_users(admin_user):
                 'bannedUntil': banned_until,
                 'isOnline': is_online,
                 'isBanned': is_banned,
-                'remainingMinutes': remaining_minutes
+                'remainingMinutes': remaining_minutes,
+                'useCaptcha': user_data.get('useCaptcha', True),
+                'passwordFree': user_data.get('passwordFree', False),
+                'passwordFreeMaxAttempts': user_data.get('passwordFreeMaxAttempts', 0),
+                'passwordFreeRemainingAttempts': user_data.get('passwordFreeRemainingAttempts', 0)
             }
         user_list.append(user_info)
     
@@ -1302,6 +1476,87 @@ def admin_batch_unban(admin_user):
         success.append(username)
     
     return jsonify({'success': True, 'success_count': len(success), 'failed_count': len(failed), 'success': success, 'failed': failed})
+
+@app.route('/api/admin/set_captcha', methods=['POST'])
+@require_admin
+def admin_set_captcha(admin_user):
+    """设置用户是否需要使用验证码"""
+    data = request.json
+    username = data.get('username')
+    use_captcha = data.get('useCaptcha', True)
+    
+    if not username:
+        return jsonify({'error': '缺少用户名'}), 400
+    
+    users = load_json_with_lock(USERS_FILE)
+    current_user_data = users.get(admin_user.get('username'))
+    
+    if current_user_data and not current_user_data.get('canManage', True):
+        return jsonify({'error': '您的管理权限已被禁用'}), 403
+    
+    target_user = get_user(username)
+    if not target_user:
+        return jsonify({'error': '用户不存在'}), 404
+    
+    # 不能修改超级管理员的设置
+    if target_user.get('isSuperAdmin'):
+        return jsonify({'error': '不能修改超级管理员的设置'}), 403
+    
+    target_user['useCaptcha'] = use_captcha
+    save_user(username, target_user)
+    
+    action = '启用' if use_captcha else '禁用'
+    return jsonify({'success': True, 'message': f'{action}了用户 {username} 的验证码'})
+
+@app.route('/api/admin/set_password_free', methods=['POST'])
+@require_super_admin
+def admin_set_password_free(admin_user):
+    """设置用户是否启用免密登录（仅限超级管理员，支持次数限制）"""
+    data = request.json
+    username = data.get('username')
+    password_free = data.get('passwordFree', False)
+    max_attempts = data.get('maxAttempts', 0)  # 0 表示无限制
+    
+    if not username:
+        return jsonify({'error': '缺少用户名'}), 400
+    
+    target_user = get_user(username)
+    if not target_user:
+        return jsonify({'error': '用户不存在'}), 404
+    
+    # 不能修改超级管理员的设置
+    if target_user.get('isSuperAdmin'):
+        return jsonify({'error': '不能修改超级管理员的设置'}), 403
+    
+    # 验证 max_attempts 必须是 >= 0 的整数
+    try:
+        max_attempts = int(max_attempts)
+        if max_attempts < 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        return jsonify({'error': '免密登录次数必须为非负整数'}), 400
+    
+    target_user['passwordFree'] = password_free
+    
+    if password_free:
+        # 启用免密登录时设置次数限制
+        target_user['passwordFreeMaxAttempts'] = max_attempts
+        # 如果重新设置次数，重置剩余次数
+        target_user['passwordFreeRemainingAttempts'] = max_attempts
+    else:
+        # 禁用时清除次数相关字段
+        target_user.pop('passwordFreeMaxAttempts', None)
+        target_user.pop('passwordFreeRemainingAttempts', None)
+    
+    save_user(username, target_user)
+    
+    if password_free and max_attempts > 0:
+        action = f'启用（最多免密登录 {max_attempts} 次）'
+    elif password_free:
+        action = '启用（无次数限制）'
+    else:
+        action = '禁用'
+    return jsonify({'success': True, 'message': f'{action}了用户 {username} 的免密登录'})
 
 @app.route('/api/admin/batch_kick', methods=['POST'])
 @require_admin
@@ -1704,7 +1959,7 @@ def create_match(user):
                     'opponent': None,
                     'status': 'waiting',
                     'board': [[0] * 15 for _ in range(15)],
-                    'currentPlayer': creator_color,
+                    'currentPlayer': 1,  # 始终黑棋先走
                     'moves': [],
                     'winner': None,
                     'startTime': time.time(),
@@ -1746,7 +2001,7 @@ def join_match(user):
             
             match['opponent'] = user['username']
             match['status'] = 'playing'
-            match['currentPlayer'] = creator_color
+            match['currentPlayer'] = 1  # 始终黑棋先走
             match['lastActivity'] = time.time()
         
         save_matches()
@@ -1757,7 +2012,7 @@ def join_match(user):
             'matchId': match_id,
             'yourColor': 2 if creator_color == 1 else 1,
             'opponent': match['creator'],
-            'currentPlayer': creator_color
+            'currentPlayer': 1  # 始终黑棋先走
         })
     except Exception as e:
         logger.error(f"Join match error for user {user.get('username', 'unknown')}: {e}")
@@ -1819,7 +2074,9 @@ def get_match_status(user, match_id):
                 'restartRequested': match.get('restartRequested', False),
                 'restartRequestedBy': match.get('restartRequestedBy'),
                 'restartDeclinedBy': match.get('restartDeclinedBy'),
-                'restartAccepted': match.get('restartAccepted', False)
+                'restartAccepted': match.get('restartAccepted', False),
+                'restartInitiated': match.get('restartInitiated', False),
+                'restartVersion': match.get('restartVersion', 0)
             }
         
         return jsonify(match_data)
@@ -1869,6 +2126,15 @@ def make_move(user):
             if match['board'][row][col] != 0:
                 return jsonify({'error': '该位置已有棋子'}), 400
             
+            # 禁手规则检查（联机对战强制启用，仅对黑棋有效）
+            if my_color == 1:
+                # 临时放置棋子检查禁手
+                temp_board = [r[:] for r in match['board']]
+                temp_board[row][col] = 1
+                forbidden_check = check_forbidden(temp_board, row, col)
+                if forbidden_check['forbidden']:
+                    return jsonify({'error': f'禁手: {forbidden_check["reason"]}', 'forbidden': True, 'reason': forbidden_check['reason']}), 400
+            
             # 落子
             match['board'][row][col] = my_color
             match['moves'].append({'row': row, 'col': col, 'player': my_color})
@@ -1909,6 +2175,120 @@ def check_win(board, row, col, player):
         if count >= 5:
             return True
     return False
+
+def check_forbidden(board, row, col):
+    """检查禁手规则（仅对黑棋有效）
+    三三禁手：同时形成两个或以上的活三
+    四四禁手：同时形成两个或以上的四
+    长连禁手：形成六子或以上的连珠
+    """
+    # 禁手规则只对黑棋(1)有效
+    if board[row][col] != 1:
+        return {'forbidden': False, 'reason': ''}
+    
+    # 检查长连禁手
+    if check_overline(board, row, col):
+        return {'forbidden': True, 'reason': '长连禁手（六子及以上）'}
+    
+    # 统计活三和四的数量
+    live_threes = 0
+    fours = 0
+    
+    directions = [(1, 0), (0, 1), (1, 1), (1, -1)]
+    
+    for dr, dc in directions:
+        line_info = analyze_line(board, row, col, dr, dc)
+        if line_info['live_three']:
+            live_threes += 1
+        if line_info['four']:
+            fours += 1
+    
+    # 三三禁手
+    if live_threes >= 2:
+        return {'forbidden': True, 'reason': '三三禁手（同时形成两个活三）'}
+    
+    # 四四禁手
+    if fours >= 2:
+        return {'forbidden': True, 'reason': '四四禁手（同时形成两个四）'}
+    
+    return {'forbidden': False, 'reason': ''}
+
+def check_overline(board, row, col):
+    """检查长连禁手（六子及以上）"""
+    directions = [(1, 0), (0, 1), (1, 1), (1, -1)]
+    for dr, dc in directions:
+        count = 1
+        # 正方向
+        for i in range(1, 6):
+            r, c = row + i * dr, col + i * dc
+            if not (0 <= r < 15 and 0 <= c < 15) or board[r][c] != 1:
+                break
+            count += 1
+        # 反方向
+        for i in range(1, 6):
+            r, c = row - i * dr, col - i * dc
+            if not (0 <= r < 15 and 0 <= c < 15) or board[r][c] != 1:
+                break
+            count += 1
+        if count >= 6:
+            return True
+    return False
+
+def analyze_line(board, row, col, dr, dc):
+    """分析一条线上的棋型"""
+    result = {'live_three': False, 'four': False}
+    
+    # 获取这条线上的棋子分布
+    line = []
+    center_index = 0
+    
+    # 向两端延伸最多4格
+    for i in range(-4, 5):
+        r, c = row + i * dr, col + i * dc
+        if not (0 <= r < 15 and 0 <= c < 15):
+            line.append(-1)  # 边界
+        else:
+            line.append(board[r][c])
+        if i == 0:
+            center_index = len(line) - 1
+    
+    # 从中心点向两端扩展，计算连续黑子数量和空点情况
+    count = 1  # 中心点本身
+    left_empty = 0
+    right_empty = 0
+    
+    # 向左（负方向）
+    for i in range(center_index - 1, -1, -1):
+        if line[i] == 1:
+            count += 1
+        elif line[i] == 0:
+            left_empty += 1
+            break
+        else:
+            break
+    
+    # 向右（正方向）
+    for i in range(center_index + 1, len(line)):
+        if line[i] == 1:
+            count += 1
+        elif line[i] == 0:
+            right_empty += 1
+            break
+        else:
+            break
+    
+    # 判断棋型
+    # 活四：4个连续黑子，两端都空
+    if count == 4 and left_empty > 0 and right_empty > 0:
+        result['four'] = True
+    # 冲四：4个连续黑子，只有一端空
+    elif count == 4 and (left_empty > 0 or right_empty > 0):
+        result['four'] = True
+    # 活三：3个连续黑子，两端都空
+    elif count == 3 and left_empty > 0 and right_empty > 0:
+        result['live_three'] = True
+    
+    return result
 
 @app.route('/api/match/leave', methods=['POST'])
 @require_auth
@@ -1981,7 +2361,7 @@ def close_match(user):
 @app.route('/api/match/restart', methods=['POST'])
 @require_auth
 def restart_match(user):
-    """重新开始游戏（任何一方点击即可重新开始）"""
+    """重新开始游戏 - 双方确认机制"""
     data = request.json
     match_id = data.get('matchId')
     
@@ -1998,23 +2378,71 @@ def restart_match(user):
         if match['status'] not in ['finished', 'playing']:
             return jsonify({'error': '游戏无法重新开始'}), 400
         
-        match['board'] = [[0] * 15 for _ in range(15)]
-        # 重新开始时始终黑棋先走（符合五子棋规则）
-        match['currentPlayer'] = 1
-        match['moves'] = []
-        match['winner'] = None
-        match['status'] = 'playing'
-        match['startTime'] = time.time()
-        match['creatorLeft'] = False
-        match['opponentLeft'] = False
-        match['restartRequestedBy'] = None
-        match['restartRequested'] = False
-        match['restartAccepted'] = False
-        match['restartAcceptedBy'] = None
-        match['restartDeclinedBy'] = None
-        save_matches()
+        restart_requested = match.get('restartRequested', False)
+        restart_requested_by = match.get('restartRequestedBy')
+        
+        # 情况1: 没有待处理的重新开始请求 - 发起请求
+        if not restart_requested:
+            match['restartRequested'] = True
+            match['restartRequestedBy'] = username
+            match['restartAcceptedBy'] = None
+            match['restartDeclinedBy'] = None
+            match['lastActivity'] = time.time()
+            save_matches()
+            return jsonify({
+                'success': True, 
+                'restartRequested': True,
+                'restartRequestedBy': username,
+                'message': '已请求重新开始，等待对手确认'
+            })
+        
+        # 情况2: 同一玩家再次点击 - 取消请求
+        if restart_requested_by == username:
+            match['restartRequested'] = False
+            match['restartRequestedBy'] = None
+            match['restartAcceptedBy'] = None
+            match['lastActivity'] = time.time()
+            save_matches()
+            return jsonify({
+                'success': True,
+                'restartRequested': False,
+                'restartCancelled': True,
+                'message': '已取消重新开始请求'
+            })
+        
+        # 情况3: 对手确认 - 执行重新开始
+        if restart_requested_by and restart_requested_by != username:
+            # 执行重新开始
+            original_creator_color = match['creatorColor']
+            match['creatorColor'] = 1 if original_creator_color == 2 else 2
+            match['board'] = [[0] * 15 for _ in range(15)]
+            match['currentPlayer'] = 1
+            match['moves'] = []
+            match['winner'] = None
+            match['status'] = 'playing'
+            match['startTime'] = time.time()
+            match['creatorLeft'] = False
+            match['opponentLeft'] = False
+            match['restartRequested'] = False
+            match['restartRequestedBy'] = None
+            match['restartAcceptedBy'] = username
+            match['restartDeclinedBy'] = None
+            # 增加重新开始版本号，客户端可通过此字段可靠检测重新开始
+            match['restartInitiated'] = True
+            match['restartVersion'] = match.get('restartVersion', 0) + 1
+            match['lastActivity'] = time.time()
+            save_matches()
+            
+            return jsonify({
+                'success': True,
+                'restartInitiated': True,
+                'restartVersion': match['restartVersion'],
+                'creatorColor': match['creatorColor'],
+                'currentPlayer': match['currentPlayer'],
+                'message': '游戏已重新开始'
+            })
     
-    return jsonify({'success': True, 'message': '游戏已重新开始'})
+    return jsonify({'error': '未知错误'}), 500
 
 
 @app.route('/api/admin/matches', methods=['GET'])
@@ -2081,6 +2509,21 @@ def force_close_match(user):
     return jsonify({'success': True})
 
 
+@app.route('/api/admin/match/force_close_all', methods=['POST'])
+@require_super_admin
+def force_close_all_matches(user):
+    """关闭所有房间（仅限超级管理员）"""
+    with active_matches_lock:
+        closed_count = 0
+        for match_id in list(active_matches.keys()):
+            active_matches[match_id]['status'] = 'closed'
+            del active_matches[match_id]
+            closed_count += 1
+        save_matches()
+    
+    return jsonify({'success': True, 'closed_count': closed_count})
+
+
 @app.route('/api/admin/match/force_restart', methods=['POST'])
 @require_super_admin
 def force_restart_match(user):
@@ -2111,6 +2554,8 @@ def force_restart_match(user):
         match['restartAccepted'] = False
         match['restartAcceptedBy'] = None
         match['restartDeclinedBy'] = None
+        match['restartInitiated'] = True
+        match['restartVersion'] = match.get('restartVersion', 0) + 1
         save_matches()
     
     return jsonify({'success': True, 'message': '游戏已强制重新开始'})

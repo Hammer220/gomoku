@@ -170,20 +170,6 @@ def captcha_check():
     else:
         return jsonify({"code": 1, "msg": message})
 
-@app.route('/api/captcha/turnstile/verify', methods=['POST'])
-def turnstile_check():
-    """Cloudflare Turnstile 验证码校验接口"""
-    response_token = request.form.get("response", "") or request.json.get("response", "")
-    
-    if not response_token:
-        return jsonify({"code": 1, "msg": "验证码参数缺失"})
-    
-    success, message = turnstile_verify(response_token)
-    if success:
-        return jsonify({"code": 0, "msg": "验证通过"})
-    else:
-        return jsonify({"code": 1, "msg": message})
-
 @app.route('/api/captcha/turnstile/sitekey', methods=['GET'])
 def get_turnstile_sitekey():
     """获取 Turnstile Site Key"""
@@ -573,19 +559,34 @@ def get_current_user():
     # 检查token缓存
     cached_tokens = get_cached_data('tokens')
     if cached_tokens and token in cached_tokens:
-        username = cached_tokens[token]
-        return get_user(username)
+        token_data = cached_tokens[token]
+        username = token_data.get("username") if isinstance(token_data, dict) else token_data
+        user = get_user(username)
+        if user:
+            user['_turnstile_verified'] = token_data.get("turnstile_verified", True) if isinstance(token_data, dict) else True
+        return user
     
     # 从文件读取
     tokens = load_json_with_lock(TOKENS_FILE)
-    username = tokens.get(token)
-    if not username:
+    token_data = tokens.get(token)
+    if not token_data:
         return None
+    
+    # 兼容新旧格式：旧格式为字符串（用户名），新格式为字典
+    if isinstance(token_data, dict):
+        username = token_data.get("username")
+        turnstile_verified = token_data.get("turnstile_verified", True)
+    else:
+        username = token_data
+        turnstile_verified = True  # 旧格式token，视为已验证
     
     # 更新token缓存
     set_cached_data('tokens', tokens.copy(), ttl=10)
     
-    return get_user(username)
+    user = get_user(username)
+    if user:
+        user['_turnstile_verified'] = turnstile_verified
+    return user
 
 def require_auth(f):
     @wraps(f)
@@ -620,6 +621,43 @@ def require_super_admin(f):
     return decorated
 
 # 路由
+@app.route('/api/captcha/turnstile/verify', methods=['POST'])
+@require_auth
+def turnstile_check(user):
+    """Cloudflare Turnstile 验证码校验接口（支持第二层人机认证）"""
+    # 从request获取参数：兼容form和json
+    response_token = ""
+    if request.is_json:
+        response_token = request.json.get("response", "")
+    else:
+        response_token = request.form.get("response", "")
+    
+    if not response_token:
+        return jsonify({"code": 1, "msg": "验证码参数缺失"})
+    
+    success, message = turnstile_verify(response_token)
+    if success:
+        # 验证成功后，标记该token的turnstile_verified为True
+        token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        if token:
+            try:
+                tokens = load_json_with_lock(TOKENS_FILE)
+                if token in tokens:
+                    token_data = tokens[token]
+                    if isinstance(token_data, dict):
+                        token_data["turnstile_verified"] = True
+                    else:
+                        # 兼容旧格式：转换为新格式
+                        tokens[token] = {"username": token_data, "turnstile_verified": True}
+                    save_json_with_lock(TOKENS_FILE, tokens)
+                    cache['tokens']['data'] = None
+                    logger.info(f"用户 {user['username']} 完成第二层人机认证")
+            except Exception as e:
+                logger.error(f"更新turnstile_verified状态失败: {e}")
+        return jsonify({"code": 0, "msg": "验证通过"})
+    else:
+        return jsonify({"code": 1, "msg": message})
+
 @app.route('/')
 def index():
     return send_from_directory(SCRIPT_DIR, 'gomoku.html')
@@ -750,10 +788,10 @@ def login():
     user['lastLogin'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     save_user(username, user)
     
-    # 生成token
+    # 生成token（包含turnstile_verified标志，用于第二层人机认证）
     token = str(uuid.uuid4())
     tokens = load_json_with_lock(TOKENS_FILE)
-    tokens[token] = username
+    tokens[token] = {"username": username, "turnstile_verified": False}
     save_json_with_lock(TOKENS_FILE, tokens)
     
     # 清除token缓存
@@ -763,10 +801,13 @@ def login():
     update_user_connection(username)
     logger.info(f"用户登录: {username}")
     
+    # 组装返回用户信息，加入turnstileVerified标志
+    user_info = {k: v for k, v in user.items() if k != 'password'}
+    user_info['turnstileVerified'] = False
     return jsonify({
         'success': True,
         'token': token,
-        'user': {k: v for k, v in user.items() if k != 'password'}
+        'user': user_info
     })
 
 @app.route('/api/login/password_free', methods=['POST'])
@@ -809,10 +850,10 @@ def password_free_login():
     user['lastLogin'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     save_user(username, user)
     
-    # 生成token
+    # 生成token（免密登录，turnstile_verified直接设为True）
     token = str(uuid.uuid4())
     tokens = load_json_with_lock(TOKENS_FILE)
-    tokens[token] = username
+    tokens[token] = {"username": username, "turnstile_verified": True}
     save_json_with_lock(TOKENS_FILE, tokens)
     
     # 清除token缓存
@@ -822,10 +863,13 @@ def password_free_login():
     update_user_connection(username)
     logger.info(f"用户免密登录: {username}")
     
+    # 组装返回用户信息，加入turnstileVerified标志
+    user_info = {k: v for k, v in user.items() if k != 'password'}
+    user_info['turnstileVerified'] = True
     return jsonify({
         'success': True,
         'token': token,
-        'user': {k: v for k, v in user.items() if k != 'password'}
+        'user': user_info
     })
 
 @app.route('/api/user/password_free_info', methods=['POST'])
@@ -851,20 +895,15 @@ def get_password_free_info():
 @app.route('/api/change_password', methods=['POST'])
 @require_auth
 def change_password(user):
-    """用户修改自己的密码"""
+    """用户修改自己的密码（已登录无需原密码）"""
     data = request.json
-    old_password = data.get('old_password', '')
     new_password = data.get('new_password', '')
     
-    if not old_password or not new_password:
-        return jsonify({'error': '原密码和新密码不能为空'}), 400
+    if not new_password:
+        return jsonify({'error': '新密码不能为空'}), 400
     
     if len(new_password) < 6:
         return jsonify({'error': '新密码至少6个字符'}), 400
-    
-    # 验证原密码
-    if hashlib.sha256(old_password.encode()).hexdigest() != user['password']:
-        return jsonify({'error': '原密码错误'}), 401
     
     # 更新密码
     username = user['username']
@@ -1004,8 +1043,11 @@ def get_user_info(user):
     """获取用户信息（优化接口）"""
     # 更新连接状态
     update_user_connection(user['username'])
-    # 返回用户信息，排除密码字段
+    # 返回用户信息，排除密码字段，加入turnstile_verified标志
     user_info = {k: v for k, v in user.items() if k != 'password'}
+    # 从user中取出之前附加的_turnstile_verified标志
+    turnstile_verified = user.pop('_turnstile_verified', True)
+    user_info['turnstileVerified'] = turnstile_verified
     return jsonify(user_info)
 
 @app.route('/api/heartbeat', methods=['POST'])
@@ -1147,7 +1189,10 @@ def admin_get_users(admin_user):
     """管理员获取所有用户信息"""
     users = load_json_with_lock(USERS_FILE)
     tokens = load_json_with_lock(TOKENS_FILE)
-    online_usernames = set(tokens.values())
+    online_usernames = set(
+        u.get("username") if isinstance(u, dict) else u
+        for u in tokens.values()
+    )
     is_super = admin_user.get('isSuperAdmin', False)
     
     user_list = []
@@ -1231,7 +1276,7 @@ def admin_kick(admin_user):
     
     # 删除该用户的所有token
     tokens = load_json_with_lock(TOKENS_FILE)
-    to_delete = [t for t, u in tokens.items() if u == username]
+    to_delete = [t for t, u in tokens.items() if (u == username if isinstance(u, str) else u.get("username") == username)]
     for t in to_delete:
         del tokens[t]
     save_json_with_lock(TOKENS_FILE, tokens)
@@ -1285,7 +1330,7 @@ def admin_delete_user(admin_user, username):
         save_json_with_lock(SAVES_FILE, saves)
     
     tokens = load_json_with_lock(TOKENS_FILE)
-    to_delete = [t for t, u in tokens.items() if u == username]
+    to_delete = [t for t, u in tokens.items() if (u == username if isinstance(u, str) else u.get("username") == username)]
     for t in to_delete:
         del tokens[t]
     save_json_with_lock(TOKENS_FILE, tokens)
@@ -1334,7 +1379,7 @@ def admin_ban(admin_user):
     
     # 强制登出
     tokens = load_json_with_lock(TOKENS_FILE)
-    to_delete = [t for t, u in tokens.items() if u == username]
+    to_delete = [t for t, u in tokens.items() if (u == username if isinstance(u, str) else u.get("username") == username)]
     for t in to_delete:
         del tokens[t]
     save_json_with_lock(TOKENS_FILE, tokens)
@@ -1428,7 +1473,7 @@ def admin_batch_ban(admin_user):
         
         # 强制登出
         tokens = load_json_with_lock(TOKENS_FILE)
-        to_delete = [t for t, u in tokens.items() if u == username]
+        to_delete = [t for t, u in tokens.items() if (u == username if isinstance(u, str) else u.get("username") == username)]
         for t in to_delete:
             del tokens[t]
         save_json_with_lock(TOKENS_FILE, tokens)
@@ -1587,7 +1632,7 @@ def admin_batch_kick(admin_user):
                     continue
         
         tokens = load_json_with_lock(TOKENS_FILE)
-        to_delete = [t for t, u in tokens.items() if u == username]
+        to_delete = [t for t, u in tokens.items() if (u == username if isinstance(u, str) else u.get("username") == username)]
         for t in to_delete:
             del tokens[t]
         save_json_with_lock(TOKENS_FILE, tokens)
@@ -1649,7 +1694,7 @@ def admin_batch_delete(admin_user):
             save_json_with_lock(SAVES_FILE, saves)
         
         tokens = load_json_with_lock(TOKENS_FILE)
-        to_delete = [t for t, u in tokens.items() if u == username]
+        to_delete = [t for t, u in tokens.items() if (u == username if isinstance(u, str) else u.get("username") == username)]
         for t in to_delete:
             del tokens[t]
         save_json_with_lock(TOKENS_FILE, tokens)
@@ -2634,4 +2679,9 @@ def log_request(response):
     return response
 
 if __name__ == '__main__':
+    # 服务器启动时清除所有登录token，保证重启后旧token失效，用户须重新登录
+    logger.info("正在清除所有登录token...")
+    save_json_with_lock(TOKENS_FILE, {})
+    logger.info("所有登录token已清除，用户需要重新登录")
+    
     app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False, threaded=True)

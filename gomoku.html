@@ -37,6 +37,12 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
         .saved-game-card:hover { transform: translateY(-3px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); }
+        /* 断开连接遮罩层动画 */
+        #disconnectOverlay:not(.hidden) { animation: overlayFadeIn 0.3s ease-out; }
+        @keyframes overlayFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4 font-sans bg-gradient-to-br from-[#f8f0e3] via-[#e8d3b8] to-[#d4b88e] bg-fixed relative">
@@ -140,7 +146,7 @@
 </div>
 
 <!-- 主游戏容器 -->
-<div id="gameContainer" class="max-w-7xl w-full bg-white rounded-2xl shadow-xl overflow-hidden hidden">
+<div id="gameContainer" class="max-w-7xl w-full bg-white rounded-2xl shadow-xl overflow-hidden hidden relative">
     <div class="bg-primary text-white p-4 md:p-6 flex flex-wrap justify-between items-center">
         <div><h1 class="text-2xl md:text-3xl font-bold">五子棋</h1><p class="text-sm opacity-80">经典对弈 · 双人/人机</p></div>
         <div class="flex items-center space-x-3 md:space-x-6">
@@ -293,10 +299,6 @@
         <div class="bg-white rounded-lg shadow-md p-6">
             <h3 class="text-xl font-semibold mb-4">修改密码</h3>
             <div class="space-y-4 max-w-md">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">原密码</label>
-                    <input type="password" id="oldPassword" placeholder="请输入原密码" class="w-full px-4 py-2 border rounded-lg">
-                </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">新密码</label>
                     <input type="password" id="newPassword" placeholder="请输入新密码（至少6位）" class="w-full px-4 py-2 border rounded-lg">
@@ -473,24 +475,73 @@
                 <button id="batchDeleteBtn" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg text-sm"><i class="fa-solid fa-trash mr-1"></i>批量注销</button>
                 <span id="selectedCount" class="text-sm text-gray-500 ml-2 self-center">已选择: 0</span>
             </div>
+            <!-- 搜索筛选 -->
+            <div class="flex flex-wrap items-center gap-3 mb-4">
+                <div class="relative flex-1 min-w-[200px] max-w-md">
+                    <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" id="adminUserSearch" placeholder="搜索用户名..." class="w-full border rounded-lg pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                </div>
+                <span id="adminUserCount" class="text-sm text-gray-500"></span>
+            </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full border">
                     <thead class="bg-gray-50">
-                        <tr><th class="border px-2 py-2"><input type="checkbox" id="selectAllUsers" class="w-4 h-4"></th><th class="border px-4 py-2">用户名</th><th class="border px-4 py-2">积分</th><th class="border px-4 py-2">胜场</th><th class="border px-4 py-2">对局数</th><th class="border px-4 py-2">封禁状态</th><th class="border px-4 py-2">在线状态</th><th class="border px-2 py-2">验证码</th><th class="border px-2 py-2">免密登录</th><th class="border px-4 py-2">操作</th></tr>
+                        <tr><th class="border px-2 py-2"><input type="checkbox" id="selectAllUsers" class="w-4 h-4"></th><th class="border px-4 py-2">用户名</th><th class="border px-4 py-2">积分</th><th class="border px-4 py-2">胜场</th><th class="border px-4 py-2">对局数</th><th class="border px-4 py-2">封禁状态</th><th class="border px-4 py-2">在线状态</th><th class="border px-2 py-2">验证码</th><th class="border px-2 py-2">免密登录</th></tr>
                     </thead>
                     <tbody id="adminUserTable"></tbody>
                 </table>
             </div>
+            <!-- 分页 -->
+            <div id="adminPagination" class="flex flex-wrap items-center justify-between gap-3 mt-4 hidden">
+                <div class="text-sm text-gray-500" id="paginationInfo"></div>
+                <div class="flex items-center gap-2">
+                    <button id="pagePrev" class="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-left"></i></button>
+                    <div id="pageNumbers" class="flex items-center gap-1"></div>
+                    <button id="pageNext" class="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-right"></i></button>
+                    <select id="pageSizeSelect" class="text-sm border rounded-lg px-2 py-1.5 ml-2">
+                        <option value="5" selected>5条/页</option>
+                        <option value="15">15条/页</option>
+                        <option value="30">30条/页</option>
+                        <option value="50">50条/页</option>
+                    </select>
+                </div>
+            </div>
         </div>
         <div class="bg-white rounded-lg shadow-md p-6">
-            <h3 class="text-xl font-semibold mb-4">封禁管理</h3>
-            <div class="flex flex-wrap gap-4 items-end">
-                <div><label class="block text-sm mb-1">用户名</label><input type="text" id="adminBanUsername" class="border rounded-lg px-3 py-2"></div>
-                <div><label class="block text-sm mb-1">封禁时长(分钟)</label><input type="number" id="adminBanMinutes" min="1" value="10" class="border rounded-lg px-3 py-2 w-24"></div>
-                <button id="adminBanBtn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-ban mr-1"></i>封禁</button>
-                <button id="adminUnbanBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-unlock mr-1"></i>解封</button>
-                <button id="adminKickBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-sign-out-alt mr-1"></i>强制登出</button>
-                <button id="adminDeleteBtn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-trash mr-1"></i>注销</button>
+            <h3 class="text-xl font-semibold mb-4">用户管理</h3>
+            <div class="space-y-4">
+                <!-- 用户名 -->
+                <div class="flex flex-wrap gap-4 items-end">
+                    <div>
+                        <label class="block text-sm mb-1">用户名</label>
+                        <input type="text" id="adminBanUsername" class="border rounded-lg px-3 py-2" placeholder="点击表格用户名或手动输入">
+                    </div>
+                    <span id="selectedUserInfo" class="text-sm text-gray-500 self-center"></span>
+                </div>
+                <!-- 封禁操作 -->
+                <div class="flex flex-wrap gap-4 items-end">
+                    <div>
+                        <label class="block text-sm mb-1">封禁时长(分钟)</label>
+                        <input type="number" id="adminBanMinutes" min="1" value="10" class="border rounded-lg px-3 py-2 w-24">
+                    </div>
+                    <button id="adminBanBtn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-ban mr-1"></i>封禁</button>
+                    <button id="adminUnbanBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-unlock mr-1"></i>解封</button>
+                    <button id="adminKickBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-sign-out-alt mr-1"></i>强制登出</button>
+                    <button id="adminDeleteBtn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-trash mr-1"></i>注销</button>
+                </div>
+                <!-- 账号操作 -->
+                <div class="flex flex-wrap gap-3 items-center pt-3 border-t border-gray-200">
+                    <span class="text-sm font-medium text-gray-700">账号操作：</span>
+                    <button id="adminChangePasswordBtn" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-sm"><i class="fa-solid fa-key mr-1"></i>改密码</button>
+                    <button id="adminUpdateScoreBtn" class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-sm"><i class="fa-solid fa-star mr-1"></i>改积分</button>
+                    <span class="text-gray-300 mx-1">|</span>
+                    <span class="text-sm text-gray-600">验证码：</span>
+                    <button id="adminCaptchaToggle" class="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-100 hidden"></button>
+                    <span class="text-gray-300 mx-1">|</span>
+                    <span class="text-sm text-gray-600">免密登录：</span>
+                    <button id="adminPasswordFreeToggle" class="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-100 hidden"></button>
+                    <button id="adminPasswordFreeAttempts" class="text-xs px-2 py-1 border rounded-lg hover:bg-gray-100 hidden">设置次数</button>
+                </div>
             </div>
         </div>
         
@@ -564,6 +615,20 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- 服务器断开连接遮罩层 -->
+    <div id="disconnectOverlay" class="absolute inset-0 bg-black/60 flex items-center justify-center z-40 hidden">
+        <div class="bg-white rounded-2xl p-8 max-w-sm w-full mx-4 text-center shadow-2xl">
+            <div class="text-5xl mb-4 text-red-500">
+                <i class="fa-solid fa-exclamation-triangle"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">服务器连接已断开</h3>
+            <p class="text-gray-500 mb-6">服务器已关闭，请稍后刷新页面重试</p>
+            <button onclick="location.reload()" class="bg-primary text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-dark transition-colors">
+                <i class="fa-solid fa-rotate mr-2"></i>刷新页面
+            </button>
         </div>
     </div>
 
@@ -2018,25 +2083,37 @@
     let heartbeatFailures = 0; // 心跳失败计数
     let maxHeartbeatFailures = 3; // 最大心跳失败次数
     
+    function showDisconnectOverlay() {
+        const overlay = document.getElementById('disconnectOverlay');
+        if (overlay) overlay.classList.remove('hidden');
+    }
+    
+    function hideDisconnectOverlay() {
+        const overlay = document.getElementById('disconnectOverlay');
+        if (overlay) overlay.classList.add('hidden');
+    }
+    
     function startHeartbeat() {
         stopHeartbeat();
         heartbeatFailures = 0;
+        hideDisconnectOverlay();
         heartbeatInterval = setInterval(async () => {
             if (!token || !isLoggedIn) return;
             try {
                 await apiCall('/api/heartbeat', 'POST', {});
                 heartbeatFailures = 0; // 成功后重置失败计数
+                hideDisconnectOverlay();
             } catch (err) {
                 console.error('心跳失败:', err);
                 heartbeatFailures++;
-                // 如果心跳连续失败多次，可能需要处理
+                // 如果心跳连续失败多次，显示断开连接遮罩层
                 if (heartbeatFailures >= maxHeartbeatFailures) {
-                    console.warn('心跳连续失败多次，可能存在连接问题');
-                    // 可以在这里添加用户提示或重连逻辑
-                    heartbeatFailures = 0; // 重置计数
+                    console.warn('心跳连续失败多次，服务器可能已关闭');
+                    showDisconnectOverlay();
+                    heartbeatFailures = 0; // 重置计数，避免重复触发
                 }
             }
-        }, 25000); // 每25秒发送一次心跳，稍微增加频率
+        }, 5000); // 每5秒发送一次心跳，更快检测服务器断开
 
     }
     
@@ -2045,6 +2122,7 @@
             clearInterval(heartbeatInterval);
             heartbeatInterval = null;
         }
+        hideDisconnectOverlay();
     }
 
     function stopOnlinePolling() {
@@ -3189,7 +3267,10 @@
         try {
             const res = await fetch('/api/captcha/turnstile/verify', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                headers: { 
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: `response=${encodeURIComponent(postLoginTurnstileToken)}`
             });
             const data = await res.json();
@@ -3480,18 +3561,114 @@
         document.getElementById('gameTab').click();
     }
 
+    // 分页与搜索状态
+    let adminAllUsers = [];
+    let adminCurrentPage = 1;
+    let adminPageSize = 5;
+    let adminSearchFilter = '';
+
+    function renderPagination(totalFiltered) {
+        const pagination = document.getElementById('adminPagination');
+        const totalPages = Math.max(1, Math.ceil(totalFiltered / adminPageSize));
+        if (adminCurrentPage > totalPages) adminCurrentPage = totalPages;
+
+        if (totalFiltered <= adminPageSize) {
+            pagination.classList.add('hidden');
+            return;
+        }
+        pagination.classList.remove('hidden');
+
+        document.getElementById('paginationInfo').textContent =
+            `共 ${totalFiltered} 条，第 ${adminCurrentPage}/${totalPages} 页`;
+
+        document.getElementById('pagePrev').disabled = adminCurrentPage <= 1;
+        document.getElementById('pageNext').disabled = adminCurrentPage >= totalPages;
+
+        // 生成页码按钮
+        const container = document.getElementById('pageNumbers');
+        container.innerHTML = '';
+        const maxVisible = 7;
+        let startPage = Math.max(1, adminCurrentPage - Math.floor(maxVisible / 2));
+        let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+        if (endPage - startPage + 1 < maxVisible) {
+            startPage = Math.max(1, endPage - maxVisible + 1);
+        }
+
+        if (startPage > 1) {
+            container.appendChild(createPageBtn(1));
+            if (startPage > 2) container.appendChild(createEllipsis());
+        }
+        for (let i = startPage; i <= endPage; i++) {
+            container.appendChild(createPageBtn(i));
+        }
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) container.appendChild(createEllipsis());
+            container.appendChild(createPageBtn(totalPages));
+        }
+    }
+
+    function createPageBtn(page) {
+        const btn = document.createElement('button');
+        btn.textContent = page;
+        btn.className = `px-3 py-1.5 text-sm border rounded-lg ${page === adminCurrentPage ? 'bg-blue-500 text-white border-blue-500' : 'hover:bg-gray-100'}`;
+        btn.addEventListener('click', () => {
+            adminCurrentPage = page;
+            loadAdminUsers();
+        });
+        return btn;
+    }
+
+    function createEllipsis() {
+        const span = document.createElement('span');
+        span.textContent = '…';
+        span.className = 'px-2 text-gray-400';
+        return span;
+    }
+
+    function getFilteredUsers() {
+        if (!adminSearchFilter) return adminAllUsers;
+        return adminAllUsers.filter(u => u.username.toLowerCase().includes(adminSearchFilter));
+    }
+
     async function loadAdminUsers(){
+        // 重置全选复选框
+        const selectAllCb = document.getElementById('selectAllUsers');
+        if (selectAllCb) selectAllCb.checked = false;
+
         // 保存当前选中的用户
         const checkedUsers = new Set();
         document.querySelectorAll('.user-checkbox:checked').forEach(cb => {
             checkedUsers.add(cb.value);
         });
-        
+
+        // 获取搜索关键词
+        const searchInput = document.getElementById('adminUserSearch');
+        if (searchInput) adminSearchFilter = searchInput.value.trim().toLowerCase();
+
+        // 首次加载或刷新时重新获取数据
         const users = await apiCall('/api/admin/users');
+        adminAllUsers = users;
+
+        const filteredUsers = getFilteredUsers();
+
+        // 更新用户计数
+        const countEl = document.getElementById('adminUserCount');
+        if (countEl) {
+            countEl.textContent = adminSearchFilter
+                ? `共 ${users.length} 个用户，筛选出 ${filteredUsers.length} 个`
+                : `共 ${users.length} 个用户`;
+        }
+
+        // 分页
+        const totalPages = Math.max(1, Math.ceil(filteredUsers.length / adminPageSize));
+        if (adminCurrentPage > totalPages) adminCurrentPage = totalPages;
+        const startIdx = (adminCurrentPage - 1) * adminPageSize;
+        const pageUsers = filteredUsers.slice(startIdx, startIdx + adminPageSize);
+
         const tbody = document.getElementById('adminUserTable');
         const isSuperAdmin = currentUser && currentUser.isSuperAdmin;
-        
-        tbody.innerHTML = users.map(u=>{
+
+        tbody.innerHTML = pageUsers.map(u => {
             const isBanned = u.isBanned;
             const remainingMinutes = u.remainingMinutes;
             const isOnline = u.isOnline;
@@ -3533,25 +3710,9 @@
                 captchaDisplay = '<span class="text-gray-400">权限不足</span>';
             }
             
-            // 免密登录状态显示（仅超级管理员可控制）
+            // 免密登录状态显示
             let passwordFreeDisplay = '';
-            let passwordFreeToggle = '';
-            if (isSuperAdmin && !u.isSuperAdmin) {
-                const passwordFreeEnabled = u.passwordFree === true;
-                const maxAttempts = u.passwordFreeMaxAttempts || 0;
-                const remainingAttempts = u.passwordFreeRemainingAttempts !== undefined ? u.passwordFreeRemainingAttempts : '-';
-                let attemptsInfo = '';
-                if (passwordFreeEnabled && maxAttempts > 0) {
-                    attemptsInfo = `<br><span class="text-xs text-gray-500">剩余 ${remainingAttempts}/${maxAttempts} 次</span>`;
-                } else if (passwordFreeEnabled && maxAttempts === 0) {
-                    attemptsInfo = '<br><span class="text-xs text-gray-500">无次数限制</span>';
-                }
-                passwordFreeDisplay = passwordFreeEnabled ? `<span class="text-green-600">启用</span>${attemptsInfo}` : '<span class="text-gray-400">禁用</span>';
-                passwordFreeToggle = `<div class="flex flex-col items-center gap-1">
-                    <button class="text-indigo-600 hover:underline text-xs admin-toggle-password-free" data-username="${u.username}" data-passwordfree="${!passwordFreeEnabled}">${passwordFreeEnabled ? '禁用' : '启用'}</button>
-                    ${passwordFreeEnabled ? `<button class="text-orange-600 hover:underline text-xs admin-set-password-free-attempts" data-username="${u.username}">设置次数</button>` : ''}
-                </div>`;
-            } else if (u.passwordFree === true) {
+            if (u.passwordFree === true) {
                 const maxAttempts = u.passwordFreeMaxAttempts || 0;
                 const remainingAttempts = u.passwordFreeRemainingAttempts !== undefined ? u.passwordFreeRemainingAttempts : '-';
                 if (maxAttempts > 0) {
@@ -3563,35 +3724,9 @@
                 passwordFreeDisplay = '<span class="text-gray-400">禁用</span>';
             }
             
-            // 操作按钮
-            let actionBtns = '';
-            if (canOperate || isSuperAdmin) {
-                actionBtns = `<button class="text-blue-600 hover:underline admin-select mr-2" data-username="${u.username}">选择</button>`;
-                actionBtns += `<button class="text-green-600 hover:underline admin-change-password mr-2" data-username="${u.username}">改密码</button>`;
-                if (isSuperAdmin) {
-                    actionBtns += `<button class="text-orange-600 hover:underline admin-update-score mr-2" data-username="${u.username}">改积分</button>`;
-                }
-                if (isSuperAdmin && u.isAdmin && !u.isSuperAdmin) {
-                    const canManage = u.canManage !== false;
-                    actionBtns += `<button class="text-purple-600 hover:underline admin-toggle-permission" data-username="${u.username}" data-canmanage="${!canManage}">${canManage ? '禁用' : '启用'}</button>`;
-                }
-            } else {
-                actionBtns = `<button class="text-gray-400 cursor-not-allowed mr-2" data-username="${u.username}">选择</button>`;
-                actionBtns += `<button class="text-gray-400 cursor-not-allowed mr-2" data-username="${u.username}">改密码</button>`;
-            }
-            
             const checkboxDisabled = !canOperate && !isSuperAdmin ? 'disabled' : '';
             
-            // 验证码开关按钮
-            let captchaToggle = '';
-            if (canOperate || isSuperAdmin) {
-                const captchaEnabled = u.useCaptcha !== false;
-                if (isSuperAdmin || (!u.isAdmin && !u.isSuperAdmin)) {
-                    captchaToggle = `<button class="text-indigo-600 hover:underline admin-toggle-captcha" data-username="${u.username}" data-usecaptcha="${!captchaEnabled}">${captchaEnabled ? '禁用' : '启用'}</button>`;
-                }
-            }
-            
-            return `<tr>
+            return `<tr class="admin-user-row cursor-pointer hover:bg-gray-50" data-username="${u.username}">
                 <td class="border px-2 py-2"><input type="checkbox" class="user-checkbox w-4 h-4" value="${u.username}" ${checkboxDisabled} ${isChecked}></td>
                 <td class="border px-4 py-2">${u.username} ${roleTag}</td>
                 <td class="border px-4 py-2">${scoreDisplay}</td>
@@ -3599,87 +3734,171 @@
                 <td class="border px-4 py-2">${gamesDisplay}</td>
                 <td class="border px-4 py-2">${bannedDisplay}</td>
                 <td class="border px-4 py-2">${onlineDisplay}</td>
-                <td class="border px-2 py-2 text-center">${captchaDisplay}<br>${captchaToggle}</td>
-                <td class="border px-2 py-2 text-center">${passwordFreeDisplay}<br>${passwordFreeToggle}</td>
-                <td class="border px-4 py-2">${actionBtns}</td>
+                <td class="border px-2 py-2 text-center">${captchaDisplay}</td>
+                <td class="border px-2 py-2 text-center">${passwordFreeDisplay}</td>
             </tr>`;
         }).join('');
         
-        // 绑定选择按钮事件
-        tbody.querySelectorAll('.admin-select').forEach(b=>b.addEventListener('click', function() {
-            if (this.classList.contains('text-gray-400')) {
-                showToast('权限不足，无法操作超级管理员', true);
-                return;
-            }
-            document.getElementById('adminBanUsername').value=this.dataset.username;
-        }));
+        // 点击表格行选择用户
+        tbody.querySelectorAll('.admin-user-row').forEach(row => {
+            row.addEventListener('click', function(e) {
+                if (e.target.type === 'checkbox') return;
+                selectAdminUser(this.dataset.username);
+            });
+        });
         
-        // 绑定改密码按钮事件
-        tbody.querySelectorAll('.admin-change-password').forEach(b=>b.addEventListener('click', function() {
-            if (this.classList.contains('text-gray-400')) {
-                showToast('权限不足，无法操作超级管理员', true);
-                return;
-            }
-            document.getElementById('adminBanUsername').value=this.dataset.username;
-            showChangePasswordModal(this.dataset.username);
-        }));
-        
-        // 绑定权限设置按钮事件
-        tbody.querySelectorAll('.admin-toggle-permission').forEach(b=>b.addEventListener('click', async ()=>{
-            try {
-                const data = await apiCall('/api/admin/set_permission', 'POST', {
-                    username: b.dataset.username,
-                    canManage: b.dataset.canmanage === 'true'
-                });
-                showToast(data.message);
-                loadAdminUsers();
-                loadAdminList();
-            } catch (error) {
-                showToast('设置权限失败: ' + error.message, true);
-            }
-        }));
-        
-        // 绑定验证码设置按钮事件
-        tbody.querySelectorAll('.admin-toggle-captcha').forEach(b=>b.addEventListener('click', async ()=>{
-            try {
-                const data = await apiCall('/api/admin/set_captcha', 'POST', {
-                    username: b.dataset.username,
-                    useCaptcha: b.dataset.usecaptcha === 'true'
-                });
-                showToast(data.message);
-                loadAdminUsers();
-            } catch (error) {
-                showToast('设置验证码失败: ' + error.message, true);
-            }
-        }));
-        
-        // 绑定免密登录设置按钮事件
-        tbody.querySelectorAll('.admin-toggle-password-free').forEach(b=>b.addEventListener('click', async ()=>{
-            try {
-                const data = await apiCall('/api/admin/set_password_free', 'POST', {
-                    username: b.dataset.username,
-                    passwordFree: b.dataset.passwordfree === 'true'
-                });
-                showToast(data.message);
-                loadAdminUsers();
-            } catch (error) {
-                showToast('设置免密登录失败: ' + error.message, true);
-            }
-        }));
-        
-        // 绑定免密登录次数设置按钮事件
-        tbody.querySelectorAll('.admin-set-password-free-attempts').forEach(b=>b.addEventListener('click', function() {
-            showPasswordFreeAttemptsModal(this.dataset.username);
-        }));
-        
-        // 绑定改积分按钮事件
-        tbody.querySelectorAll('.admin-update-score').forEach(b=>b.addEventListener('click', function() {
-            showUpdateScoreModal(this.dataset.username);
-        }));
+        // 更新分页控件
+        renderPagination(filteredUsers.length);
         
         startBannedCountdown();
     }
-    
+
+    // 搜索输入防抖
+    let searchTimer = null;
+    document.addEventListener('input', function(e) {
+        if (e.target && e.target.id === 'adminUserSearch') {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                adminCurrentPage = 1;
+                loadAdminUsers();
+            }, 300);
+        }
+    });
+
+    // 每页条数切换
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.id === 'pageSizeSelect') {
+            adminPageSize = parseInt(e.target.value);
+            adminCurrentPage = 1;
+            loadAdminUsers();
+        }
+    });
+
+    // 上一页 / 下一页
+    document.addEventListener('click', function(e) {
+        const target = e.target;
+        if (target.id === 'pagePrev' || target.closest('#pagePrev')) {
+            if (adminCurrentPage > 1) {
+                adminCurrentPage--;
+                loadAdminUsers();
+            }
+        }
+        if (target.id === 'pageNext' || target.closest('#pageNext')) {
+            const filtered = getFilteredUsers();
+            const totalPages = Math.max(1, Math.ceil(filtered.length / adminPageSize));
+            if (adminCurrentPage < totalPages) {
+                adminCurrentPage++;
+                loadAdminUsers();
+            }
+        }
+    });
+
+    // 选择用户
+    function selectAdminUser(username) {
+        document.getElementById('adminBanUsername').value = username;
+        const user = adminAllUsers.find(u => u.username === username);
+        const infoEl = document.getElementById('selectedUserInfo');
+        const captchaBtn = document.getElementById('adminCaptchaToggle');
+        const pfToggle = document.getElementById('adminPasswordFreeToggle');
+        const pfAttempts = document.getElementById('adminPasswordFreeAttempts');
+        const scoreBtn = document.getElementById('adminUpdateScoreBtn');
+        
+        if (!user) {
+            infoEl.textContent = '';
+            captchaBtn.classList.add('hidden');
+            pfToggle.classList.add('hidden');
+            pfAttempts.classList.add('hidden');
+            return;
+        }
+        
+        const isSuperAdmin = currentUser && currentUser.isSuperAdmin;
+        const isTargetSuperAdmin = user.isSuperAdmin;
+        const canOperate = !isTargetSuperAdmin && (isSuperAdmin || (currentUser && currentUser.canManage !== false));
+        
+        // 显示用户信息
+        let info = `当前用户：${user.username}`;
+        if (user.isSuperAdmin) info += ' | 超级管理员';
+        else if (user.isAdmin) info += ' | 管理员';
+        info += ` | 积分：${user.score} | 胜场：${user.wins} | 对局：${user.games}`;
+        infoEl.textContent = info;
+        
+        // 改积分按钮（仅超级管理员）
+        scoreBtn.classList.toggle('hidden', !isSuperAdmin);
+        
+        // 验证码 toggle
+        if (canOperate || isSuperAdmin) {
+            const captchaEnabled = user.useCaptcha !== false;
+            captchaBtn.classList.remove('hidden');
+            captchaBtn.textContent = captchaEnabled ? '禁用' : '启用';
+            captchaBtn.className = `px-3 py-1.5 text-sm border rounded-lg ${captchaEnabled ? 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100' : 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100'}`;
+            captchaBtn.dataset.username = username;
+            captchaBtn.dataset.usecaptcha = !captchaEnabled;
+        } else {
+            captchaBtn.classList.add('hidden');
+        }
+        
+        // 免密登录 toggle（仅超级管理员对非超级管理员）
+        if (isSuperAdmin && !user.isSuperAdmin) {
+            const pfEnabled = user.passwordFree === true;
+            pfToggle.classList.remove('hidden');
+            pfToggle.textContent = pfEnabled ? '禁用' : '启用';
+            pfToggle.className = `px-3 py-1.5 text-sm border rounded-lg ${pfEnabled ? 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100' : 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100'}`;
+            pfToggle.dataset.username = username;
+            pfToggle.dataset.passwordfree = !pfEnabled;
+            pfAttempts.classList.remove('hidden');
+            pfAttempts.dataset.username = username;
+        } else {
+            pfToggle.classList.add('hidden');
+            pfAttempts.classList.add('hidden');
+        }
+    }
+
+    // 用户管理区按钮事件
+    document.addEventListener('click', function(e) {
+        const target = e.target;
+        
+        // 改密码
+        if (target.id === 'adminChangePasswordBtn' || target.closest('#adminChangePasswordBtn')) {
+            const username = document.getElementById('adminBanUsername').value.trim();
+            if (!username) return showToast('请先选择用户', true);
+            showChangePasswordModal(username);
+        }
+        
+        // 改积分
+        if (target.id === 'adminUpdateScoreBtn' || target.closest('#adminUpdateScoreBtn')) {
+            const username = document.getElementById('adminBanUsername').value.trim();
+            if (!username) return showToast('请先选择用户', true);
+            showUpdateScoreModal(username);
+        }
+        
+        // 验证码 toggle
+        if (target.id === 'adminCaptchaToggle') {
+            const username = target.dataset.username;
+            if (!username) return;
+            const useCaptcha = target.dataset.usecaptcha === 'true';
+            apiCall('/api/admin/set_captcha', 'POST', { username, useCaptcha })
+                .then(data => { showToast(data.message); loadAdminUsers(); })
+                .catch(err => showToast('操作失败: ' + err.message, true));
+        }
+        
+        // 免密登录 toggle
+        if (target.id === 'adminPasswordFreeToggle') {
+            const username = target.dataset.username;
+            if (!username) return;
+            const passwordFree = target.dataset.passwordfree === 'true';
+            apiCall('/api/admin/set_password_free', 'POST', { username, passwordFree })
+                .then(data => { showToast(data.message); loadAdminUsers(); })
+                .catch(err => showToast('操作失败: ' + err.message, true));
+        }
+        
+        // 设置免密登录次数
+        if (target.id === 'adminPasswordFreeAttempts') {
+            const username = target.dataset.username;
+            if (!username) return;
+            showPasswordFreeAttemptsModal(username);
+        }
+    });
+
     // 显示设置免密登录次数弹窗
     function showPasswordFreeAttemptsModal(username) {
         const modalHtml = `
@@ -3890,11 +4109,10 @@
 
     // 密码修改功能
     async function changePassword() {
-        const oldPassword = document.getElementById('oldPassword').value;
         const newPassword = document.getElementById('newPassword').value;
         const confirmNewPassword = document.getElementById('confirmNewPassword').value;
         
-        if (!oldPassword || !newPassword || !confirmNewPassword) {
+        if (!newPassword || !confirmNewPassword) {
             showToast('请填写所有密码字段', true);
             return;
         }
@@ -3911,14 +4129,12 @@
         
         try {
             const data = await apiCall('/api/change_password', 'POST', {
-                old_password: oldPassword,
                 new_password: newPassword
             });
             
             showToast('密码修改成功');
             
             // 清空输入框
-            document.getElementById('oldPassword').value = '';
             document.getElementById('newPassword').value = '';
             document.getElementById('confirmNewPassword').value = '';
             
@@ -4809,16 +5025,27 @@
         window.addEventListener('resize', ()=>{ drawBoard(); drawOnlineBoard(); });
         initCanvasObserver();
         
-        // 自动登录
+        // 自动登录：正常刷新页面时保持登录状态
+        // 服务端重启后 token 会被清除，自动登录失败则跳转到登录页
         if(token){
             try{ 
                 currentUser = await apiCall('/api/user', 'GET', null, true);
                 isLoggedIn = true;
-                showGameUI(); 
-                startStatusCheck();
                 
-                // 恢复联机对战房间状态
-                await recoverOnlineMatch();
+                // 检查是否未完成第二层人机认证（Turnstile验证）
+                if (currentUser.turnstileVerified === false) {
+                    document.getElementById('loginModal').classList.add('hidden');
+                    const modal = document.getElementById('postLoginTurnstileModal');
+                    modal.classList.remove('hidden');
+                    postLoginTurnstileToken = '';
+                    requestAnimationFrame(() => {
+                        initPostLoginTurnstile();
+                    });
+                } else {
+                    showGameUI(); 
+                    startStatusCheck();
+                    await recoverOnlineMatch();
+                }
             }catch(e){ 
                 token=''; localStorage.removeItem('token'); 
             }

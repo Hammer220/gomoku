@@ -1,0 +1,103 @@
+<!-- 登录后 Turnstile 验证模态框 -->
+<div id="postLoginTurnstileModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="modal-content bg-white rounded-xl p-8 max-w-md w-full mx-4">
+        <h2 class="text-2xl font-bold mb-6 text-center text-primary">安全验证</h2>
+        <p class="text-gray-600 text-center mb-6">请完成安全验证以进入游戏</p>
+        <div id="postLoginTurnstileWidget" class="w-full h-16"></div>
+    </div>
+</div>
+
+<!-- 登录/注册模态框 -->
+<div id="loginModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div class="modal-content bg-white rounded-xl p-8 max-w-md w-full mx-4">
+        <h2 class="text-2xl font-bold mb-6 text-center text-primary">登录五子棋</h2>
+        <form id="loginForm" class="space-y-4">
+            <input type="text" id="username" placeholder="用户名" required class="w-full px-4 py-2 border rounded-lg">
+            <input type="password" id="password" placeholder="密码" required class="w-full px-4 py-2 border rounded-lg">
+            <div id="geetestLoginWidget" class="w-full h-12 border rounded cursor-pointer bg-gray-100 flex items-center justify-center text-sm text-gray-500"></div>
+            <button type="submit" class="w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-lg font-medium">登录</button>
+            <p class="text-center text-gray-600">没有账号? <a href="#" id="showRegister" class="text-primary">立即注册</a></p>
+            <p class="text-center text-gray-500 text-sm"><a href="#" id="showPasswordFreeLogin" class="text-primary hover:underline">免密登录</a></p>
+        </form>
+    </div>
+</div>
+
+<div id="registerModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="modal-content bg-white rounded-xl p-8 max-w-md w-full mx-4">
+        <h2 class="text-2xl font-bold mb-6 text-center text-primary">注册新账号</h2>
+        <form id="registerForm" class="space-y-4">
+            <input type="text" id="regUsername" placeholder="用户名" required class="w-full px-4 py-2 border rounded-lg">
+            <input type="password" id="regPassword" placeholder="密码(至少6位)" required class="w-full px-4 py-2 border rounded-lg">
+            <input type="password" id="confirmPassword" placeholder="确认密码" required class="w-full px-4 py-2 border rounded-lg">
+            <div id="geetestRegisterWidget" class="w-full h-12 border rounded cursor-pointer bg-gray-100 flex items-center justify-center text-sm text-gray-500"></div>
+            <button type="submit" class="w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-lg font-medium">注册</button>
+            <p class="text-center text-gray-600">已有账号? <a href="#" id="showLogin" class="text-primary">立即登录</a></p>
+        </form>
+    </div>
+</div>
+
+<!-- 免密登录页面 -->
+<div id="passwordFreeLoginPage" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="modal-content bg-white rounded-xl p-8 max-w-md w-full mx-4">
+        <h2 class="text-2xl font-bold mb-2 text-center text-primary">免密登录</h2>
+        <p class="text-center text-gray-400 text-xs mb-6">需管理员开启免密权限后方可使用</p>
+        <form id="passwordFreeLoginForm" class="space-y-4">
+            <div>
+                <input type="text" id="passwordFreeUsername" placeholder="请输入用户名" required class="w-full px-4 py-2 border rounded-lg">
+            </div>
+            <div id="passwordFreeAttemptsInfo" class="hidden text-center text-sm text-gray-600 bg-gray-100 rounded-lg p-2">
+                <span id="passwordFreeAttemptsText"></span>
+            </div>
+            <button type="submit" class="w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-lg font-medium">免密登录</button>
+            <div class="text-center space-y-2">
+                <p class="text-gray-600">普通登录? <a href="#" id="showLoginFromFree" class="text-primary hover:underline font-medium">立即登录</a></p>
+                <p class="text-gray-500 text-sm">没有账号? <a href="#" id="showRegisterFromFree" class="text-primary hover:underline">立即注册</a></p>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="onlineModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="modal-content bg-white rounded-xl p-6 max-w-lg w-full mx-4">
+        <h2 class="text-2xl font-bold mb-6 text-center text-primary">联机对战</h2>
+        <div class="space-y-4">
+            <button id="createMatchBtn" class="w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-lg font-medium">创建房间</button>
+            <div class="relative">
+                <div class="absolute inset-0 flex items-center"><div class="w-full border-t"></div></div>
+                <div class="relative flex justify-center text-sm"><span class="px-2 bg-white text-gray-500">或</span></div>
+            </div>
+            <div class="flex gap-2">
+                <input type="text" id="matchIdInput" placeholder="输入房间号" class="flex-1 px-4 py-2 border rounded-lg">
+                <button id="joinMatchBtn" class="px-6 bg-primary hover:bg-primary/90 text-white py-2 rounded-lg font-medium">加入</button>
+            </div>
+            <div class="relative">
+                <div class="absolute inset-0 flex items-center"><div class="w-full border-t"></div></div>
+                <div class="relative flex justify-center text-sm"><span class="px-2 bg-white text-gray-500">可用房间</span></div>
+            </div>
+            <div id="availableMatches" class="max-h-48 overflow-y-auto space-y-2"></div>
+        </div>
+        <p class="text-center mt-4"><button id="closeOnlineModal" class="text-gray-500 hover:text-gray-700">关闭</button></p>
+    </div>
+</div>
+
+<!-- 所有游戏记录弹窗 -->
+<div id="allRecordsModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-xl p-6 max-w-3xl w-full mx-4 max-h-[80vh] flex flex-col">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-primary">所有游戏记录</h2>
+            <button id="closeAllRecordsBtn" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">筛选用户</label>
+            <select id="recordsUserFilter" class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                <option value="">所有用户</option>
+            </select>
+        </div>
+        <div id="allRecordsContent" class="flex-1 overflow-y-auto">
+            <div class="text-gray-500 text-center py-4">加载中...</div>
+        </div>
+        <div class="mt-4 pt-4 border-t">
+            <button id="exportRecordsBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-download mr-1"></i>导出记录</button>
+        </div>
+    </div>
+</div>

@@ -1,5 +1,7 @@
 # 🎯 五子棋 · 全能联机对战平台
 
+<sub>注：本项目部分为 AI 生成</sub>
+
 > **仓库**：[Gitee](https://gitee.com/Guoguo220/gomoku) | [GitHub](https://github.com/Hammer220/gomoku)
 
 > 现代 Web 五子棋 —— AI 对战 · 好友联机 · 全功能管理后台\
@@ -74,7 +76,7 @@ pip install flask
 ### 3️⃣ 启动服务器
 
 ```bash
-python3 server.py
+python3 app.py
 ```
 
 终端会输出：
@@ -148,21 +150,58 @@ python3 server.py
 
 ```
 gomoku/
-├── server.py           # Flask 后端，提供完整 API
-├── gomoku.html         # 单页面前端（所有界面、逻辑）
-├── data/               # 运行时自动生成
-│   ├── users.json      # 用户信息（积分、战绩、权限）
-│   ├── password.json   # 明文密码（方便管理）
-│   ├── tokens.json     # 登录 token
-│   ├── records.json    # 每局对战记录
-│   ├── saves.json      # 存档数据
-│   ├── matches.json    # 联机对局实时状态
-│   └── settings.json   # 棋盘颜色设置
-├── picture/            # 棋盘背景图文件夹（可选）
-│   ├── picture1.png
-│   ├── picture2.png
-│   └── ...             # 支持到 picture99.png，自动轮换
-└── README.md           # 就是这个文件
+├── app.py                  # 应用入口文件
+├── config.ini              # 配置文件（极验、Turnstile、端口等）
+├── requirements.txt        # Python 依赖
+├── server/                 # 后端模块
+│   ├── __init__.py         # Flask 应用工厂
+│   ├── config.py           # 配置管理
+│   ├── models.py           # 数据模型（用户、记录、存档等）
+│   ├── auth.py             # 认证与鉴权
+│   ├── game_logic.py       # 五子棋游戏规则（禁手、胜负判定）
+│   ├── match_manager.py    # 联机对局管理
+│   ├── logger.py           # 日志模块
+│   └── routes/             # API 路由模块
+│       ├── __init__.py     # 路由注册中心
+│       ├── auth_routes.py  # 认证相关路由
+│       ├── user_routes.py  # 用户相关路由
+│       ├── admin_routes.py # 管理员路由
+│       ├── match_routes.py # 联机对局路由
+│       ├── game_routes.py  # 游戏逻辑路由
+│       └── static_routes.py# 静态资源路由
+├── templates/              # 前端模板
+│   ├── index.html          # 主页面
+│   └── includes/           # 模板组件
+│       ├── modals.html     # 模态框（登录/注册/验证）
+│       ├── game.html       # 主游戏容器
+│       ├── game_content.html# 本地对战界面
+│       ├── online.html     # 联机对战界面
+│       ├── profile.html    # 个人资料
+│       ├── history.html    # 历史记录
+│       ├── stats.html      # 数据统计
+│       ├── leaderboard.html# 排行榜
+│       ├── admin.html      # 管理后台
+│       └── components.html # 可复用组件
+├── static/                 # 静态资源
+│   ├── js/
+│   │   ├── gomoku.js       # 前端核心逻辑
+│   │   └── tailwind.min.js # Tailwind CSS
+│   ├── css/
+│   │   └── font-awesome.min.css
+│   └── webfonts/           # Font Awesome 字体
+├── data/                   # 运行时自动生成
+│   ├── users.json          # 用户信息（积分、战绩、权限）
+│   ├── password.json       # 明文密码（方便管理）
+│   ├── tokens.json         # 登录 token
+│   ├── records.json        # 每局对战记录
+│   ├── saves.json          # 存档数据
+│   ├── matches.json        # 联机对局实时状态
+│   └── settings.json       # 棋盘颜色设置
+├── picture/                # 棋盘背景图文件夹（可选）
+│   ├── 布纹.jpg
+│   ├── 木纹.jpg
+│   └── ...                 # 支持自定义背景图片
+└── README.md               # 就是这个文件
 ```
 
 ***
@@ -182,23 +221,82 @@ gomoku/
 
 ***
 
-## 📡 API 简要（部分）
+## 📡 API 完整接口
 
-| 端点                          | 方法   | 说明                |
-| --------------------------- | ---- | ----------------- |
-| `/api/register`             | POST | 注册新用户             |
-| `/api/login`                | POST | 登录，返回 token       |
-| `/api/user`                 | GET  | 获取当前用户信息（需 token） |
-| `/api/match/create`         | POST | 创建联机房间            |
-| `/api/match/join`           | POST | 加入房间              |
-| `/api/match/move`           | POST | 落子                |
-| `/api/match/status/<id>`    | GET  | 获取房间状态（轮询）        |
-| `/api/admin/users`          | GET  | 管理员获取所有用户（含明文密码）  |
-| `/api/admin/ban`            | POST | 封禁用户              |
-| `/api/admin/batch_ban`      | POST | 批量封禁              |
-| `/api/admin/set_permission` | POST | 超级管理员禁用/启用普通管理员权限 |
+> 所有需鉴权的接口均使用 **Bearer Token** 鉴权，在请求头中携带 `Authorization: Bearer <token>`。
 
-> 完整 API 见代码，所有接口均支持 Bearer Token 鉴权。
+### 🔐 认证模块
+
+| 端点 | 方法 | 鉴权 | 说明 |
+| --- | --- | --- | --- |
+| `/api/config` | GET | 无 | 获取前端验证码配置（极验 ID、Turnstile Key） |
+| `/api/config/full` | GET | 无 | 获取完整配置（含密钥，仅调试用） |
+| `/api/register` | POST | 无 | 注册新用户，需 Turnstile 或极验验证码 |
+| `/api/login` | POST | 无 | 登录，返回 token，需验证码 |
+| `/api/logout` | POST | Token | 退出登录，销毁当前 token |
+| `/api/current_user` | GET | Token | 获取当前登录用户基本信息 |
+| `/api/verify-turnstile` | POST | 无 | 单独验证 Turnstile 令牌 |
+
+### 👤 用户模块
+
+| 端点 | 方法 | 鉴权 | 说明 |
+| --- | --- | --- | --- |
+| `/api/profile` | GET | Token | 获取个人详细资料（积分、胜场、加入日期等） |
+| `/api/profile/update` | POST | Token | 修改密码（需提供旧密码） |
+| `/api/records` | GET | Token | 获取个人对战记录（最近 50 条） |
+| `/api/records/add` | POST | Token | 添加一条对战记录，并自动更新积分/胜场 |
+| `/api/saves` | GET | Token | 获取个人游戏存档列表（最近 20 条） |
+| `/api/saves/save` | POST | Token | 保存当前棋局到服务器 |
+| `/api/saves/<save_id>` | DELETE | Token | 删除指定存档 |
+| `/api/settings` | GET | Token | 获取个人设置（棋盘颜色等） |
+| `/api/settings` | POST | Token | 保存个人设置 |
+
+### 🎮 游戏模块
+
+| 端点 | 方法 | 鉴权 | 说明 |
+| --- | --- | --- | --- |
+| `/api/leaderboard` | GET | Token | 获取全服排行榜（前 50 名，按积分降序） |
+| `/api/stats` | GET | Token | 获取个人统计数据（积分、胜场、对局数） |
+| `/api/ai/move` | POST | Token | AI 计算落子（传入棋盘和当前玩家） |
+
+### 🌐 联机对战模块
+
+| 端点 | 方法 | 鉴权 | 说明 |
+| --- | --- | --- | --- |
+| `/api/match/create` | POST | Token | 创建联机房间，返回房间号和创建者棋色 |
+| `/api/match/join` | POST | Token | 加入指定房间，自动分配棋色 |
+| `/api/match/move` | POST | Token | 在房间中落子 |
+| `/api/match/status` | GET | Token | 获取房间状态（轮询，`?matchId=xxx`） |
+| `/api/match/leave` | POST | Token | 离开房间 |
+| `/api/match/close` | POST | Token | 关闭房间（仅创建者） |
+| `/api/match/restart` | POST | Token | 请求重新开局（仅创建者） |
+| `/api/match/my` | GET | Token | 获取当前所在的房间信息 |
+| `/api/match/list` | GET | Token | 获取可加入的房间大厅列表 |
+| `/api/match/heartbeat` | POST | Token | 心跳保活，维持在线状态 |
+
+### 🛡️ 管理员模块
+
+| 端点 | 方法 | 鉴权 | 说明 |
+| --- | --- | --- | --- |
+| `/api/admin/users` | GET | 管理员 | 获取所有用户列表（含积分、胜场、封禁状态等） |
+| `/api/admin/user/<username>` | GET | 管理员 | 获取指定用户详细信息 |
+| `/api/admin/user/<username>/ban` | POST | 管理员 | 封禁/解封用户（`duration` 秒，0 为解封） |
+| `/api/admin/user/<username>/score` | POST | 管理员 | 修改用户积分 |
+| `/api/admin/user/<username>/admin` | POST | 超级管理员 | 设置/取消普通管理员权限 |
+| `/api/admin/matches` | GET | 管理员 | 获取所有联机房间列表 |
+| `/api/admin/match/<match_id>` | GET | 管理员 | 获取指定房间详情（含实时棋盘） |
+| `/api/admin/match/<match_id>/close` | POST | 管理员 | 强制关闭指定房间 |
+| `/api/admin/matches/close-all` | POST | 管理员 | 强制关闭所有房间 |
+| `/api/admin/match/<match_id>/restart` | POST | 管理员 | 强制重新开始指定房间 |
+| `/api/admin/match/<match_id>/force-move` | POST | 管理员 | 强制落子（无视回合，需传 `row`/`col`/`player`） |
+| `/api/admin/stats` | GET | 管理员 | 获取平台统计（总用户数、总对局数） |
+| `/api/admin/records` | GET | 管理员 | 获取所有对战记录（最近 100 条） |
+
+### 🔑 鉴权说明
+
+- **Token**：普通用户登录后获取的 Bearer Token，可访问个人和游戏相关接口
+- **管理员**：需 `isAdmin=True` 或 `isSuperAdmin=True`，可管理普通用户和对局
+- **超级管理员**：仅 `isSuperAdmin=True`，可管理管理员权限，无法被普通管理员操作
 
 ***
 
@@ -233,7 +331,7 @@ gomoku/
 ## ❓ 常见问题
 
 **Q：忘记 admin 密码怎么办？**\
-A：删除 `data/` 文件夹，重启 `server.py` 会自动重新生成随机密码，并打印在终端。
+A：删除 `data/` 文件夹，重启 `app.py` 会自动重新生成随机密码，并打印在终端。
 
 **Q：普通管理员被封禁权限后还能做什么？**\
 A：可以正常游戏、修改自己的资料，但无法打开管理后台，也无法进行任何管理操作。

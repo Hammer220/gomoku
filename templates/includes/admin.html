@@ -1,0 +1,143 @@
+<div id="adminContent" class="p-6 md:p-8 hidden">
+    <h2 class="text-2xl font-bold mb-6 text-primary">管理员控制台</h2>
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h3 class="text-xl font-semibold mb-4">用户管理</h3>
+        <div class="flex flex-wrap gap-2 mb-4">
+            <button id="batchBanBtn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-lg text-sm"><i class="fa-solid fa-ban mr-1"></i>批量封禁</button>
+            <button id="batchUnbanBtn" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-lg text-sm"><i class="fa-solid fa-unlock mr-1"></i>批量解封</button>
+            <button id="batchKickBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-sm"><i class="fa-solid fa-sign-out-alt mr-1"></i>批量强制登出</button>
+            <button id="batchDeleteBtn" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg text-sm"><i class="fa-solid fa-trash mr-1"></i>批量注销</button>
+            <span id="selectedCount" class="text-sm text-gray-500 ml-2 self-center">已选择: 0</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-3 mb-4">
+            <div class="relative flex-1 min-w-[200px] max-w-md">
+                <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                <input type="text" id="adminUserSearch" placeholder="搜索用户名..." class="w-full border rounded-lg pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+            </div>
+            <span id="adminUserCount" class="text-sm text-gray-500"></span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full border">
+                <thead class="bg-gray-50">
+                    <tr><th class="border px-2 py-2"><input type="checkbox" id="selectAllUsers" class="w-4 h-4"></th><th class="border px-4 py-2">用户名</th><th class="border px-4 py-2">积分</th><th class="border px-4 py-2">胜场</th><th class="border px-4 py-2">对局数</th><th class="border px-4 py-2">封禁状态</th><th class="border px-4 py-2">在线状态</th><th class="border px-2 py-2">验证码</th><th class="border px-2 py-2">免密登录</th></tr>
+                </thead>
+                <tbody id="adminUserTable"></tbody>
+            </table>
+        </div>
+        <div id="adminPagination" class="flex flex-wrap items-center justify-between gap-3 mt-4 hidden">
+            <div class="text-sm text-gray-500" id="paginationInfo"></div>
+            <div class="flex items-center gap-2">
+                <button id="pagePrev" class="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-left"></i></button>
+                <div id="pageNumbers" class="flex items-center gap-1"></div>
+                <button id="pageNext" class="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-right"></i></button>
+                <select id="pageSizeSelect" class="text-sm border rounded-lg px-2 py-1.5 ml-2">
+                    <option value="5" selected>5条/页</option>
+                    <option value="15">15条/页</option>
+                    <option value="30">30条/页</option>
+                    <option value="50">50条/页</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-xl font-semibold mb-4">用户管理</h3>
+        <div class="space-y-4">
+            <div class="flex flex-wrap gap-4 items-end">
+                <div>
+                    <label class="block text-sm mb-1">用户名</label>
+                    <input type="text" id="adminBanUsername" class="border rounded-lg px-3 py-2" placeholder="点击表格用户名或手动输入">
+                </div>
+                <span id="selectedUserInfo" class="text-sm text-gray-500 self-center"></span>
+            </div>
+            <div class="flex flex-wrap gap-4 items-end">
+                <div>
+                    <label class="block text-sm mb-1">封禁时长(分钟)</label>
+                    <input type="number" id="adminBanMinutes" min="1" value="10" class="border rounded-lg px-3 py-2 w-24">
+                </div>
+                <button id="adminBanBtn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-ban mr-1"></i>封禁</button>
+                <button id="adminUnbanBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-unlock mr-1"></i>解封</button>
+                <button id="adminKickBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-sign-out-alt mr-1"></i>强制登出</button>
+                <button id="adminDeleteBtn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-trash mr-1"></i>注销</button>
+            </div>
+            <div class="flex flex-wrap gap-3 items-center pt-3 border-t border-gray-200">
+                <span class="text-sm font-medium text-gray-700">账号操作：</span>
+                <button id="adminChangePasswordBtn" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-sm"><i class="fa-solid fa-key mr-1"></i>改密码</button>
+                <button id="adminUpdateScoreBtn" class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-sm"><i class="fa-solid fa-star mr-1"></i>改积分</button>
+                <span class="text-gray-300 mx-1">|</span>
+                <span class="text-sm text-gray-600">验证码：</span>
+                <button id="adminCaptchaToggle" class="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-100 hidden"></button>
+                <span class="text-gray-300 mx-1">|</span>
+                <span class="text-sm text-gray-600">免密登录：</span>
+                <button id="adminPasswordFreeToggle" class="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-100 hidden"></button>
+                <button id="adminPasswordFreeAttempts" class="text-xs px-2 py-1 border rounded-lg hover:bg-gray-100 hidden">设置次数</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="adminAccountManagement" class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-xl font-semibold mb-4">管理员账号管理</h3>
+        <div class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm mb-1">用户名</label>
+                    <input type="text" id="newAdminUsername" placeholder="请输入新管理员用户名" class="w-full border rounded-lg px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-sm mb-1">密码</label>
+                    <input type="password" id="newAdminPassword" placeholder="请输入密码（至少6位）" class="w-full border rounded-lg px-3 py-2">
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <button id="createAdminBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-user-plus mr-1"></i>创建管理员</button>
+                <button id="refreshAdminsBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-refresh mr-1"></i>刷新列表</button>
+                <button id="viewAllRecordsBtn" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-file-text mr-1"></i>查看所有游戏记录</button>
+            </div>
+            <div class="bg-gray-50 p-3 rounded-lg">
+                <h4 class="font-semibold mb-2">管理员列表</h4>
+                <div id="adminList" class="space-y-2 max-h-40 overflow-y-auto">
+                    <div class="text-gray-500 text-sm">加载中...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="onlineMatchMonitor" class="bg-white rounded-lg shadow-md p-6 mt-6 hidden">
+        <h3 class="text-xl font-semibold mb-4">联机对局监控</h3>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+                <div class="flex justify-between items-center mb-3">
+                    <h4 class="font-medium">房间列表</h4>
+                    <div class="flex gap-2">
+                        <button id="forceCloseAllRoomsBtn" class="text-sm bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg">一键关闭所有</button>
+                        <button id="refreshMatchListBtn" class="text-sm bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg"><i class="fa-solid fa-refresh mr-1"></i>刷新</button>
+                    </div>
+                </div>
+                <div id="matchListContainer" class="max-h-96 overflow-y-auto space-y-2">
+                    <div class="text-gray-500 text-center py-4">加载中...</div>
+                </div>
+            </div>
+            <div>
+                <div class="flex justify-between items-center mb-3">
+                    <h4 class="font-medium">棋盘监控</h4>
+                    <span id="monitorMatchId" class="text-sm text-gray-500">未选择房间</span>
+                </div>
+                <div class="aspect-square bg-board rounded-lg shadow-lg board-grid relative mb-3">
+                    <canvas id="monitorCanvas" class="w-full h-full relative" style="z-index: 2;"></canvas>
+                </div>
+                <div id="monitorControls" class="space-y-2 hidden">
+                    <div class="flex gap-2 items-center">
+                        <label class="text-sm">落子:</label>
+                        <select id="monitorPlayerSelect" class="border rounded px-2 py-1">
+                            <option value="1">黑棋</option>
+                            <option value="2">白棋</option>
+                        </select>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="forceRestartMatchBtn" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-sm">强制重新开始</button>
+                        <button id="forceCloseMatchBtn" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm">强制关闭房间</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

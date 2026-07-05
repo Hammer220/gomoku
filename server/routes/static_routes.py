@@ -1,3 +1,7 @@
+"""静态文件路由模块
+处理应用图标（favicon）等静态文件请求。
+"""
+
 import os
 from flask import Blueprint, send_from_directory
 

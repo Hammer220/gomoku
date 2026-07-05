@@ -1,4 +1,7 @@
-#!/usr/bin/env python3
+"""应用入口模块
+启动 Flask 应用服务器，初始化日志系统和管理员账号。
+"""
+
 import os
 import sys
 
@@ -13,7 +16,9 @@ from server import create_app
 logger, _ = setup_logging()
 
 if __name__ == '__main__':
-    init_admin()
+    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        init_admin()
     app = create_app()
-    logger.info(f'五子棋服务启动在端口 {PORT}')
+    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        logger.info(f'五子棋服务启动在端口 {PORT}')
     app.run(host='0.0.0.0', port=PORT, debug=True, threaded=True)

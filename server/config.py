@@ -1,3 +1,7 @@
+"""全局配置模块
+定义应用路径、数据文件路径、极验验证码参数、默认配置文件等。
+"""
+
 import os
 import configparser
 
@@ -17,9 +21,9 @@ def get_config():
         'GT4_LOGIN_CAPTCHA_KEY': cfg.get('GEETEST_LOGIN', 'captcha_key'),
         'LOGIN_VERIFY_URL': cfg.get('GEETEST_LOGIN', 'verify_url'),
         'PORT': int(cfg.get('APP', 'port')),
-        'TURNSTILE_SITE_KEY': cfg.get('TURNSTILE', 'site_key'),
-        'TURNSTILE_SECRET_KEY': cfg.get('TURNSTILE', 'secret_key'),
-        'TURNSTILE_VERIFY_URL': cfg.get('TURNSTILE', 'verify_url'),
+        # 'TURNSTILE_SITE_KEY': cfg.get('TURNSTILE', 'site_key'),
+        # 'TURNSTILE_SECRET_KEY': cfg.get('TURNSTILE', 'secret_key'),
+        # 'TURNSTILE_VERIFY_URL': cfg.get('TURNSTILE', 'verify_url'),
     }
 
 GT4_CAPTCHA_ID = cfg.get('GEETEST', 'captcha_id')
@@ -29,6 +33,6 @@ GT4_LOGIN_CAPTCHA_ID = cfg.get('GEETEST_LOGIN', 'captcha_id')
 GT4_LOGIN_CAPTCHA_KEY = cfg.get('GEETEST_LOGIN', 'captcha_key')
 LOGIN_VERIFY_URL = cfg.get('GEETEST_LOGIN', 'verify_url')
 PORT = int(cfg.get('APP', 'port'))
-TURNSTILE_SITE_KEY = cfg.get('TURNSTILE', 'site_key')
-TURNSTILE_SECRET_KEY = cfg.get('TURNSTILE', 'secret_key')
-TURNSTILE_VERIFY_URL = cfg.get('TURNSTILE', 'verify_url')
+# TURNSTILE_SITE_KEY = cfg.get('TURNSTILE', 'site_key')
+# TURNSTILE_SECRET_KEY = cfg.get('TURNSTILE', 'secret_key')
+# TURNSTILE_VERIFY_URL = cfg.get('TURNSTILE', 'verify_url')

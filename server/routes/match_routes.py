@@ -1,10 +1,15 @@
+"""联机匹配路由模块
+处理联机对战相关请求：创建/加入/离开房间、获取房间列表、
+执行落子操作、超时处理等。
+"""
+
 from flask import Blueprint, request, jsonify
 
 from ..auth import require_auth
 from ..match_manager import (create_match, join_match, make_move,
                              get_match_status, leave_match, close_match,
                              restart_match, get_my_match, list_available_matches,
-                             update_user_connection, remove_user_connection)
+                             heartbeat)
 from ..logger import logger
 
 match_bp = Blueprint('match', __name__)
@@ -48,6 +53,16 @@ def api_make_move(user):
 def api_get_match_status(user):
     try:
         match_id = request.args.get('matchId', '')
+        return get_match_status(user, match_id)
+    except Exception as e:
+        logger.error(f'Status error for user {user.get("username", "unknown")}: {e}')
+        return jsonify({'error': 'Internal server error'}), 500
+
+
+@match_bp.route('/api/match/status/<match_id>', methods=['GET'])
+@require_auth
+def api_get_match_status_by_id(user, match_id):
+    try:
         return get_match_status(user, match_id)
     except Exception as e:
         logger.error(f'Status error for user {user.get("username", "unknown")}: {e}')
@@ -107,5 +122,5 @@ def api_list_matches(user):
 @match_bp.route('/api/match/heartbeat', methods=['POST'])
 @require_auth
 def api_heartbeat(user):
-    update_user_connection(user['username'])
+    heartbeat(user)
     return jsonify({'success': True})

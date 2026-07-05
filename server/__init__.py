@@ -1,3 +1,7 @@
+"""Flask 应用工厂模块
+创建并配置 Flask 应用实例，注册路由蓝图，设置密钥和静态文件目录。
+"""
+
 import os
 from flask import Flask, send_from_directory
 import secrets
@@ -17,17 +21,7 @@ def create_app():
 
     from .match_manager import init_matches, start_cleanup_task
     init_matches()
-    start_cleanup_task()
-
-    @app.after_request
-    def log_request(response):
-        from flask import request
-        from datetime import datetime
-        import logging
-        access_logger = logging.getLogger('access')
-        remote_addr = request.environ.get('HTTP_X_REAL_IP', request.remote_addr)
-        log_line = f'{remote_addr} - - [{datetime.now().strftime("%d/%b/%Y %H:%M:%S")}] "{request.method} {request.path} HTTP/1.1" {response.status_code}'
-        access_logger.info(log_line)
-        return response
+    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        start_cleanup_task()
 
     return app

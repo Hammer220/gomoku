@@ -1,3 +1,8 @@
+"""认证模块
+提供认证装饰器：require_auth（普通用户认证）、require_admin（管理员认证）、
+require_super_admin（超级管理员认证），以及 token 验证和用户获取工具函数。
+"""
+
 import hashlib
 import hmac
 import time
@@ -7,39 +12,39 @@ from flask import request, jsonify
 from functools import wraps
 
 from .config import (GT4_CAPTCHA_ID, GT4_CAPTCHA_KEY, VERIFY_URL,
-                     GT4_LOGIN_CAPTCHA_ID, GT4_LOGIN_CAPTCHA_KEY, LOGIN_VERIFY_URL,
-                     TURNSTILE_SECRET_KEY, TURNSTILE_VERIFY_URL)
+                     GT4_LOGIN_CAPTCHA_ID, GT4_LOGIN_CAPTCHA_KEY, LOGIN_VERIFY_URL)
+# from .config import TURNSTILE_SECRET_KEY, TURNSTILE_VERIFY_URL
 from .models import get_current_user_from_request
 from .logger import logger
 
-def turnstile_verify(response_token):
-    if not response_token:
-        logger.warning('Turnstile token为空')
-        return False, '验证码参数缺失'
-
-    params = {
-        'secret': TURNSTILE_SECRET_KEY,
-        'response': response_token,
-        'remoteip': request.remote_addr if request else None
-    }
-    headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-
-    try:
-        resp = requests.post(TURNSTILE_VERIFY_URL, data=params, headers=headers, timeout=10)
-        logger.info(f'Turnstile请求状态码: {resp.status_code}, 原始返回: {repr(resp.text)}')
-        if resp.status_code != 200:
-            return False, f'接口请求异常，状态码：{resp.status_code}'
-        data = resp.json()
-        if data.get('success'):
-            return True, '验证码验证通过'
-        else:
-            return False, f"验证失败：{data.get('error-codes', ['未知原因'])[0]}"
-    except requests.exceptions.RequestException as e:
-        logger.error(f'Turnstile网络请求异常: {str(e)}')
-        return False, '网络请求超时/连接失败'
-    except Exception as e:
-        logger.error(f'Turnstile校验全局异常: {str(e)}')
-        return False, f'系统异常：{str(e)}'
+# def turnstile_verify(response_token):
+#     if not response_token:
+#         logger.warning('Turnstile token为空')
+#         return False, '验证码参数缺失'
+# 
+#     params = {
+#         'secret': TURNSTILE_SECRET_KEY,
+#         'response': response_token,
+#         'remoteip': request.remote_addr if request else None
+#     }
+#     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+# 
+#     try:
+#         resp = requests.post(TURNSTILE_VERIFY_URL, data=params, headers=headers, timeout=10)
+#         logger.info(f'Turnstile请求状态码: {resp.status_code}, 原始返回: {repr(resp.text)}')
+#         if resp.status_code != 200:
+#             return False, f'接口请求异常，状态码：{resp.status_code}'
+#         data = resp.json()
+#         if data.get('success'):
+#             return True, '验证码验证通过'
+#         else:
+#             return False, f"验证失败：{data.get('error-codes', ['未知原因'])[0]}"
+#     except requests.exceptions.RequestException as e:
+#         logger.error(f'Turnstile网络请求异常: {str(e)}')
+#         return False, '网络请求超时/连接失败'
+#     except Exception as e:
+#         logger.error(f'Turnstile校验全局异常: {str(e)}')
+#         return False, f'系统异常：{str(e)}'
 
 def geetest_verify(lot_number, captcha_output, pass_token, gen_time,
                    captcha_id=None, captcha_key=None, verify_url=None):

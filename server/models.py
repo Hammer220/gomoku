@@ -1,3 +1,8 @@
+"""数据模型与持久化模块
+提供 JSON 文件读写（带文件锁）、用户 CRUD 操作、密码管理、
+数据文件路径常量定义等基础数据操作。
+"""
+
 import os
 import json
 import time
@@ -153,7 +158,8 @@ def get_current_user_from_request(request):
         username = token_data.get('username') if isinstance(token_data, dict) else token_data
         user = get_user(username)
         if user:
-            user['_turnstile_verified'] = token_data.get('turnstile_verified', True) if isinstance(token_data, dict) else True
+            # user['_turnstile_verified'] = token_data.get('turnstile_verified', True) if isinstance(token_data, dict) else True  # 已注释 - 第二层人机认证（Turnstile）
+            pass
         return user
 
     tokens = load_json_with_lock(TOKENS_FILE)
@@ -163,16 +169,17 @@ def get_current_user_from_request(request):
 
     if isinstance(token_data, dict):
         username = token_data.get('username')
-        turnstile_verified = token_data.get('turnstile_verified', True)
+        # turnstile_verified = token_data.get('turnstile_verified', True)  # 已注释 - 第二层人机认证（Turnstile）
     else:
         username = token_data
-        turnstile_verified = True
+        # turnstile_verified = True  # 已注释 - 第二层人机认证（Turnstile）
 
     set_cached_data('tokens', tokens.copy(), ttl=10)
 
     user = get_user(username)
     if user:
-        user['_turnstile_verified'] = turnstile_verified
+        # user['_turnstile_verified'] = turnstile_verified  # 已注释 - 第二层人机认证（Turnstile）
+        pass
     return user
 
 def init_admin():

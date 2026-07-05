@@ -1,3 +1,7 @@
+"""游戏路由模块
+处理游戏相关请求：保存/加载游戏存档、获取存档列表等。
+"""
+
 import re
 from flask import Blueprint, request, jsonify
 
@@ -18,7 +22,8 @@ def leaderboard(user):
                 'username': username,
                 'score': user_data.get('score', 0),
                 'wins': user_data.get('wins', 0),
-                'games': user_data.get('games', 0)
+                'games': user_data.get('games', 0),
+                'joinDate': user_data.get('joinDate', '')
             })
 
         leaderboard_data.sort(key=lambda x: x['score'], reverse=True)

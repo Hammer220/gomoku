@@ -1,3 +1,8 @@
+"""游戏逻辑模块
+提供五子棋规则判定：胜负检测（五连子）、禁手规则检查（黑子三三禁手、
+四四禁手、长连禁手）、走法合法性验证等核心游戏逻辑。
+"""
+
 def check_win(board, row, col, player):
     directions = [(1, 0), (0, 1), (1, 1), (1, -1)]
     for dr, dc in directions:

@@ -26,6 +26,7 @@
             100% { transform: scale(1); opacity: 1; }
         }
         .bg-primary { background-color: #8B5A2B; }
+        .replay-step-active { background-color: #fef3c7; border-left: 3px solid #f59e0b; }
         .text-primary { color: #8B5A2B; }
         .border-primary { border-color: #8B5A2B; }
         .bg-board {
@@ -63,5 +64,14 @@
 
 {% include 'includes/components.html' %}
 
-<script src="/static/js/gomoku.js"></script></body>
+<script src="/static/js/gomoku/core.js"></script>
+<script src="/static/js/gomoku/utils.js"></script>
+<script src="/static/js/gomoku/board.js"></script>
+<script src="/static/js/gomoku/ai.js"></script>
+<script src="/static/js/gomoku/captcha.js"></script>
+<script src="/static/js/gomoku/game.js"></script>
+<script src="/static/js/gomoku/online.js"></script>
+<script src="/static/js/gomoku/user.js"></script>
+<script src="/static/js/gomoku/admin.js"></script>
+<script src="/static/js/gomoku/init.js"></script></body>
 </html>

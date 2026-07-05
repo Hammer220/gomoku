@@ -1,3 +1,8 @@
+"""认证路由模块
+处理用户注册、登录、登出、获取当前用户信息等认证相关请求。
+集成极验（GeeTest）验证码进行人机验证。
+"""
+
 import hashlib
 import time
 import uuid
@@ -5,41 +10,31 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify
 
 from ..config import (GT4_CAPTCHA_ID, GT4_LOGIN_CAPTCHA_ID,
-                      TURNSTILE_SITE_KEY, get_config)
+                      GT4_LOGIN_CAPTCHA_KEY, LOGIN_VERIFY_URL,
+                      get_config)
+                      # TURNSTILE_SITE_KEY
 from ..models import (load_json_with_lock, save_json_with_lock, get_user,
                       save_user, save_plain_password, get_plain_password,
                       TOKENS_FILE, USERS_FILE, PASSWORD_FILE)
-from ..auth import (geetest_verify, turnstile_verify, get_current_user,
+from ..auth import (geetest_verify, get_current_user,
                     require_auth)
+                    # turnstile_verify
 from ..logger import logger
 
 auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/api/config', methods=['GET'])
 def api_config():
+    """获取前端配置（验证码 ID 等）"""
     return jsonify({
         'captchaId': GT4_CAPTCHA_ID,
         'loginCaptchaId': GT4_LOGIN_CAPTCHA_ID,
-        'turnstileSiteKey': TURNSTILE_SITE_KEY
-    })
-
-@auth_bp.route('/api/config/full', methods=['GET'])
-def get_full_config():
-    config = get_config()
-    return jsonify({
-        'captchaId': GT4_CAPTCHA_ID,
-        'captchaKey': config['GT4_CAPTCHA_KEY'],
-        'verifyUrl': config['VERIFY_URL'],
-        'loginCaptchaId': GT4_LOGIN_CAPTCHA_ID,
-        'loginCaptchaKey': config['GT4_LOGIN_CAPTCHA_KEY'],
-        'loginVerifyUrl': config['LOGIN_VERIFY_URL'],
-        'turnstileSiteKey': TURNSTILE_SITE_KEY,
-        'turnstileSecretKey': config['TURNSTILE_SECRET_KEY'],
-        'turnstileVerifyUrl': config['TURNSTILE_VERIFY_URL']
+        # 'turnstileSiteKey': TURNSTILE_SITE_KEY
     })
 
 @auth_bp.route('/api/register', methods=['POST'])
 def register():
+    """用户注册：验证验证码，创建新用户，设置密码，返回 token"""
     try:
         data = request.get_json()
         if not data:
@@ -47,7 +42,7 @@ def register():
 
         username = data.get('username', '').strip()
         password = data.get('password', '').strip()
-        turnstile_token = data.get('turnstileToken', '')
+        # turnstile_token = data.get('turnstileToken', '')
         geetest_lot = data.get('geetestLot', '')
         geetest_output = data.get('geetestCaptchaOutput', '')
         geetest_pass = data.get('geetestPassToken', '')
@@ -60,19 +55,19 @@ def register():
         if len(password) < 6:
             return jsonify({'error': '密码长度至少为6个字符'}), 400
 
-        if not turnstile_token and not geetest_lot:
+        if not geetest_lot:
             return jsonify({'error': '请完成验证码验证'}), 400
 
-        if turnstile_token:
-            turnstile_success, turnstile_msg = turnstile_verify(turnstile_token)
-            if not turnstile_success:
-                return jsonify({'error': turnstile_msg}), 400
-            logger.info(f'Turnstile验证通过，用户名: {username}')
-        else:
-            geetest_success, geetest_msg = geetest_verify(geetest_lot, geetest_output, geetest_pass, geetest_gen_time)
-            if not geetest_success:
-                return jsonify({'error': geetest_msg}), 400
-            logger.info(f'极验验证通过，用户名: {username}')
+        # if turnstile_token:
+        #     turnstile_success, turnstile_msg = turnstile_verify(turnstile_token)
+        #     if not turnstile_success:
+        #         return jsonify({'error': turnstile_msg}), 400
+        #     logger.info(f'Turnstile验证通过，用户名: {username}')
+        # else:
+        geetest_success, geetest_msg = geetest_verify(geetest_lot, geetest_output, geetest_pass, geetest_gen_time)
+        if not geetest_success:
+            return jsonify({'error': geetest_msg}), 400
+        logger.info(f'极验验证通过，用户名: {username}')
 
         users = load_json_with_lock(USERS_FILE)
         if not isinstance(users, dict):
@@ -102,7 +97,7 @@ def register():
         tokens[token] = {
             'username': username,
             'createdAt': time.time(),
-            'turnstile_verified': bool(turnstile_token)
+            # 'turnstile_verified': bool(turnstile_token)  # 已注释 - 第二层人机认证（Turnstile）
         }
         save_json_with_lock(TOKENS_FILE, tokens)
 
@@ -125,6 +120,7 @@ def register():
 
 @auth_bp.route('/api/login', methods=['POST'])
 def login():
+    """用户登录：验证用户名密码与验证码，返回 token"""
     try:
         data = request.get_json()
         if not data:
@@ -132,7 +128,7 @@ def login():
 
         username = data.get('username', '').strip()
         password = data.get('password', '').strip()
-        turnstile_token = data.get('turnstileToken', '')
+        # turnstile_token = data.get('turnstileToken', '')
         geetest_lot = data.get('geetestLot', '')
         geetest_output = data.get('geetestCaptchaOutput', '')
         geetest_pass = data.get('geetestPassToken', '')
@@ -141,23 +137,23 @@ def login():
         if not username or not password:
             return jsonify({'error': '用户名和密码不能为空'}), 400
 
-        if not turnstile_token and not geetest_lot:
+        if not geetest_lot:
             return jsonify({'error': '请完成验证码验证'}), 400
 
-        if turnstile_token:
-            turnstile_success, turnstile_msg = turnstile_verify(turnstile_token)
-            if not turnstile_success:
-                return jsonify({'error': turnstile_msg}), 400
-            logger.info(f'Turnstile登录验证通过，用户名: {username}')
-        else:
-            geetest_success, geetest_msg = geetest_verify(
-                geetest_lot, geetest_output, geetest_pass, geetest_gen_time,
-                captcha_id=GT4_LOGIN_CAPTCHA_ID,
-                captcha_key=None, verify_url=None
-            )
-            if not geetest_success:
-                return jsonify({'error': geetest_msg}), 400
-            logger.info(f'极验登录验证通过，用户名: {username}')
+        # if turnstile_token:
+        #     turnstile_success, turnstile_msg = turnstile_verify(turnstile_token)
+        #     if not turnstile_success:
+        #         return jsonify({'error': turnstile_msg}), 400
+        #     logger.info(f'Turnstile登录验证通过，用户名: {username}')
+        # else:
+        geetest_success, geetest_msg = geetest_verify(
+            geetest_lot, geetest_output, geetest_pass, geetest_gen_time,
+            captcha_id=GT4_LOGIN_CAPTCHA_ID,
+            captcha_key=GT4_LOGIN_CAPTCHA_KEY, verify_url=LOGIN_VERIFY_URL
+        )
+        if not geetest_success:
+            return jsonify({'error': geetest_msg}), 400
+        logger.info(f'极验登录验证通过，用户名: {username}')
 
         user = get_user(username)
         if not user:
@@ -185,7 +181,7 @@ def login():
         tokens[token] = {
             'username': username,
             'createdAt': time.time(),
-            'turnstile_verified': bool(turnstile_token)
+            # 'turnstile_verified': bool(turnstile_token)  # 已注释 - 第二层人机认证（Turnstile）
         }
         save_json_with_lock(TOKENS_FILE, tokens)
 
@@ -209,6 +205,7 @@ def login():
 @auth_bp.route('/api/logout', methods=['POST'])
 @require_auth
 def logout(user):
+    """用户登出：删除服务端 token"""
     try:
         token = request.headers.get('Authorization', '').replace('Bearer ', '')
         tokens = load_json_with_lock(TOKENS_FILE)
@@ -223,24 +220,77 @@ def logout(user):
 @auth_bp.route('/api/current_user', methods=['GET'])
 @require_auth
 def current_user_route(user):
+    """获取当前登录用户信息"""
     return jsonify({
         'username': user['username'],
         'score': user.get('score', 0),
         'wins': user.get('wins', 0),
         'games': user.get('games', 0),
+        'joinDate': user.get('joinDate', ''),
+        'lastLogin': user.get('lastLogin', ''),
         'isAdmin': user.get('isAdmin', False),
-        'isSuperAdmin': user.get('isSuperAdmin', False)
+        'isSuperAdmin': user.get('isSuperAdmin', False),
+        'bannedUntil': user.get('bannedUntil')
     })
 
-@auth_bp.route('/api/verify-turnstile', methods=['POST'])
-def verify_turnstile():
-    data = request.get_json()
-    token = data.get('token', '')
-    if not token:
-        return jsonify({'success': False, 'error': 'Token不能为空'}), 400
+@auth_bp.route('/api/login/password_free', methods=['POST'])
+def login_password_free():
+    """免密登录：检查用户是否开启了免密登录，验证剩余次数"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
 
-    success, msg = turnstile_verify(token)
-    if success:
-        return jsonify({'success': True, 'message': msg})
-    else:
-        return jsonify({'success': False, 'error': msg}), 400
+        username = data.get('username', '').strip()
+        if not username:
+            return jsonify({'error': '用户名不能为空'}), 400
+
+        user = get_user(username)
+        if not user:
+            return jsonify({'error': '用户不存在'}), 404
+
+        if not user.get('passwordFree'):
+            return jsonify({'error': '该用户未开启免密登录'}), 403
+
+        max_attempts = user.get('passwordFreeMaxAttempts', 0)
+        remaining = user.get('passwordFreeRemainingAttempts', 0)
+
+        if max_attempts > 0 and remaining <= 0:
+            return jsonify({'error': '免密登录次数已用尽，请联系管理员'}), 403
+
+        if user.get('bannedUntil'):
+            banned_until = user['bannedUntil']
+            if banned_until and time.time() < banned_until:
+                return jsonify({'error': f"账号已被封禁至 {datetime.fromtimestamp(banned_until).strftime('%Y-%m-%d %H:%M:%S')}"}), 403
+
+        if max_attempts > 0:
+            user['passwordFreeRemainingAttempts'] = remaining - 1
+            save_user(username, user)
+
+        user['lastLogin'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        save_user(username, user)
+
+        token = str(uuid.uuid4())
+        tokens = load_json_with_lock(TOKENS_FILE)
+        tokens[token] = {
+            'username': username,
+            'createdAt': time.time()
+        }
+        save_json_with_lock(TOKENS_FILE, tokens)
+
+        logger.info(f'免密登录成功: {username}')
+        return jsonify({
+            'success': True,
+            'token': token,
+            'user': {
+                'username': username,
+                'score': user.get('score', 0),
+                'wins': user.get('wins', 0),
+                'games': user.get('games', 0),
+                'isAdmin': user.get('isAdmin', False),
+                'isSuperAdmin': user.get('isSuperAdmin', False)
+            }
+        })
+    except Exception as e:
+        logger.error(f'免密登录错误: {str(e)}')
+        return jsonify({'error': '服务器内部错误'}), 500

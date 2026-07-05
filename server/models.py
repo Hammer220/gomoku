@@ -21,6 +21,29 @@ SAVES_FILE = os.path.join(DATA_DIR, 'saves.json')
 TOKENS_FILE = os.path.join(DATA_DIR, 'tokens.json')
 SETTINGS_FILE = os.path.join(DATA_DIR, 'settings.json')
 MATCHES_FILE = os.path.join(DATA_DIR, 'matches.json')
+MESSAGES_FILE = os.path.join(DATA_DIR, 'messages.json')
+
+PERMISSION_FIELDS = {
+    'canBanUser': '封禁/解封用户',
+    'canKickUser': '强制登出用户',
+    'canDeleteUser': '注销用户',
+    'canChangePassword': '修改用户密码',
+    'canModifyScore': '修改用户积分',
+    'canSetPasswordFree': '设置免密登录',
+    'canMonitorMatches': '查看对局监控',
+    'canManageMatches': '管理对局',
+}
+
+def get_admin_permissions(user):
+    """获取管理员的各项权限，超级管理员默认全部为 True"""
+    if user.get('isSuperAdmin'):
+        return {field: True for field in PERMISSION_FIELDS}
+    if not user.get('isAdmin'):
+        return {}
+    perms = {}
+    for field in PERMISSION_FIELDS:
+        perms[field] = user.get(field, True)
+    return perms
 
 file_locks = {
     USERS_FILE: threading.Lock(),
@@ -29,7 +52,8 @@ file_locks = {
     SAVES_FILE: threading.Lock(),
     TOKENS_FILE: threading.Lock(),
     SETTINGS_FILE: threading.Lock(),
-    MATCHES_FILE: threading.Lock()
+    MATCHES_FILE: threading.Lock(),
+    MESSAGES_FILE: threading.Lock()
 }
 
 cache = {

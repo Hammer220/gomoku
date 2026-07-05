@@ -5,11 +5,13 @@
 
 import time
 from datetime import datetime
+from functools import wraps
 from flask import Blueprint, request, jsonify
 
 from ..models import (load_json_with_lock, save_json_with_lock, get_user,
                       save_user, USERS_FILE, RECORDS_FILE, SAVES_FILE,
-                      SETTINGS_FILE, TOKENS_FILE, MATCHES_FILE)
+                      SETTINGS_FILE, TOKENS_FILE, MATCHES_FILE,
+                      PERMISSION_FIELDS, get_admin_permissions)
 from ..auth import require_admin, require_super_admin, get_current_user
 from ..match_manager import (get_all_matches, get_match_detail,
                              force_close_match, force_close_all_matches,
@@ -17,6 +19,18 @@ from ..match_manager import (get_all_matches, get_match_detail,
 from ..logger import logger
 
 admin_bp = Blueprint('admin', __name__)
+
+def require_permission(permission_field):
+    """检查当前管理员是否有指定权限的装饰器"""
+    def decorator(f):
+        @wraps(f)
+        def decorated(admin_user, *args, **kwargs):
+            if not admin_user.get('isSuperAdmin'):
+                if not admin_user.get(permission_field, True):
+                    return jsonify({'error': '权限不足，请联系超级管理员'}), 403
+            return f(admin_user, *args, **kwargs)
+        return decorated
+    return decorator
 
 @admin_bp.route('/api/admin/users', methods=['GET'])
 @require_admin
@@ -39,7 +53,7 @@ def admin_get_users(admin_user):
                 is_banned = True
                 remaining_minutes = max(0, int((banned_until - current_time) / 60))
 
-            user_list.append({
+            user_entry = {
                 'username': user_data.get('username', username),
                 'score': user_data.get('score', 0),
                 'wins': user_data.get('wins', 0),
@@ -57,7 +71,10 @@ def admin_get_users(admin_user):
                 'passwordFree': user_data.get('passwordFree', False),
                 'passwordFreeMaxAttempts': user_data.get('passwordFreeMaxAttempts', 0),
                 'passwordFreeRemainingAttempts': user_data.get('passwordFreeRemainingAttempts', 0)
-            })
+            }
+            if user_data.get('isAdmin'):
+                user_entry['permissions'] = get_admin_permissions(user_data)
+            user_list.append(user_entry)
         return jsonify({'users': user_list})
     except Exception as e:
         logger.error(f'获取用户列表错误: {str(e)}')
@@ -87,6 +104,7 @@ def admin_get_user(admin_user, username):
 
 @admin_bp.route('/api/admin/user/<username>/ban', methods=['POST'])
 @require_admin
+@require_permission('canBanUser')
 def admin_ban_user(admin_user, username):
     try:
         data = request.get_json()
@@ -95,10 +113,10 @@ def admin_ban_user(admin_user, username):
         user = get_user(username)
         if not user:
             return jsonify({'error': '用户不存在'}), 404
-        if user.get('isSuperAdmin'):
-            return jsonify({'error': '不能封禁超级管理员'}), 403
         if username == admin_user['username']:
             return jsonify({'error': '不能封禁自己'}), 403
+        if user.get('isSuperAdmin'):
+            return jsonify({'error': '不能封禁超级管理员'}), 403
 
         if duration > 0:
             user['bannedUntil'] = time.time() + duration
@@ -114,6 +132,7 @@ def admin_ban_user(admin_user, username):
 
 @admin_bp.route('/api/admin/user/<username>/score', methods=['POST'])
 @require_admin
+@require_permission('canModifyScore')
 def admin_set_score(admin_user, username):
     try:
         data = request.get_json()
@@ -154,6 +173,7 @@ def admin_set_admin(admin_user, username):
 
 @admin_bp.route('/api/admin/matches', methods=['GET'])
 @require_admin
+@require_permission('canMonitorMatches')
 def admin_get_matches(admin_user):
     try:
         return jsonify(get_all_matches())
@@ -163,29 +183,34 @@ def admin_get_matches(admin_user):
 
 @admin_bp.route('/api/admin/match/<match_id>', methods=['GET'])
 @require_admin
+@require_permission('canMonitorMatches')
 def admin_get_match(admin_user, match_id):
     return get_match_detail(match_id)
 
 @admin_bp.route('/api/admin/match/<match_id>/close', methods=['POST'])
 @require_admin
+@require_permission('canManageMatches')
 def admin_close_match(admin_user, match_id):
     logger.info(f'管理员 {admin_user["username"]} 强制关闭房间 {match_id}')
     return force_close_match(match_id)
 
 @admin_bp.route('/api/admin/matches/close-all', methods=['POST'])
 @require_admin
+@require_permission('canManageMatches')
 def admin_close_all_matches(admin_user):
     logger.info(f'管理员 {admin_user["username"]} 强制关闭所有房间')
     return force_close_all_matches()
 
 @admin_bp.route('/api/admin/match/<match_id>/restart', methods=['POST'])
 @require_admin
+@require_permission('canManageMatches')
 def admin_restart_match(admin_user, match_id):
     logger.info(f'管理员 {admin_user["username"]} 强制重新开始房间 {match_id}')
     return force_restart_match(match_id)
 
 @admin_bp.route('/api/admin/match/<match_id>/force-move', methods=['POST'])
 @require_admin
+@require_permission('canManageMatches')
 def admin_force_move(admin_user, match_id):
     try:
         data = request.get_json()
@@ -244,6 +269,7 @@ def admin_get_records(admin_user):
 
 @admin_bp.route('/api/admin/set_captcha', methods=['POST'])
 @require_admin
+@require_permission('canBanUser')
 def admin_set_captcha(admin_user):
     """设置用户是否需要验证码"""
     try:
@@ -254,6 +280,8 @@ def admin_set_captcha(admin_user):
         user = get_user(username)
         if not user:
             return jsonify({'error': '用户不存在'}), 404
+        if username == admin_user['username']:
+            return jsonify({'error': '不能修改自己'}), 403
         if user.get('isSuperAdmin'):
             return jsonify({'error': '不能修改超级管理员'}), 403
 
@@ -268,6 +296,7 @@ def admin_set_captcha(admin_user):
 
 @admin_bp.route('/api/admin/set_password_free', methods=['POST'])
 @require_admin
+@require_permission('canSetPasswordFree')
 def admin_set_password_free(admin_user):
     """设置用户免密登录权限"""
     try:
@@ -279,6 +308,8 @@ def admin_set_password_free(admin_user):
         user = get_user(username)
         if not user:
             return jsonify({'error': '用户不存在'}), 404
+        if username == admin_user['username']:
+            return jsonify({'error': '不能修改自己'}), 403
         if user.get('isSuperAdmin'):
             return jsonify({'error': '不能修改超级管理员'}), 403
 
@@ -300,6 +331,7 @@ def admin_set_password_free(admin_user):
 
 @admin_bp.route('/api/admin/change_password', methods=['POST'])
 @require_admin
+@require_permission('canChangePassword')
 def admin_change_password(admin_user):
     """管理员修改用户密码"""
     try:
@@ -395,6 +427,7 @@ def admin_set_permission(admin_user):
 
 @admin_bp.route('/api/admin/ban', methods=['POST'])
 @require_admin
+@require_permission('canBanUser')
 def admin_ban(admin_user):
     """封禁用户（通过 username 和 minutes 参数）"""
     try:
@@ -408,10 +441,10 @@ def admin_ban(admin_user):
         user = get_user(username)
         if not user:
             return jsonify({'error': '用户不存在'}), 404
-        if user.get('isSuperAdmin'):
-            return jsonify({'error': '不能封禁超级管理员'}), 403
         if username == admin_user['username']:
             return jsonify({'error': '不能封禁自己'}), 403
+        if user.get('isSuperAdmin'):
+            return jsonify({'error': '不能封禁超级管理员'}), 403
 
         if minutes > 0:
             user['bannedUntil'] = time.time() + minutes * 60
@@ -428,6 +461,7 @@ def admin_ban(admin_user):
 
 @admin_bp.route('/api/admin/unban', methods=['POST'])
 @require_admin
+@require_permission('canBanUser')
 def admin_unban(admin_user):
     """解封用户"""
     try:
@@ -452,6 +486,7 @@ def admin_unban(admin_user):
 
 @admin_bp.route('/api/admin/kick', methods=['POST'])
 @require_admin
+@require_permission('canKickUser')
 def admin_kick(admin_user):
     """强制登出用户（清除其所有 token）"""
     try:
@@ -464,6 +499,8 @@ def admin_kick(admin_user):
         user = get_user(username)
         if not user:
             return jsonify({'error': '用户不存在'}), 404
+        if username == admin_user['username']:
+            return jsonify({'error': '不能强制登出自己'}), 403
         if user.get('isSuperAdmin'):
             return jsonify({'error': '不能强制登出超级管理员'}), 403
 
@@ -486,12 +523,15 @@ def admin_kick(admin_user):
 
 @admin_bp.route('/api/admin/user/<username>', methods=['DELETE'])
 @require_admin
+@require_permission('canDeleteUser')
 def admin_delete_user(admin_user, username):
     """注销用户"""
     try:
         user = get_user(username)
         if not user:
             return jsonify({'error': '用户不存在'}), 404
+        if username == admin_user['username']:
+            return jsonify({'error': '不能注销自己'}), 403
         if user.get('isSuperAdmin'):
             return jsonify({'error': '不能注销超级管理员'}), 403
 
@@ -575,6 +615,7 @@ def _batch_operate(admin_user, usernames, operation, **kwargs):
 
 @admin_bp.route('/api/admin/batch_ban', methods=['POST'])
 @require_admin
+@require_permission('canBanUser')
 def admin_batch_ban(admin_user):
     """批量封禁用户"""
     try:
@@ -595,6 +636,7 @@ def admin_batch_ban(admin_user):
 
 @admin_bp.route('/api/admin/batch_unban', methods=['POST'])
 @require_admin
+@require_permission('canBanUser')
 def admin_batch_unban(admin_user):
     """批量解封用户"""
     try:
@@ -614,6 +656,7 @@ def admin_batch_unban(admin_user):
 
 @admin_bp.route('/api/admin/batch_kick', methods=['POST'])
 @require_admin
+@require_permission('canKickUser')
 def admin_batch_kick(admin_user):
     """批量强制登出用户"""
     try:
@@ -633,6 +676,7 @@ def admin_batch_kick(admin_user):
 
 @admin_bp.route('/api/admin/batch_delete', methods=['POST'])
 @require_admin
+@require_permission('canDeleteUser')
 def admin_batch_delete(admin_user):
     """批量注销用户"""
     try:
@@ -648,3 +692,35 @@ def admin_batch_delete(admin_user):
     except Exception as e:
         logger.error(f'批量注销错误: {str(e)}')
         return jsonify({'error': '批量注销失败'}), 500
+
+
+@admin_bp.route('/api/admin/set_permissions', methods=['POST'])
+@require_super_admin
+def admin_set_permissions(admin_user):
+    """超级管理员设置普通管理员的各项细粒度权限"""
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        permissions = data.get('permissions', {})
+
+        if not username:
+            return jsonify({'error': '用户名不能为空'}), 400
+
+        user = get_user(username)
+        if not user:
+            return jsonify({'error': '用户不存在'}), 404
+        if not user.get('isAdmin'):
+            return jsonify({'error': '该用户不是管理员'}), 400
+        if user.get('isSuperAdmin'):
+            return jsonify({'error': '不能修改超级管理员权限'}), 403
+
+        for field in PERMISSION_FIELDS:
+            if field in permissions:
+                user[field] = bool(permissions[field])
+
+        save_user(username, user)
+        logger.info(f'超级管理员 {admin_user["username"]} 设置了 {username} 的细粒度权限')
+        return jsonify({'success': True, 'message': '权限设置已更新', 'permissions': get_admin_permissions(user)})
+    except Exception as e:
+        logger.error(f'设置细粒度权限错误: {str(e)}')
+        return jsonify({'error': '设置权限失败'}), 500

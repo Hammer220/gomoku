@@ -15,11 +15,12 @@ from ..config import (GT4_CAPTCHA_ID, GT4_LOGIN_CAPTCHA_ID,
                       # TURNSTILE_SITE_KEY
 from ..models import (load_json_with_lock, save_json_with_lock, get_user,
                       save_user, save_plain_password, get_plain_password,
-                      TOKENS_FILE, USERS_FILE, PASSWORD_FILE)
+                      TOKENS_FILE, USERS_FILE, PASSWORD_FILE,
+                      get_admin_permissions)
 from ..auth import (geetest_verify, get_current_user,
                     require_auth)
-                    # turnstile_verify
 from ..logger import logger
+                    # turnstile_verify
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -221,7 +222,7 @@ def logout(user):
 @require_auth
 def current_user_route(user):
     """获取当前登录用户信息"""
-    return jsonify({
+    result = {
         'username': user['username'],
         'score': user.get('score', 0),
         'wins': user.get('wins', 0),
@@ -231,7 +232,10 @@ def current_user_route(user):
         'isAdmin': user.get('isAdmin', False),
         'isSuperAdmin': user.get('isSuperAdmin', False),
         'bannedUntil': user.get('bannedUntil')
-    })
+    }
+    if user.get('isAdmin'):
+        result['permissions'] = get_admin_permissions(user)
+    return jsonify(result)
 
 @auth_bp.route('/api/login/password_free', methods=['POST'])
 def login_password_free():

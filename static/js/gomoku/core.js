@@ -224,5 +224,9 @@ var Gomoku = window.Gomoku || {};
     G.replayAutoTimer = null;
     // 回放速度（毫秒/步）
     G.replaySpeed = 500;
+    // 回放中找到的连线列表（4子及以上）
+    G.replayLines = [];
+    // 回放当前显示的连线索引（-1 表示不显示）
+    G.replayLineIndex = -1;
 
 })();

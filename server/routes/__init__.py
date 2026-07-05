@@ -11,6 +11,7 @@ from .admin_routes import admin_bp
 from .match_routes import match_bp
 from .game_routes import game_bp
 from .static_routes import static_bp
+from .message_routes import message_bp
 
 
 def register_routes(app):
@@ -21,6 +22,7 @@ def register_routes(app):
     app.register_blueprint(match_bp)
     app.register_blueprint(game_bp)
     app.register_blueprint(static_bp)
+    app.register_blueprint(message_bp)
 
     # 登录页面
     @app.route('/')
@@ -42,6 +44,11 @@ def register_routes(app):
     @app.route('/admin')
     def admin_page():
         return render_template('admin.html')
+
+    # 消息页面
+    @app.route('/messages')
+    def messages_page():
+        return render_template('messages.html')
 
     # 404 错误处理：返回登录页面
     @app.errorhandler(404)

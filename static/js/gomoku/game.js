@@ -253,6 +253,7 @@ var Gomoku = window.Gomoku || {};
             mode: mode,
             modeLabel: modeLabel,
             opponent: opponentLabel,
+            aiDifficulty: G.aiDifficulty,
             timestamp: Math.floor(Date.now() / 1000),
             moveHistory: G.moveHistory.map(function(m) { return { row: m.row, col: m.col, player: m.player }; }),
             moves: G.moveHistory.length,
@@ -260,10 +261,17 @@ var Gomoku = window.Gomoku || {};
             boardSize: G.BOARD_SIZE
         };
         await G.apiCall('/api/records/add', 'POST', record);
-        // 更新玩家积分（胜利+50，失败-20）
+        // 更新玩家积分（不同难度得分和扣分不同）
         if (result !== 'draw') {
-            var scoreChange = result === 'win' ? 50 : -20;
-            G.currentUser.score = Math.max(0, (G.currentUser.score || 0) + scoreChange);
+            var scoreConfig = {
+                easy: { win: 10, lose: -50 },
+                medium: { win: 50, lose: -25 },
+                hard: { win: 100, lose: -5 }
+            };
+            var diff = G.aiDifficulty || 'medium';
+            var diffConfig = scoreConfig[diff] || scoreConfig.medium;
+            var scoreChange = result === 'win' ? diffConfig.win : diffConfig.lose;
+            G.currentUser.score = (G.currentUser.score || 0) + scoreChange;
             if (result === 'win') G.currentUser.wins = (G.currentUser.wins || 0) + 1;
             G.currentUser.games = (G.currentUser.games || 0) + 1;
             G.updateUserDisplay();

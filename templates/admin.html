@@ -22,6 +22,11 @@
             position: relative;
             box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
+        .board-grid {
+            background-size: 100% 100%;
+            background-image: linear-gradient(to right, rgba(0,0,0,0.6) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(0,0,0,0.6) 1px, transparent 1px);
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4 font-sans bg-gradient-to-br from-[#f8f0e3] via-[#e8d3b8] to-[#d4b88e] bg-fixed relative">
@@ -49,12 +54,13 @@
         <div class="bg-gray-50 border-b flex overflow-x-auto">
             <a href="/game" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">游戏大厅</a>
             <a href="/user" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">个人中心</a>
+            <a href="/messages" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">消息中心</a>
             <span class="tab-active px-4 md:px-6 py-3 font-medium text-red-600 whitespace-nowrap">管理后台</span>
         </div>
 
         {% include 'includes/admin.html' %}
 
-        <div class="bg-gray-50 p-3 text-center text-sm text-gray-500 border-t">&copy; 2025 五子棋 · 实时状态同步版</div>
+        <div class="bg-gray-50 p-3 text-center text-sm text-gray-500 border-t">&copy; 2026 五子棋 · 实时状态同步版</div>
     </div>
 
     {% include 'includes/components.html' %}

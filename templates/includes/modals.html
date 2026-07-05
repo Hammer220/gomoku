@@ -111,9 +111,9 @@
             <button id="closeReplayBtn" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
         </div>
         <div id="replayInfo" class="mb-3 text-sm text-gray-600"></div>
-        <div class="flex gap-4 flex-1 overflow-hidden">
-            <div class="flex-shrink-0">
-                <div class="bg-board rounded-lg shadow-lg board-grid relative" style="width: 450px; height: 450px;">
+        <div class="flex flex-col lg:flex-row gap-4 flex-1 overflow-auto">
+            <div class="w-full lg:w-auto flex justify-center">
+                <div class="bg-board rounded-lg shadow-lg board-grid relative aspect-square w-full max-w-[450px]">
                     <canvas id="replayCanvas" class="w-full h-full relative" style="z-index: 2;"></canvas>
                 </div>
             </div>
@@ -130,6 +130,10 @@
             <button id="replayNextBtn" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg text-sm">下一步<i class="fa-solid fa-forward ml-1"></i></button>
             <button id="replayAutoBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm"><i class="fa-solid fa-play mr-1"></i>自动播放</button>
             <button id="replayResetBtn" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg text-sm"><i class="fa-solid fa-rotate-left mr-1"></i>重置</button>
+        </div>
+        <div class="flex items-center justify-center gap-3 mt-2">
+            <button id="replayLineBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm"><i class="fa-solid fa-magnifying-glass mr-1"></i>显示连线</button>
+            <span id="replayLineInfo" class="text-sm font-medium text-gray-700"></span>
         </div>
         <div class="flex items-center justify-center gap-3 mt-2">
             <div class="flex items-center gap-2">

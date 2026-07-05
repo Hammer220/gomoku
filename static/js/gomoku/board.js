@@ -80,27 +80,35 @@ var Gomoku = window.Gomoku || {};
 
     // 绘制本地游戏棋盘（网格线 + 星位点 + 棋子）
     G.drawBoard = function() {
-        if (!G.ctx) return;
+        if (!G.ctx || !G.canvas) return;
         if (!G.gameBoard || !G.gameBoard[0]) return;
+        var cellSize = G.CELL_SIZE || 30;
+        var pieceSize = cellSize * G.PIECE_SIZE_RATIO;
+        var margin = pieceSize / 2 + 4;
+        var boardWidth = cellSize * (G.BOARD_SIZE - 1) + margin * 2;
+        var boardHeight = cellSize * (G.BOARD_SIZE - 1) + margin * 2;
+        if (G.canvas.width !== boardWidth || G.canvas.height !== boardHeight) {
+            G.canvas.width = boardWidth;
+            G.canvas.height = boardHeight;
+        }
         G.ctx.clearRect(0, 0, G.canvas.width, G.canvas.height);
         // 绘制网格线
         G.ctx.strokeStyle = G.boardLineColor;
         G.ctx.lineWidth = 2;
-        var margin = G.PIECE_SIZE / 2 + 4;
         for (var i = 0; i < G.BOARD_SIZE; i++) {
             G.ctx.beginPath();
-            G.ctx.moveTo(margin, i * G.CELL_SIZE + margin);
-            G.ctx.lineTo(G.canvas.width - margin, i * G.CELL_SIZE + margin);
+            G.ctx.moveTo(margin, i * cellSize + margin);
+            G.ctx.lineTo(G.canvas.width - margin, i * cellSize + margin);
             G.ctx.stroke();
             G.ctx.beginPath();
-            G.ctx.moveTo(i * G.CELL_SIZE + margin, margin);
-            G.ctx.lineTo(i * G.CELL_SIZE + margin, G.canvas.height - margin);
+            G.ctx.moveTo(i * cellSize + margin, margin);
+            G.ctx.lineTo(i * cellSize + margin, G.canvas.height - margin);
             G.ctx.stroke();
         }
         // 绘制五个星位点
         [[3, 3], [3, 11], [7, 7], [11, 3], [11, 11]].forEach(function(pos) {
             G.ctx.beginPath();
-            G.ctx.arc(pos[0] * G.CELL_SIZE + margin, pos[1] * G.CELL_SIZE + margin, 6, 0, 2 * Math.PI);
+            G.ctx.arc(pos[0] * cellSize + margin, pos[1] * cellSize + margin, 6, 0, 2 * Math.PI);
             G.ctx.fillStyle = G.boardDotColor;
             G.ctx.fill();
         });

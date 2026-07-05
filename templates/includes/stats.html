@@ -22,4 +22,18 @@
             <p class="text-sm text-gray-500">胜率</p>
         </div>
     </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-lg shadow-md p-4">
+            <h3 class="text-lg font-semibold mb-3 text-gray-700">胜负分布</h3>
+            <div class="relative" style="height: 260px;">
+                <canvas id="statPieChart"></canvas>
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow-md p-4">
+            <h3 class="text-lg font-semibold mb-3 text-gray-700">各模式统计</h3>
+            <div class="relative" style="height: 260px;">
+                <canvas id="statModeChart"></canvas>
+            </div>
+        </div>
+    </div>
 </div>

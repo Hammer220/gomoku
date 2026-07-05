@@ -328,10 +328,16 @@ var Gomoku = window.Gomoku || {};
         var adminContent = $('adminContent');
         if (adminContent) adminContent.classList.remove('hidden');
 
-        // 显示超级管理员专属模块
+        // 超级管理员可见：管理员账号管理模块
         if (G.currentUser && G.currentUser.isSuperAdmin) {
             var adminMgmt = $('adminAccountManagement');
             if (adminMgmt) adminMgmt.classList.remove('hidden');
+        }
+
+        // 根据权限显示对局监控模块
+        var canMonitor = G.currentUser && (G.currentUser.isSuperAdmin || (G.currentUser.permissions && G.currentUser.permissions.canMonitorMatches !== false));
+        var canManage = G.currentUser && (G.currentUser.isSuperAdmin || (G.currentUser.permissions && G.currentUser.permissions.canManageMatches !== false));
+        if (canMonitor && canManage) {
             var matchMonitor = $('onlineMatchMonitor');
             if (matchMonitor) matchMonitor.classList.remove('hidden');
             if (G.loadMatchList) G.loadMatchList();

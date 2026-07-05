@@ -95,6 +95,28 @@
                     <div class="text-gray-500 text-sm">加载中...</div>
                 </div>
             </div>
+            <div id="adminPermissionsTable" class="bg-gray-50 p-3 rounded-lg hidden">
+                <h4 class="font-semibold mb-2">管理员权限设置</h4>
+                <p class="text-xs text-gray-500 mb-3">点击权限标签切换启用/禁用状态</p>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full border text-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="border px-3 py-2 text-left">管理员</th>
+                                <th class="border px-3 py-2 text-center">封禁用户</th>
+                                <th class="border px-3 py-2 text-center">强制登出</th>
+                                <th class="border px-3 py-2 text-center">注销用户</th>
+                                <th class="border px-3 py-2 text-center">修改密码</th>
+                                <th class="border px-3 py-2 text-center">修改积分</th>
+                                <th class="border px-3 py-2 text-center">免密登录</th>
+                                <th class="border px-3 py-2 text-center">对局监控</th>
+                                <th class="border px-3 py-2 text-center">对局管理</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminPermissionsBody"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 

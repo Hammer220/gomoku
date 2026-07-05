@@ -144,6 +144,7 @@ def add_record(user):
             'opponent': data.get('opponent', 'AI'),
             'result': data.get('result', ''),
             'mode': data.get('mode', 'ai'),
+            'aiDifficulty': data.get('aiDifficulty', 'medium'),
             'timestamp': data.get('timestamp', int(time.time())),
             'duration': data.get('duration', 0),
             'moves': data.get('moves', 0),
@@ -154,13 +155,21 @@ def add_record(user):
         records[record_id] = record
         save_json_with_lock(RECORDS_FILE, records)
 
+        difficulty = data.get('aiDifficulty', 'medium')
+        score_config = {
+            'easy': {'win': 10, 'lose': 50},
+            'medium': {'win': 50, 'lose': 25},
+            'hard': {'win': 100, 'lose': 5}
+        }
+        diff_config = score_config.get(difficulty, score_config['medium'])
+
         if data.get('result') == 'win':
             user['wins'] = user.get('wins', 0) + 1
         user['games'] = user.get('games', 0) + 1
         if data.get('result') == 'win':
-            user['score'] = user.get('score', 0) + 10
+            user['score'] = user.get('score', 0) + diff_config['win']
         elif data.get('result') == 'lose':
-            user['score'] = max(0, user.get('score', 0) - 5)
+            user['score'] = user.get('score', 0) - diff_config['lose']
         save_user(user['username'], user)
 
         return jsonify({'success': True, 'record': record})

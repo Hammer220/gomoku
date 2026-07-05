@@ -285,7 +285,10 @@
             const resultLabel = r.result || '未知';
             const resultClass = resultLabel === '胜利' ? 'text-green-600' : (resultLabel === '失败' ? 'text-red-600' : 'text-yellow-600');
             const opponent = r.opponent || '-';
-            const scoreChange = resultLabel === '胜利' ? '+50' : (resultLabel === '失败' ? '-20' : '0');
+            const scoreConfig = { easy: { win: '+10', lose: '-50' }, medium: { win: '+50', lose: '-25' }, hard: { win: '+100', lose: '-5' } };
+            const diff = (r.aiDifficulty || 'medium');
+            const diffConfig = scoreConfig[diff] || scoreConfig.medium;
+            const scoreChange = resultLabel === '胜利' ? diffConfig.win : (resultLabel === '失败' ? diffConfig.lose : '0');
             const scoreClass = resultLabel === '胜利' ? 'text-green-600' : (resultLabel === '失败' ? 'text-red-600' : 'text-gray-500');
             const hasMoves = r.moveHistory && r.moveHistory.length > 0;
             return `<tr class="border-b hover:bg-gray-50">
@@ -301,6 +304,10 @@
 
     // ==================== 统计数据 ====================
 
+    // 统计数据图表实例引用
+    G._statPieChart = null;
+    G._statModeChart = null;
+
     // 加载统计数据
     G.loadStats = async function(){
         try {
@@ -310,8 +317,101 @@
             document.getElementById('statLosses').textContent = data.losses;
             document.getElementById('statDraws').textContent = data.draws;
             document.getElementById('statWinRate').textContent = data.winRate + '%';
+            G.renderStatCharts(data);
         } catch(e) {
             console.error('加载统计数据失败', e);
+        }
+    }
+
+    // 渲染统计图表
+    G.renderStatCharts = function(data) {
+        if (typeof Chart === 'undefined') return;
+
+        // 销毁旧图表
+        if (G._statPieChart) { G._statPieChart.destroy(); G._statPieChart = null; }
+        if (G._statModeChart) { G._statModeChart.destroy(); G._statModeChart = null; }
+
+        // 饼图/环形图：胜负分布
+        var pieCtx = document.getElementById('statPieChart');
+        if (pieCtx) {
+            G._statPieChart = new Chart(pieCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['胜利', '失败', '平局'],
+                    datasets: [{
+                        data: [data.wins, data.losses, data.draws],
+                        backgroundColor: ['#16a34a', '#dc2626', '#eab308'],
+                        borderColor: ['#ffffff', '#ffffff', '#ffffff'],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { padding: 20, usePointStyle: true, font: { size: 13 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 柱状图：各模式统计
+        var modeCtx = document.getElementById('statModeChart');
+        if (modeCtx) {
+            var records = data.records || [];
+            var modeStats = { ai: { wins: 0, losses: 0, draws: 0, total: 0 }, pvp: { wins: 0, losses: 0, draws: 0, total: 0 }, online: { wins: 0, losses: 0, draws: 0, total: 0 } };
+            records.forEach(function(r) {
+                var mode = r.mode || 'ai';
+                if (!modeStats[mode]) modeStats[mode] = { wins: 0, losses: 0, draws: 0, total: 0 };
+                modeStats[mode].total++;
+                if (r.result === 'win' || r.result === '胜利') modeStats[mode].wins++;
+                else if (r.result === 'lose' || r.result === '失败') modeStats[mode].losses++;
+                else modeStats[mode].draws++;
+            });
+            var modeLabels = { ai: '人机对战', pvp: '双人对战', online: '联机对战' };
+            var modes = ['ai', 'pvp', 'online'].filter(function(m) { return modeStats[m].total > 0; });
+            if (modes.length === 0) modes = ['ai', 'pvp', 'online'];
+
+            G._statModeChart = new Chart(modeCtx, {
+                type: 'bar',
+                data: {
+                    labels: modes.map(function(m) { return modeLabels[m] || m; }),
+                    datasets: [
+                        {
+                            label: '胜利',
+                            data: modes.map(function(m) { return modeStats[m].wins; }),
+                            backgroundColor: '#16a34a'
+                        },
+                        {
+                            label: '失败',
+                            data: modes.map(function(m) { return modeStats[m].losses; }),
+                            backgroundColor: '#dc2626'
+                        },
+                        {
+                            label: '平局',
+                            data: modes.map(function(m) { return modeStats[m].draws; }),
+                            backgroundColor: '#eab308'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { padding: 20, usePointStyle: true, font: { size: 13 } }
+                        }
+                    },
+                    scales: {
+                        x: { stacked: true, grid: { display: false } },
+                        y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }
+                    }
+                }
+            });
         }
     }
 
@@ -426,6 +526,32 @@
         if (batchDeleteBtn) batchDeleteBtn.disabled = count === 0;
     };
 
+    // 根据当前管理员权限显示/隐藏批量操作按钮
+    G.updateBatchButtonsVisibility = function() {
+        var isSuperAdmin = G.currentUser && G.currentUser.isSuperAdmin;
+        var perms = {};
+        if (isSuperAdmin) {
+            perms = { canBanUser: true, canKickUser: true, canDeleteUser: true };
+        } else if (G.currentUser && G.currentUser.isAdmin) {
+            var currentUserData = G.adminAllUsers.find(function(u) { return u.username === G.currentUser.username; });
+            if (currentUserData && currentUserData.permissions) {
+                perms = currentUserData.permissions;
+            } else {
+                perms = { canBanUser: true, canKickUser: true, canDeleteUser: true };
+            }
+        }
+        
+        var batchBanBtn = document.getElementById('batchBanBtn');
+        var batchUnbanBtn = document.getElementById('batchUnbanBtn');
+        var batchKickBtn = document.getElementById('batchKickBtn');
+        var batchDeleteBtn = document.getElementById('batchDeleteBtn');
+        
+        if (batchBanBtn) batchBanBtn.classList.toggle('hidden', !perms.canBanUser);
+        if (batchUnbanBtn) batchUnbanBtn.classList.toggle('hidden', !perms.canBanUser);
+        if (batchKickBtn) batchKickBtn.classList.toggle('hidden', !perms.canKickUser);
+        if (batchDeleteBtn) batchDeleteBtn.classList.toggle('hidden', !perms.canDeleteUser);
+    };
+
     // ==================== 用户管理 ====================
 
     // 加载管理员用户列表
@@ -472,7 +598,21 @@
             const remainingMinutes = u.remainingMinutes;
             const isOnline = u.isOnline;
             const isTargetSuperAdmin = u.isSuperAdmin;
-            const canOperate = !isTargetSuperAdmin && (isSuperAdmin || (G.currentUser && G.currentUser.canManage !== false)); // 是否可以操作
+            
+            // 获取当前管理员的权限
+            var currentPerms = {};
+            if (isSuperAdmin) {
+                currentPerms = { canBanUser: true, canKickUser: true, canDeleteUser: true, canChangePassword: true, canModifyScore: true, canSetPasswordFree: true, canMonitorMatches: true, canManageMatches: true };
+            } else if (G.currentUser && G.currentUser.isAdmin) {
+                var currentUserData = G.adminAllUsers.find(function(cu) { return cu.username === G.currentUser.username; });
+                if (currentUserData && currentUserData.permissions) {
+                    currentPerms = currentUserData.permissions;
+                } else {
+                    currentPerms = { canBanUser: true, canKickUser: true, canDeleteUser: true, canChangePassword: true, canModifyScore: true, canSetPasswordFree: true, canMonitorMatches: true, canManageMatches: true };
+                }
+            }
+            var hasAnyPermission = Object.values(currentPerms).some(function(v) { return v === true; });
+            var canOperate = !isTargetSuperAdmin && (isSuperAdmin || hasAnyPermission);
             
             // 恢复复选框选中状态
             const isChecked = checkedUsers.has(u.username) ? 'checked' : '';
@@ -540,6 +680,9 @@
         G.renderPagination(filteredUsers.length);
         
         G.startBannedCountdown();
+        
+        // 更新批量按钮可见性
+        G.updateBatchButtonsVisibility();
     }
 
     // 搜索输入防抖（使用 G.searchTimer 全局变量）
@@ -589,6 +732,11 @@
         const pfToggle = document.getElementById('adminPasswordFreeToggle');
         const pfAttempts = document.getElementById('adminPasswordFreeAttempts');
         const scoreBtn = document.getElementById('adminUpdateScoreBtn');
+        const changePwdBtn = document.getElementById('adminChangePasswordBtn');
+        const banBtn = document.getElementById('adminBanBtn');
+        const unbanBtn = document.getElementById('adminUnbanBtn');
+        const kickBtn = document.getElementById('adminKickBtn');
+        const deleteBtn = document.getElementById('adminDeleteBtn');
         
         if (!user) {
             infoEl.textContent = '';
@@ -599,24 +747,53 @@
         
         const isSuperAdmin = G.currentUser && G.currentUser.isSuperAdmin;
         const isTargetSuperAdmin = user.isSuperAdmin;
-        const canOperate = !isTargetSuperAdmin && (isSuperAdmin || (G.currentUser && G.currentUser.canManage !== false));
+        
+        // 获取当前管理员的权限（超级管理员拥有全部权限）
+        var currentPerms = {};
+        if (isSuperAdmin) {
+            currentPerms = {
+                canBanUser: true, canKickUser: true, canDeleteUser: true,
+                canChangePassword: true, canModifyScore: true, canSetPasswordFree: true,
+                canMonitorMatches: true, canManageMatches: true
+            };
+        } else if (G.currentUser && G.currentUser.isAdmin) {
+            // 从当前用户数据中获取权限
+            var currentUserData = G.adminAllUsers.find(function(u) { return u.username === G.currentUser.username; });
+            if (currentUserData && currentUserData.permissions) {
+                currentPerms = currentUserData.permissions;
+            } else {
+                // 默认全部启用
+                currentPerms = {
+                    canBanUser: true, canKickUser: true, canDeleteUser: true,
+                    canChangePassword: true, canModifyScore: true, canSetPasswordFree: true,
+                    canMonitorMatches: true, canManageMatches: true
+                };
+            }
+        }
+        
+        var canOperate = !isTargetSuperAdmin;
         
         // 显示用户信息
-        let info = `当前用户：${user.username}`;
+        var info = '当前用户：' + user.username;
         if (user.isSuperAdmin) info += ' | 超级管理员';
         else if (user.isAdmin) info += ' | 管理员';
-        info += ` | 积分：${user.score} | 胜场：${user.wins} | 对局：${user.games}`;
+        info += ' | 积分：' + user.score + ' | 胜场：' + user.wins + ' | 对局：' + user.games;
         infoEl.textContent = info;
         
-        // 改积分按钮（仅超级管理员）
-        scoreBtn.classList.toggle('hidden', !isSuperAdmin);
+        // 根据细粒度权限控制按钮显示
+        if (banBtn) banBtn.classList.toggle('hidden', !(canOperate && currentPerms.canBanUser));
+        if (unbanBtn) unbanBtn.classList.toggle('hidden', !(canOperate && currentPerms.canBanUser));
+        if (kickBtn) kickBtn.classList.toggle('hidden', !(canOperate && currentPerms.canKickUser));
+        if (deleteBtn) deleteBtn.classList.toggle('hidden', !(canOperate && currentPerms.canDeleteUser));
+        if (changePwdBtn) changePwdBtn.classList.toggle('hidden', !(canOperate && currentPerms.canChangePassword));
+        if (scoreBtn) scoreBtn.classList.toggle('hidden', !(canOperate && currentPerms.canModifyScore));
         
-        // 免密登录 toggle（仅超级管理员对非超级管理员）
-        if (isSuperAdmin && !user.isSuperAdmin) {
+        // 免密登录 toggle（需要有 canSetPasswordFree 权限）
+        if (canOperate && currentPerms.canSetPasswordFree) {
             const pfEnabled = user.passwordFree === true;
             pfToggle.classList.remove('hidden');
             pfToggle.textContent = pfEnabled ? '禁用' : '启用';
-            pfToggle.className = `px-3 py-1.5 text-sm border rounded-lg ${pfEnabled ? 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100' : 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100'}`;
+            pfToggle.className = 'px-3 py-1.5 text-sm border rounded-lg ' + (pfEnabled ? 'bg-green-50 text-green-700 border-green-300 hover:bg-green-100' : 'bg-red-50 text-red-700 border-red-300 hover:bg-red-100');
             pfToggle.dataset.username = username;
             pfToggle.dataset.passwordfree = !pfEnabled;
             pfAttempts.classList.remove('hidden');
@@ -732,7 +909,7 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">新积分</label>
-                            <input type="number" id="updateScoreValue" min="0" value="0" class="w-full px-4 py-2 border rounded-lg">
+                            <input type="number" id="updateScoreValue" value="0" class="w-full px-4 py-2 border rounded-lg">
                         </div>
                     </div>
                     <div class="flex gap-3 mt-6">
@@ -754,8 +931,8 @@
         
         document.getElementById('confirmUpdateScoreBtn').addEventListener('click', async () => {
             const newScore = parseInt(document.getElementById('updateScoreValue').value);
-            if (isNaN(newScore) || newScore < 0) {
-                G.showToast('积分必须为非负整数', true);
+            if (isNaN(newScore)) {
+                G.showToast('积分必须为整数', true);
                 return;
             }
             
@@ -1021,10 +1198,7 @@
             }
             G.replayStep = 0;
             G.stopReplayAuto();
-            G.initReplayCanvas();
-            G.drawReplayBoard();
-            G.updateReplayUI();
-            G.renderReplayMoveList();
+            G.clearReplayLineHighlight();
             var modal = document.getElementById('replayModal');
             if (modal) modal.classList.remove('hidden');
             var speedSlider = document.getElementById('replaySpeedSlider');
@@ -1032,19 +1206,33 @@
             G.replaySpeed = 500;
             var speedLabel = document.getElementById('replaySpeedLabel');
             if (speedLabel) speedLabel.textContent = '0.5s';
+            // 先显示弹窗，等布局完成后再初始化 Canvas（确保容器有正确的尺寸）
+            requestAnimationFrame(function() {
+                requestAnimationFrame(function() {
+                    G.initReplayCanvas();
+                    G.drawReplayBoard();
+                    G.updateReplayUI();
+                    G.renderReplayMoveList();
+                });
+            });
         } catch (err) {
             G.showToast('加载复盘失败: ' + (err.message || err), true);
         }
     }
 
-    // 初始化复盘 Canvas（根据记录中的棋盘大小设置画布尺寸）
+    // 初始化复盘 Canvas（根据容器大小动态计算画布尺寸，适配不同屏幕）
     G.initReplayCanvas = function() {
         const canvas = document.getElementById('replayCanvas');
         if (!canvas) return;
-        const cellSize = 30;
+        const container = canvas.parentElement;
+        if (!container) return;
+        const rect = container.getBoundingClientRect();
+        const size = Math.min(rect.width, rect.height);
+        if (size <= 0) return;
+        const boardSize = G.replayRecord.boardSize || 15;
+        const cellSize = Math.max(15, size / (boardSize - 1));
         const pieceSize = cellSize * 0.8;
         const margin = pieceSize / 2 + 4;
-        const boardSize = G.replayRecord.boardSize || 15;
         const boardWidth = cellSize * (boardSize - 1) + margin * 2;
         const boardHeight = cellSize * (boardSize - 1) + margin * 2;
         canvas.width = boardWidth;
@@ -1056,16 +1244,36 @@
         const canvas = document.getElementById('replayCanvas');
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
+        const container = canvas.parentElement;
         const boardSize = G.replayRecord.boardSize || 15;
-        const cellSize = 30;
-        const pieceSize = cellSize * 0.8;
-        const margin = pieceSize / 2 + 4;
-        const boardWidth = cellSize * (boardSize - 1) + margin * 2;
-        const boardHeight = cellSize * (boardSize - 1) + margin * 2;
+        let cellSize, pieceSize, margin, boardWidth, boardHeight;
+        if (container) {
+            const rect = container.getBoundingClientRect();
+            const size = Math.min(rect.width, rect.height);
+            cellSize = size > 0 ? Math.max(15, size / (boardSize - 1)) : 30;
+        } else {
+            cellSize = 30;
+        }
+        pieceSize = cellSize * 0.8;
+        margin = pieceSize / 2 + 4;
+        boardWidth = cellSize * (boardSize - 1) + margin * 2;
+        boardHeight = cellSize * (boardSize - 1) + margin * 2;
+
+        // 确保 canvas 尺寸与计算结果一致
+        if (canvas.width !== boardWidth || canvas.height !== boardHeight) {
+            canvas.width = boardWidth;
+            canvas.height = boardHeight;
+        }
 
         ctx.clearRect(0, 0, boardWidth, boardHeight);
 
-        ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--board-line-color') || '#333';
+        // 绘制棋盘底色
+        ctx.fillStyle = '#E6C8A0';
+        ctx.fillRect(0, 0, boardWidth, boardHeight);
+
+        // 绘制网格线
+        var boardLineColor = getComputedStyle(document.documentElement).getPropertyValue('--board-line-color') || '#8B5A2B';
+        ctx.strokeStyle = boardLineColor;
         ctx.lineWidth = 2;
         for (let i = 0; i < boardSize; i++) {
             ctx.beginPath();
@@ -1078,6 +1286,25 @@
             ctx.stroke();
         }
 
+        // 绘制星位点（天元和角星位）
+        var starPoints;
+        if (boardSize === 15) {
+            starPoints = [[3, 3], [3, 11], [7, 7], [11, 3], [11, 11]];
+        } else if (boardSize === 19) {
+            starPoints = [[3, 3], [3, 9], [3, 15], [9, 3], [9, 9], [9, 15], [15, 3], [15, 9], [15, 15]];
+        } else {
+            var center = Math.floor(boardSize / 2);
+            starPoints = [[3, 3], [3, center], [3, boardSize - 4], [center, 3], [center, center], [center, boardSize - 4], [boardSize - 4, 3], [boardSize - 4, center], [boardSize - 4, boardSize - 4]];
+        }
+        starPoints.forEach(function(pos) {
+            if (pos[0] < boardSize && pos[1] < boardSize) {
+                ctx.beginPath();
+                ctx.arc(pos[0] * cellSize + margin, pos[1] * cellSize + margin, 4, 0, 2 * Math.PI);
+                ctx.fillStyle = boardLineColor;
+                ctx.fill();
+            }
+        });
+
         const moves = G.replayRecord.moveHistory || [];
         for (let i = 0; i < G.replayStep && i < moves.length; i++) {
             const m = moves[i];
@@ -1085,32 +1312,191 @@
             const y = m.row * cellSize + margin;
             const r = pieceSize / 2;
 
+            // 棋子阴影
+            ctx.beginPath();
+            ctx.arc(x, y, r + 2, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.fill();
+
+            // 棋子本体（径向渐变）
             ctx.beginPath();
             ctx.arc(x, y, r, 0, Math.PI * 2);
+            var grad = ctx.createRadialGradient(x - pieceSize / 6, y - pieceSize / 6, pieceSize / 10, x, y, r);
             if (m.player === 1) {
-                ctx.fillStyle = '#1a1a1a';
-                ctx.fill();
-                ctx.strokeStyle = '#333';
-                ctx.lineWidth = 1;
-                ctx.stroke();
+                grad.addColorStop(0, '#555');
+                grad.addColorStop(1, '#000');
             } else {
-                ctx.fillStyle = '#f5f5f5';
-                ctx.fill();
-                ctx.strokeStyle = '#999';
-                ctx.lineWidth = 1;
-                ctx.stroke();
+                grad.addColorStop(0, '#fff');
+                grad.addColorStop(1, '#ddd');
             }
+            ctx.fillStyle = grad;
+            ctx.fill();
+            ctx.strokeStyle = m.player === 1 ? '#333' : '#ccc';
+            ctx.lineWidth = 1;
+            ctx.stroke();
             ctx.closePath();
 
+            // 当前步标记
             if (i === G.replayStep - 1 && G.replayStep > 0) {
                 ctx.beginPath();
                 ctx.arc(x, y - 1, r * 0.2, 0, Math.PI * 2);
-                ctx.fillStyle = m.player === 1 ? '#ff6b6b' : '#ff6b6b';
+                ctx.fillStyle = '#ff6b6b';
                 ctx.fill();
                 ctx.closePath();
             }
         }
+
+        // 绘制连线高亮（4子或5子连线）
+        if (G.replayLineIndex >= 0 && G.replayLines.length > 0 && G.replayLineIndex < G.replayLines.length) {
+            const line = G.replayLines[G.replayLineIndex];
+            if (line.cells.length >= 2) {
+                const first = line.cells[0];
+                const last = line.cells[line.cells.length - 1];
+                const x1 = first.col * cellSize + margin;
+                const y1 = first.row * cellSize + margin;
+                const x2 = last.col * cellSize + margin;
+                const y2 = last.row * cellSize + margin;
+
+                // 连线颜色：4子用橙色，5子及以上用红色
+                const lineColor = line.count >= 5 ? '#FF4444' : '#FF8C00';
+                const lineWidth = line.count >= 5 ? 5 : 4;
+
+                // 绘制连线（半透明底层 + 实线顶层）
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.strokeStyle = lineColor + '40';
+                ctx.lineWidth = lineWidth + 6;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.strokeStyle = lineColor;
+                ctx.lineWidth = lineWidth;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+                ctx.restore();
+
+                // 连线两端加圆形标记
+                [first, last].forEach(function(pt) {
+                    ctx.beginPath();
+                    ctx.arc(pt.col * cellSize + margin, pt.row * cellSize + margin, 5, 0, Math.PI * 2);
+                    ctx.fillStyle = lineColor;
+                    ctx.fill();
+                });
+            }
+        }
     }
+
+    // 获取当前复盘步骤的棋盘状态
+    G.getReplayBoardState = function() {
+        const boardSize = G.replayRecord ? (G.replayRecord.boardSize || 15) : 15;
+        const board = Array(boardSize).fill().map(function() { return Array(boardSize).fill(0); });
+        const moves = G.replayRecord ? (G.replayRecord.moveHistory || []) : [];
+        for (let i = 0; i < G.replayStep && i < moves.length; i++) {
+            const m = moves[i];
+            board[m.row][m.col] = m.player;
+        }
+        return board;
+    };
+
+    // 查找当前复盘棋盘上所有4子及以上的连线
+    G.findReplayLines = function() {
+        const board = G.getReplayBoardState();
+        const boardSize = board.length;
+        const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
+        const lines = [];
+        const visited = {};
+
+        for (let r = 0; r < boardSize; r++) {
+            for (let c = 0; c < boardSize; c++) {
+                if (board[r][c] === 0) continue;
+                const player = board[r][c];
+                for (let d = 0; d < dirs.length; d++) {
+                    const key = r + ',' + c + ',' + d;
+                    if (visited[key]) continue;
+                    visited[key] = true;
+
+                    const dx = dirs[d][0], dy = dirs[d][1];
+                    let count = 1;
+                    const cells = [{ row: r, col: c }];
+
+                    // 正方向扫描
+                    for (let i = 1; i < boardSize; i++) {
+                        const nr = r + i * dy, nc = c + i * dx;
+                        if (nr < 0 || nr >= boardSize || nc < 0 || nc >= boardSize || board[nr][nc] !== player) break;
+                        count++;
+                        cells.push({ row: nr, col: nc });
+                        visited[nr + ',' + nc + ',' + d] = true;
+                    }
+                    // 反方向扫描
+                    for (let i = 1; i < boardSize; i++) {
+                        const nr = r - i * dy, nc = c - i * dx;
+                        if (nr < 0 || nr >= boardSize || nc < 0 || nc >= boardSize || board[nr][nc] !== player) break;
+                        count++;
+                        cells.unshift({ row: nr, col: nc });
+                        visited[nr + ',' + nc + ',' + d] = true;
+                    }
+
+                    if (count >= 4) {
+                        lines.push({ cells: cells, player: player, count: count });
+                    }
+                }
+            }
+        }
+        return lines;
+    };
+
+    // 显示下一条连线（循环切换）
+    G.showNextReplayLine = function() {
+        G.replayLines = G.findReplayLines();
+        if (G.replayLines.length === 0) {
+            G.replayLineIndex = -1;
+            G.showToast('当前棋盘没有4子及以上连线');
+            G.drawReplayBoard();
+            G.updateReplayLineUI();
+            return;
+        }
+        G.replayLineIndex = (G.replayLineIndex + 1) % (G.replayLines.length + 1);
+        // 当索引回到0时表示隐藏连线（循环完一圈）
+        if (G.replayLineIndex === G.replayLines.length) {
+            G.replayLineIndex = -1;
+        }
+        G.drawReplayBoard();
+        G.updateReplayLineUI();
+    };
+
+    // 清除连线高亮
+    G.clearReplayLineHighlight = function() {
+        G.replayLines = [];
+        G.replayLineIndex = -1;
+        G.updateReplayLineUI();
+    };
+
+    // 更新连线按钮 UI
+    G.updateReplayLineUI = function() {
+        var lineBtn = document.getElementById('replayLineBtn');
+        var lineInfo = document.getElementById('replayLineInfo');
+        if (!lineBtn) return;
+
+        if (G.replayLineIndex >= 0 && G.replayLines.length > 0 && G.replayLineIndex < G.replayLines.length) {
+            const line = G.replayLines[G.replayLineIndex];
+            const label = line.count >= 5 ? '五连' : '四连';
+            const color = line.player === 1 ? '黑棋' : '白棋';
+            if (lineInfo) lineInfo.textContent = color + ' ' + label + ' (' + line.count + '子)';
+            lineBtn.innerHTML = '<i class="fa-solid fa-arrow-right mr-1"></i>下一个连线';
+            lineBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+            lineBtn.classList.add('bg-green-500', 'hover:bg-green-600');
+        } else {
+            if (lineInfo) lineInfo.textContent = '';
+            lineBtn.innerHTML = '<i class="fa-solid fa-magnifying-glass mr-1"></i>显示连线';
+            lineBtn.classList.remove('bg-green-500', 'hover:bg-green-600');
+            lineBtn.classList.add('bg-blue-500', 'hover:bg-blue-600');
+        }
+    };
 
     // 更新复盘 UI（步数信息、按钮状态、对局信息）
     G.updateReplayUI = function() {
@@ -1195,6 +1581,7 @@
         const moves = G.replayRecord ? G.replayRecord.moveHistory || [] : [];
         step = Math.max(0, Math.min(step, moves.length));
         G.replayStep = step;
+        G.clearReplayLineHighlight();
         G.drawReplayBoard();
         G.updateReplayUI();
     }
@@ -1204,6 +1591,7 @@
         const moves = G.replayRecord ? G.replayRecord.moveHistory || [] : [];
         if (G.replayStep < moves.length) {
             G.replayStep++;
+            G.clearReplayLineHighlight();
             G.drawReplayBoard();
             G.updateReplayUI();
         }
@@ -1213,6 +1601,7 @@
     G.replayPrev = function() {
         if (G.replayStep > 0) {
             G.replayStep--;
+            G.clearReplayLineHighlight();
             G.drawReplayBoard();
             G.updateReplayUI();
         }
@@ -1222,6 +1611,7 @@
     G.replayReset = function() {
         G.stopReplayAuto();
         G.replayStep = 0;
+        G.clearReplayLineHighlight();
         G.drawReplayBoard();
         G.updateReplayUI();
     }
@@ -1231,6 +1621,7 @@
         const moves = G.replayRecord ? G.replayRecord.moveHistory || [] : [];
         if (G.replayStep >= moves.length) {
             G.replayStep = 0;
+            G.clearReplayLineHighlight();
             G.drawReplayBoard();
             G.updateReplayUI();
         }
@@ -1246,6 +1637,7 @@
                 return;
             }
             G.replayStep++;
+            G.clearReplayLineHighlight();
             G.drawReplayBoard();
             G.updateReplayUI();
         }, G.replaySpeed);
@@ -1269,6 +1661,7 @@
         document.removeEventListener('keydown', G.replayKeyHandler);
         G.replayRecord = null;
         G.replayStep = 0;
+        G.clearReplayLineHighlight();
     }
 
     // 复盘键盘快捷键处理（左右箭头）
@@ -1296,11 +1689,13 @@
         var autoBtn = $r('replayAutoBtn');
         var speedSlider = $r('replaySpeedSlider');
         var replayModal = $r('replayModal');
+        var lineBtn = $r('replayLineBtn');
         if (closeBtn) closeBtn.addEventListener('click', G.closeReplayModal);
         if (prevBtn) prevBtn.addEventListener('click', G.replayPrev);
         if (nextBtn) nextBtn.addEventListener('click', G.replayNext);
         if (resetBtn) resetBtn.addEventListener('click', G.replayReset);
         if (autoBtn) autoBtn.addEventListener('click', G.replayAutoPlay);
+        if (lineBtn) lineBtn.addEventListener('click', G.showNextReplayLine);
         if (speedSlider) speedSlider.addEventListener('input', function() {
             var val = parseInt(this.value);
             G.replaySpeed = val * 100;
@@ -1339,6 +1734,7 @@
             
             if (admins.length === 0) {
                 adminListDiv.innerHTML = '<div class="text-gray-500 text-sm">暂无管理员账号</div>';
+                document.getElementById('adminPermissionsTable').classList.add('hidden');
                 return;
             }
             
@@ -1347,48 +1743,95 @@
                 const adminDiv = document.createElement('div');
                 adminDiv.className = 'flex justify-between items-center p-2 bg-white rounded border';
                 
-                // 密码显示（已隐藏，出于安全考虑）
-                let passwordDisplay = '';
-                
-                // 权限状态显示
                 let permissionStatus = '';
                 let actionButtons = '';
                 
                 if (admin.isSuperAdmin) {
-                    permissionStatus = `<span class="text-xs ml-2 px-2 py-1 rounded bg-red-100 text-red-800">超级管理员</span>`;
+                    permissionStatus = '<span class="text-xs ml-2 px-2 py-1 rounded bg-red-100 text-red-800">超级管理员</span>';
                 } else {
-                    const canManage = admin.canManage !== false; // 默认true
-                    permissionStatus = `<span class="text-xs ml-2 px-2 py-1 rounded ${canManage ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
-                        ${canManage ? '可管理' : '已禁用'}
-                    </span>`;
+                    const canManage = admin.canManage !== false;
+                    permissionStatus = '<span class="text-xs ml-2 px-2 py-1 rounded ' + (canManage ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800') + '">' +
+                        (canManage ? '可管理' : '已禁用') + '</span>';
                     
-                    // 只有超级管理员可以设置权限
                     if (isSuperAdmin) {
-                        actionButtons = `<button onclick="G.toggleAdminPermission('${admin.username}', ${!canManage})" class="text-xs ml-2 px-2 py-1 rounded ${canManage ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' : 'bg-green-100 text-green-800 hover:bg-green-200'}">
-                            ${canManage ? '禁用' : '启用'}
-                        </button>`;
+                        actionButtons = '<button onclick="G.toggleAdminPermission(\'' + admin.username + '\', ' + (!canManage) + ')" class="text-xs ml-2 px-2 py-1 rounded ' + (canManage ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200' : 'bg-green-100 text-green-800 hover:bg-green-200') + '">' +
+                            (canManage ? '禁用' : '启用') + '</button>';
                     }
                 }
                 
-                adminDiv.innerHTML = `
-                    <div class="flex-1">
-                        <div class="flex items-center flex-wrap">
-                            <span class="font-medium">${admin.username}</span>
-                            ${permissionStatus}
-                            ${passwordDisplay}
-                            ${actionButtons}
-                        </div>
-                        ${admin.created_by ? `<div class="text-xs text-gray-500 mt-1">由 ${admin.created_by} 创建</div>` : ''}
-                    </div>
-                    <div class="text-xs text-gray-500">
-                        积分: ${admin.score} | 胜场: ${admin.wins} | 对局: ${admin.games}
-                    </div>
-                `;
+                adminDiv.innerHTML = '<div class="flex-1"><div class="flex items-center flex-wrap"><span class="font-medium">' + admin.username + '</span>' + permissionStatus + actionButtons + '</div>' + (admin.created_by ? '<div class="text-xs text-gray-500 mt-1">由 ' + admin.created_by + ' 创建</div>' : '') + '</div><div class="text-xs text-gray-500">积分: ' + admin.score + ' | 胜场: ' + admin.wins + ' | 对局: ' + admin.games + '</div>';
                 adminListDiv.appendChild(adminDiv);
-        });
+            });
+            
+            G.renderAdminPermissionsTable(admins);
         } catch (error) {
             console.error('加载管理员列表失败:', error);
             document.getElementById('adminList').innerHTML = '<div class="text-red-500 text-sm">加载失败</div>';
+        }
+    }
+
+    // 渲染管理员权限设置表格（仅超级管理员可见）
+    G.renderAdminPermissionsTable = function(admins) {
+        const tableDiv = document.getElementById('adminPermissionsTable');
+        const tbody = document.getElementById('adminPermissionsBody');
+        if (!tableDiv || !tbody) return;
+        
+        const regularAdmins = admins.filter(function(a) { return a.isAdmin && !a.isSuperAdmin; });
+        
+        if (regularAdmins.length === 0) {
+            tableDiv.classList.add('hidden');
+            return;
+        }
+        
+        tableDiv.classList.remove('hidden');
+        
+        const permFields = [
+            { key: 'canBanUser', label: '封禁用户' },
+            { key: 'canKickUser', label: '强制登出' },
+            { key: 'canDeleteUser', label: '注销用户' },
+            { key: 'canChangePassword', label: '修改密码' },
+            { key: 'canModifyScore', label: '修改积分' },
+            { key: 'canSetPasswordFree', label: '免密登录' },
+            { key: 'canMonitorMatches', label: '对局监控' },
+            { key: 'canManageMatches', label: '对局管理' }
+        ];
+        
+        tbody.innerHTML = regularAdmins.map(function(admin) {
+            var perms = admin.permissions || {};
+            var row = '<tr class="border-b hover:bg-gray-50"><td class="border px-3 py-2 font-medium">' + admin.username + '</td>';
+            permFields.forEach(function(pf) {
+                var enabled = perms[pf.key] !== false;
+                var cls = enabled ? 'bg-green-100 text-green-800 border-green-300 hover:bg-green-200' : 'bg-red-100 text-red-800 border-red-300 hover:bg-red-200';
+                row += '<td class="border px-2 py-2 text-center"><button class="text-xs px-2 py-1 rounded border cursor-pointer ' + cls + '" data-username="' + admin.username + '" data-permission="' + pf.key + '" data-value="' + (!enabled) + '">' + (enabled ? '✓ 启用' : '✗ 禁用') + '</button></td>';
+            });
+            row += '</tr>';
+            return row;
+        }).join('');
+        
+        tbody.querySelectorAll('button[data-permission]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var username = this.dataset.username;
+                var permission = this.dataset.permission;
+                var value = this.dataset.value === 'true';
+                G.toggleAdminPermissionDetail(username, permission, value);
+            });
+        });
+    }
+
+    // 切换单个细粒度权限
+    G.toggleAdminPermissionDetail = async function(username, permission, value) {
+        try {
+            var perms = {};
+            perms[permission] = value;
+            var data = await G.apiCall('/api/admin/set_permissions', 'POST', {
+                username: username,
+                permissions: perms
+            });
+            G.showToast(data.message);
+            G.loadAdminList();
+            G.loadAdminUsers();
+        } catch (error) {
+            G.showToast('设置权限失败: ' + error.message, true);
         }
     }
 
@@ -1532,7 +1975,7 @@
         grid.innerHTML = '';
         // 无背景选项
         var noneDiv = document.createElement('div');
-        noneDiv.className = 'border-2 rounded cursor-pointer hover:border-primary p-2 text-center text-xs flex items-center justify-center h-16 ' + 
+        noneDiv.className = 'border-2 rounded cursor-pointer hover:border-primary p-2 text-center text-xs flex items-center justify-center h-24 ' + 
             (G.selectedBackground === '' || G.selectedBackground === 'none' ? 'border-primary bg-primary/10' : 'border-gray-300');
         noneDiv.textContent = '无背景';
         noneDiv.addEventListener('click', function() {
@@ -1546,7 +1989,7 @@
         if (G.availableBackgrounds && G.availableBackgrounds.length > 0) {
             G.availableBackgrounds.forEach(function(bg) {
                 var div = document.createElement('div');
-                div.className = 'border-2 rounded cursor-pointer hover:border-primary overflow-hidden h-16 ' + 
+                div.className = 'border-2 rounded cursor-pointer hover:border-primary overflow-hidden h-24 ' + 
                     (G.selectedBackground === bg ? 'border-primary' : 'border-gray-300');
                 var img = document.createElement('img');
                 img.src = bg;

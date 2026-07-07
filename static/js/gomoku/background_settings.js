@@ -96,9 +96,13 @@
         G.selectedBackground = bg || '';
         var canvas = document.getElementById('gameCanvas');
         var onlineCanvas = document.getElementById('onlineCanvas');
+        var bgPath = G.selectedBackground;
+        if (bgPath && !bgPath.startsWith('data:') && !bgPath.startsWith('/')) {
+            bgPath = '/' + bgPath;
+        }
         if (canvas) {
-            if (G.selectedBackground && G.selectedBackground !== 'none') {
-                canvas.style.backgroundImage = 'url(' + G.selectedBackground + ')';
+            if (bgPath && bgPath !== 'none') {
+                canvas.style.backgroundImage = 'url(' + bgPath + ')';
                 canvas.style.backgroundSize = '100% 100%';
                 canvas.style.backgroundRepeat = 'no-repeat';
                 canvas.style.backgroundPosition = 'center';
@@ -110,8 +114,8 @@
             }
         }
         if (onlineCanvas) {
-            if (G.selectedBackground && G.selectedBackground !== 'none') {
-                onlineCanvas.style.backgroundImage = 'url(' + G.selectedBackground + ')';
+            if (bgPath && bgPath !== 'none') {
+                onlineCanvas.style.backgroundImage = 'url(' + bgPath + ')';
                 onlineCanvas.style.backgroundSize = '100% 100%';
                 onlineCanvas.style.backgroundRepeat = 'no-repeat';
                 onlineCanvas.style.backgroundPosition = 'center';
@@ -129,6 +133,10 @@
         var grid = document.getElementById('backgroundImageGrid');
         if (!grid) return;
         grid.innerHTML = '';
+        var normalizedSelected = G.selectedBackground;
+        if (normalizedSelected && normalizedSelected.startsWith('/')) {
+            normalizedSelected = normalizedSelected.substring(1);
+        }
         // 无背景选项
         var noneDiv = document.createElement('div');
         noneDiv.className = 'border-2 rounded cursor-pointer hover:border-primary p-2 text-center text-xs flex items-center justify-center h-24 ' +
@@ -144,11 +152,12 @@
         // 背景图片缩略图
         if (G.availableBackgrounds && G.availableBackgrounds.length > 0) {
             G.availableBackgrounds.forEach(function(bg) {
+                var normalizedBg = bg.startsWith('/') ? bg.substring(1) : bg;
                 var div = document.createElement('div');
                 div.className = 'border-2 rounded cursor-pointer hover:border-primary overflow-hidden h-24 ' +
-                    (G.selectedBackground === bg ? 'border-primary' : 'border-gray-300');
+                    (normalizedSelected === normalizedBg ? 'border-primary' : 'border-gray-300');
                 var img = document.createElement('img');
-                img.src = bg;
+                img.src = bg.startsWith('/') ? bg : '/' + bg;
                 img.className = 'w-full h-full object-cover';
                 img.alt = '背景';
                 img.onerror = function() {

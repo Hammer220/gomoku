@@ -12,6 +12,23 @@
         try {
             const data = await G.apiCall('/api/statistics');
             G.historyAllRecords = data.records || [];
+
+            const userFilterEl = document.getElementById('historyUserFilter');
+            if (userFilterEl) {
+                const usernames = new Set();
+                G.historyAllRecords.forEach(r => {
+                    if (r.player) usernames.add(r.player);
+                    if (r.opponent) usernames.add(r.opponent);
+                });
+                const sortedUsernames = Array.from(usernames).sort();
+                userFilterEl.innerHTML = '<option value="self">自己</option><option value="all">所有人</option>';
+                sortedUsernames.forEach(u => {
+                    if (u !== G.currentUser.username) {
+                        userFilterEl.innerHTML += `<option value="${G.escapeHtml(u)}">${G.escapeHtml(u)}</option>`;
+                    }
+                });
+            }
+
             G.renderHistory();
         } catch(e) {
             console.error('加载游戏记录失败', e);
@@ -22,12 +39,20 @@
     G.renderHistory = function(){
         const modeFilter = document.getElementById('historyModeFilter').value;
         const resultFilter = document.getElementById('historyResultFilter').value;
+        const userFilter = document.getElementById('historyUserFilter') ? document.getElementById('historyUserFilter').value : 'self';
         let filtered = G.historyAllRecords;
+
+        if (userFilter === 'self') {
+            filtered = filtered.filter(r => r.player === G.currentUser.username || r.opponent === G.currentUser.username);
+        } else if (userFilter !== 'all') {
+            filtered = filtered.filter(r => r.player === userFilter || r.opponent === userFilter);
+        }
+
         if (modeFilter !== 'all') {
             filtered = filtered.filter(r => r.mode === modeFilter);
         }
         if (resultFilter !== 'all') {
-            filtered = filtered.filter(r => r.resultKey === resultFilter || 
+            filtered = filtered.filter(r => r.resultKey === resultFilter ||
                 (resultFilter === 'win' && r.result === '胜利') ||
                 (resultFilter === 'lose' && r.result === '失败') ||
                 (resultFilter === 'draw' && r.result === '平局'));

@@ -173,9 +173,8 @@
         try {
             const data = await G.apiCall('/api/admin/users', 'GET');
             const adminListDiv = document.getElementById('adminList');
-            const isSuperAdmin = G.currentUser && G.currentUser.isSuperAdmin;
 
-            const admins = (data.users || []).filter(function(u) { return u.isAdmin || u.isSuperAdmin; });
+            const admins = (data.users || []).filter(function(u) { return u.isAdmin || u.isSuperAdmin; }).sort(function(a, b) { return a.username.localeCompare(b.username); });
 
             if (admins.length === 0) {
                 adminListDiv.innerHTML = '<div class="text-gray-500 text-sm">暂无管理员账号</div>';
@@ -204,15 +203,60 @@
                         <span class="font-medium">${admin.username}</span>
                         ${permissionStatus}
                     </div>
-                    <button class="bg-blue-500 text-white px-3 py-1 rounded-lg text-xs select-admin-btn" data-username="${admin.username}">设置权限</button>
                 `;
                 adminListDiv.appendChild(adminDiv);
             });
 
-            adminListDiv.querySelectorAll('.select-admin-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    G.selectAdminForPermissions(btn.dataset.username);
+            const permKeys = [
+                'canBanUser', 'canKickUser', 'canDeleteUser',
+                'canChangePassword', 'canModifyScore', 'canSetPasswordFree',
+                'canMonitorMatches', 'canManageMatches'
+            ];
+
+            const tbody = document.getElementById('adminPermissionsBody');
+            tbody.innerHTML = '';
+
+            admins.forEach(function(admin) {
+                const perms = admin.permissions || {};
+                const tr = document.createElement('tr');
+
+                const nameTd = document.createElement('td');
+                nameTd.className = 'border px-3 py-2 font-medium';
+                if (admin.isSuperAdmin) {
+                    nameTd.innerHTML = G.escapeHtml(admin.username) + ' <span class="text-xs text-red-500">(超管)</span>';
+                } else {
+                    nameTd.textContent = admin.username;
+                }
+                tr.appendChild(nameTd);
+
+                permKeys.forEach(function(key) {
+                    const td = document.createElement('td');
+                    td.className = 'border px-3 py-2 text-center';
+
+                    if (admin.isSuperAdmin) {
+                        td.innerHTML = '<span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">启用</span>';
+                    } else {
+                        const enabled = !!perms[key];
+                        const badge = document.createElement('span');
+                        badge.className = 'inline-block px-2 py-0.5 rounded text-xs font-medium cursor-pointer select-none perm-toggle-badge';
+                        badge.dataset.username = admin.username;
+                        badge.dataset.perm = key;
+
+                        if (enabled) {
+                            badge.className += ' bg-green-100 text-green-700';
+                            badge.textContent = '启用';
+                        } else {
+                            badge.className += ' bg-red-100 text-red-700';
+                            badge.textContent = '禁用';
+                        }
+
+                        td.appendChild(badge);
+                    }
+
+                    tr.appendChild(td);
                 });
+
+                tbody.appendChild(tr);
             });
 
             document.getElementById('adminPermissionsTable').classList.remove('hidden');
@@ -221,56 +265,28 @@
         }
     };
 
-    G.selectAdminForPermissions = function(username) {
+    G.toggleAdminPermission = async function(username, permKey) {
+        if (!G.currentUser || !G.currentUser.isSuperAdmin) return;
+
         const user = G.adminAllUsers.find(u => u.username === username);
         if (!user) return;
 
-        const container = document.getElementById('adminPermissionsContainer');
-        container.innerHTML = '';
-
-        const permissions = user.permissions || {};
-
-        const permDefs = [
-            { key: 'canBanUser', label: '封禁/解封用户' },
-            { key: 'canKickUser', label: '强制下线用户' },
-            { key: 'canDeleteUser', label: '删除用户' },
-            { key: 'canChangePassword', label: '修改用户密码' },
-            { key: 'canModifyScore', label: '修改用户积分' },
-            { key: 'canSetPasswordFree', label: '设置免密登录' },
-            { key: 'canMonitorMatches', label: '监控联机对局' },
-            { key: 'canManageMatches', label: '强制操作对局' }
-        ];
-
-        permDefs.forEach(p => {
-            const checked = permissions[p.key] ? 'checked' : '';
-            container.innerHTML += `
-                <label class="flex items-center space-x-2">
-                    <input type="checkbox" class="admin-perm-checkbox" data-key="${p.key}" ${checked}>
-                    <span>${p.label}</span>
-                </label>
-            `;
-        });
-
-        G.currentSelectedAdmin = username;
-    };
-
-    G.saveAdminPermissions = async function() {
-        if (!G.currentSelectedAdmin || !G.currentUser || !G.currentUser.isSuperAdmin) return;
-
-        const perms = {};
-        document.querySelectorAll('.admin-perm-checkbox').forEach(cb => {
-            perms[cb.dataset.key] = cb.checked;
-        });
+        const perms = user.permissions || {};
+        const newValue = !perms[permKey];
 
         try {
             const data = await G.apiCall('/api/admin/set_permissions', 'POST', {
-                username: G.currentSelectedAdmin,
-                permissions: perms
+                username: username,
+                permissions: { [permKey]: newValue }
             });
-            G.showToast(data.message);
+
+            if (user.permissions) {
+                user.permissions[permKey] = newValue;
+            }
+
             G.loadAdminList();
         } catch (error) {
-            G.showToast('保存权限失败: ' + error.message, true);
+            G.showToast('权限修改失败: ' + error.message, true);
         }
     };
 
@@ -289,11 +305,11 @@
         if (target.id === 'exportRecordsBtn' || target.closest('#exportRecordsBtn')) {
             G.exportRecords();
         }
-        if (target.id === 'saveAdminPermissionsBtn' || target.closest('#saveAdminPermissionsBtn')) {
-            G.saveAdminPermissions();
-        }
         if (target.id === 'refreshLeaderboardBtn' || target.closest('#refreshLeaderboardBtn')) {
             G.loadLeaderboard();
+        }
+        if (target.classList.contains('perm-toggle-badge')) {
+            G.toggleAdminPermission(target.dataset.username, target.dataset.perm);
         }
     });
 

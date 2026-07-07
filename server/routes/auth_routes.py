@@ -269,7 +269,6 @@ def login_password_free():
 
         if max_attempts > 0:
             user['passwordFreeRemainingAttempts'] = remaining - 1
-            save_user(username, user)
 
         user['lastLogin'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         save_user(username, user)

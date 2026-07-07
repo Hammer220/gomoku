@@ -204,11 +204,21 @@ def admin_set_password_free(admin_user):
 
         user['passwordFree'] = password_free
         if password_free:
-            user['passwordFreeMaxAttempts'] = max_attempts
-            user['passwordFreeRemainingAttempts'] = max_attempts
+            old_max = user.get('passwordFreeMaxAttempts', 0)
+            old_remaining = user.get('passwordFreeRemainingAttempts', 0)
+            if max_attempts > 0:
+                user['passwordFreeMaxAttempts'] = max_attempts
+                if max_attempts != old_max and old_max > 0:
+                    diff = max_attempts - old_max
+                    new_remaining = old_remaining + diff
+                    user['passwordFreeRemainingAttempts'] = max(0, min(new_remaining, max_attempts))
+                else:
+                    user['passwordFreeRemainingAttempts'] = max_attempts
+            else:
+                user['passwordFreeMaxAttempts'] = old_max
+                user['passwordFreeRemainingAttempts'] = old_remaining
         else:
-            user['passwordFreeMaxAttempts'] = 0
-            user['passwordFreeRemainingAttempts'] = 0
+            pass
 
         save_user(username, user)
         logger.info(f'管理员 {admin_user["username"]} 设置 {username} 的免密登录: {password_free}')

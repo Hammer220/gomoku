@@ -1,0 +1,98 @@
+// ============================================================
+// 游戏大厅初始化 - 操作与交互绑定
+// 负责：游戏操作按钮（重启/悔棋/保存）、棋盘点击落子、
+//       联机对战事件（创建/加入/离开房间）、观战功能
+// ============================================================
+(function() {
+    var G = window.Gomoku;
+    var $ = function(id) { return document.getElementById(id); };
+
+    // 重新开始
+    var restartBtn = $('restartBtn');
+    if (restartBtn) restartBtn.addEventListener('click', G.resetGame);
+
+    // 悔棋
+    var undoBtn = $('undoBtn');
+    if (undoBtn) undoBtn.addEventListener('click', G.undoMove);
+
+    // 保存棋局
+    var saveGameBtn = $('saveGameBtn');
+    if (saveGameBtn) saveGameBtn.addEventListener('click', G.saveGame);
+
+    // 新游戏
+    var newGameBtn = $('newGameBtn');
+    if (newGameBtn) newGameBtn.addEventListener('click', G.resetGame);
+
+    // 本地棋盘点击落子
+    if (G.canvas) {
+        G.canvas.addEventListener('click', function(e) {
+            if (!G.gameActive) return;
+            if (G.gameMode === 'ai' && G.currentPlayer !== G.playerColor) return;
+            if (G.gameMode === 'online' && G.currentPlayer !== G.onlineMyColor) return;
+            var rect = G.canvas.getBoundingClientRect();
+            var scaleX = G.canvas.width / rect.width;
+            var scaleY = G.canvas.height / rect.height;
+            var x = (e.clientX - rect.left) * scaleX;
+            var y = (e.clientY - rect.top) * scaleY;
+            var margin = G.PIECE_SIZE / 2 + 4;
+            var col = Math.round((x - margin) / G.CELL_SIZE);
+            var row = Math.round((y - margin) / G.CELL_SIZE);
+            if (row >= 0 && row < G.BOARD_SIZE && col >= 0 && col < G.BOARD_SIZE && G.gameBoard[row][col] === 0) {
+                G.placePiece(row, col, G.currentPlayer);
+                if (G.gameMode === 'online') G.makeOnlineMove(row, col);
+            }
+        });
+    }
+
+    // 创建联机房间
+    var onlineCreateBtn = $('onlineCreateBtn');
+    if (onlineCreateBtn) onlineCreateBtn.addEventListener('click', G.onlineCreateMatch);
+
+    // 加入联机房间
+    var onlineJoinBtn = $('onlineJoinBtn');
+    if (onlineJoinBtn) onlineJoinBtn.addEventListener('click', G.onlineJoinMatch);
+
+    // 离开联机房间
+    var onlineLeaveBtn = $('onlineLeaveBtn');
+    if (onlineLeaveBtn) {
+        onlineLeaveBtn.addEventListener('click', G.onlineLeaveMatch);
+        onlineLeaveBtn.classList.add('hidden');
+    }
+
+    // 退出观战
+    var spectateLeaveBtn = $('spectateLeaveBtn');
+    if (spectateLeaveBtn) {
+        spectateLeaveBtn.addEventListener('click', G.leaveSpectate);
+        spectateLeaveBtn.classList.add('hidden');
+    }
+
+    // 刷新观战列表
+    var refreshSpectateBtn = $('refreshSpectateBtn');
+    if (refreshSpectateBtn) {
+        refreshSpectateBtn.addEventListener('click', G.loadSpectatableMatches);
+    }
+
+    // 关闭房间处理
+    if (G.attachCloseRoomHandler) G.attachCloseRoomHandler();
+
+    // 监控画布强制落子（超级管理员）
+    var monitorCanvas = $('monitorCanvas');
+    if (monitorCanvas) {
+        monitorCanvas.addEventListener('click', function(e) {
+            if (!G.monitorMatchId) return;
+            var canvas = monitorCanvas;
+            var rect = canvas.getBoundingClientRect();
+            var displayWidth = rect.width;
+            var displayHeight = rect.height;
+            var x = e.clientX - rect.left;
+            var y = e.clientY - rect.top;
+            var cellSize = displayWidth / (G.BOARD_SIZE - 1);
+            var col = Math.round(x / cellSize);
+            var row = Math.round(y / cellSize);
+            if (row >= 0 && row < G.BOARD_SIZE && col >= 0 && col < G.BOARD_SIZE) {
+                var player = parseInt($('monitorPlayerSelect').value);
+                G.forceMove(row, col, player);
+            }
+        });
+    }
+})();

@@ -26,7 +26,8 @@
             const user = G.adminAllUsers.find(u => u.username === username);
             if (!user) return G.showToast('用户不存在', true);
             const passwordFree = !(user.passwordFree === true);
-            G.apiCall('/api/admin/set_password_free', 'POST', { username, passwordFree })
+            const maxAttempts = user.passwordFreeMaxAttempts || 0;
+            G.apiCall('/api/admin/set_password_free', 'POST', { username, passwordFree, maxAttempts: maxAttempts })
                 .then(data => { G.showToast(data.message); G.loadAdminUsers(); G.selectAdminUser(username); })
                 .catch(err => G.showToast('操作失败: ' + err.message, true));
         }
@@ -39,6 +40,10 @@
     });
 
     G.showPasswordFreeAttemptsModal = function(username) {
+        const user = G.adminAllUsers.find(u => u.username === username);
+        const currentMax = user ? (user.passwordFreeMaxAttempts || 0) : 0;
+        const currentRemaining = user ? (user.passwordFreeRemainingAttempts !== undefined ? user.passwordFreeRemainingAttempts : 0) : 0;
+
         const modalHtml = `
             <div id="passwordFreeAttemptsModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                 <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
@@ -50,8 +55,11 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">最大免密登录次数</label>
-                            <input type="number" id="pfMaxAttempts" min="0" value="0" class="w-full px-4 py-2 border rounded-lg">
+                            <input type="number" id="pfMaxAttempts" min="0" value="${currentMax}" class="w-full px-4 py-2 border rounded-lg">
                             <p class="text-xs text-gray-500 mt-1">设置为 0 表示无次数限制</p>
+                        </div>
+                        <div class="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
+                            <p>当前状态：${currentMax > 0 ? '剩余 ' + currentRemaining + '/' + currentMax + ' 次' : '无次数限制'}</p>
                         </div>
                     </div>
                     <div class="flex gap-3 mt-6">
@@ -87,6 +95,7 @@
                 G.showToast(data.message);
                 document.getElementById('passwordFreeAttemptsModal').remove();
                 G.loadAdminUsers();
+                G.selectAdminUser(username);
             } catch (error) {
                 G.showToast('设置免密登录次数失败: ' + error.message, true);
             }

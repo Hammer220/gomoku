@@ -68,6 +68,10 @@
         G.historyCurrentPage = 1;
         G.renderHistory();
     });
+    document.getElementById('historyUserFilter') && document.getElementById('historyUserFilter').addEventListener('change', function() {
+        G.historyCurrentPage = 1;
+        G.renderHistory();
+    });
     document.getElementById('refreshHistoryBtn') && document.getElementById('refreshHistoryBtn').addEventListener('click', function() {
         G.historyCurrentPage = 1;
         G.loadHistory();

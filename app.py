@@ -18,7 +18,8 @@ logger, _ = setup_logging()
 if __name__ == '__main__':
     if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
         init_admin()
-    app = create_app()
-    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        app = create_app()
         logger.info(f'五子棋服务启动在端口 {PORT}')
+    else:
+        app = create_app()
     app.run(host='0.0.0.0', port=PORT, debug=True, threaded=True)

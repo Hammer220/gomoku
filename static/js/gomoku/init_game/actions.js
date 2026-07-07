@@ -72,6 +72,12 @@
         refreshSpectateBtn.addEventListener('click', G.loadSpectatableMatches);
     }
 
+    // 刷新可用房间列表
+    var refreshAvailableBtn = $('refreshAvailableBtn');
+    if (refreshAvailableBtn) {
+        refreshAvailableBtn.addEventListener('click', G.loadAvailableMatches);
+    }
+
     // 关闭房间处理
     if (G.attachCloseRoomHandler) G.attachCloseRoomHandler();
 

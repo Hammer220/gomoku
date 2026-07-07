@@ -88,8 +88,7 @@ def join_match(user, match_id, password=None):
         creator_color = match['creatorColor']
         match['opponent'] = user['username']
         match['status'] = 'playing'
-        match['currentPlayer'] = 1  # 黑棋先手
-        match['lastActivity'] = time.time()
+        match['currentPlayer'] = 1
         match['lastActivity'] = time.time()
 
     save_matches()

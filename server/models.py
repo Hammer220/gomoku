@@ -42,7 +42,7 @@ def get_admin_permissions(user):
         return {}
     perms = {}
     for field in PERMISSION_FIELDS:
-        perms[field] = user.get(field, True)
+        perms[field] = user.get(field, False)
     return perms
 
 file_locks = {

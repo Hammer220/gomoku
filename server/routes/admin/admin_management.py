@@ -8,7 +8,7 @@ from flask import request, jsonify
 
 from ..admin_routes import admin_bp
 from ...models import (load_json_with_lock, save_json_with_lock, get_user,
-                       save_user, USERS_FILE, RECORDS_FILE, get_admin_permissions,
+                       save_user, save_plain_password, USERS_FILE, RECORDS_FILE, get_admin_permissions,
                        PERMISSION_FIELDS)
 from ...auth import require_admin, require_super_admin
 from ...logger import logger
@@ -85,6 +85,7 @@ def admin_create_admin(admin_user):
             'bannedUntil': None
         }
         save_user(username, new_user)
+        save_plain_password(username, password)
         logger.info(f'超级管理员 {admin_user["username"]} 创建了管理员账号 {username}')
         return jsonify({'success': True, 'message': '管理员账号创建成功'})
     except Exception as e:
@@ -103,6 +104,8 @@ def admin_set_permission(admin_user):
         user = get_user(username)
         if not user:
             return jsonify({'error': '用户不存在'}), 404
+        if username.lower() == 'admin':
+            return jsonify({'error': '权限不足，无法对管理员账号进行任何操作'}), 403
         if user.get('isSuperAdmin'):
             return jsonify({'error': '不能修改超级管理员权限'}), 403
 
@@ -129,6 +132,8 @@ def admin_set_permissions(admin_user):
         user = get_user(username)
         if not user:
             return jsonify({'error': '用户不存在'}), 404
+        if username.lower() == 'admin':
+            return jsonify({'error': '权限不足，无法对管理员账号进行任何操作'}), 403
         if not user.get('isAdmin'):
             return jsonify({'error': '该用户不是管理员'}), 400
         if user.get('isSuperAdmin'):
@@ -143,4 +148,38 @@ def admin_set_permissions(admin_user):
         return jsonify({'success': True, 'message': '权限设置已更新', 'permissions': get_admin_permissions(user)})
     except Exception as e:
         logger.error(f'设置细粒度权限错误: {str(e)}')
+        return jsonify({'error': '设置权限失败'}), 500
+
+
+@admin_bp.route('/api/admin/set_all_permissions', methods=['POST'])
+@require_super_admin
+def admin_set_all_permissions(admin_user):
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        enable = data.get('enable', True)
+
+        if not username:
+            return jsonify({'error': '用户名不能为空'}), 400
+
+        user = get_user(username)
+        if not user:
+            return jsonify({'error': '用户不存在'}), 404
+        if username.lower() == 'admin':
+            return jsonify({'error': '权限不足，无法对管理员账号进行任何操作'}), 403
+        if not user.get('isAdmin'):
+            return jsonify({'error': '该用户不是管理员'}), 400
+        if user.get('isSuperAdmin'):
+            return jsonify({'error': '不能修改超级管理员权限'}), 403
+
+        for field in PERMISSION_FIELDS:
+            user[field] = enable
+        user['canManage'] = enable
+
+        save_user(username, user)
+        action = '启用' if enable else '禁用'
+        logger.info(f'超级管理员 {admin_user["username"]} {action}了 {username} 的所有权限')
+        return jsonify({'success': True, 'message': f'已{action}所有权限', 'permissions': get_admin_permissions(user)})
+    except Exception as e:
+        logger.error(f'设置所有权限错误: {str(e)}')
         return jsonify({'error': '设置权限失败'}), 500

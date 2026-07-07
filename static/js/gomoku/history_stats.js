@@ -13,12 +13,19 @@
             const data = await G.apiCall('/api/statistics');
             G.historyAllRecords = data.records || [];
 
+            const isBuiltinUser = (username) => {
+                if (!username) return true;
+                if (username.startsWith('AI')) return true;
+                if (username === '玩家对战') return true;
+                return false;
+            };
+
             const userFilterEl = document.getElementById('historyUserFilter');
             if (userFilterEl) {
                 const usernames = new Set();
                 G.historyAllRecords.forEach(r => {
-                    if (r.player) usernames.add(r.player);
-                    if (r.opponent) usernames.add(r.opponent);
+                    if (r.player && !isBuiltinUser(r.player)) usernames.add(r.player);
+                    if (r.opponent && !isBuiltinUser(r.opponent)) usernames.add(r.opponent);
                 });
                 const sortedUsernames = Array.from(usernames).sort();
                 userFilterEl.innerHTML = '<option value="self">自己</option><option value="all">所有人</option>';

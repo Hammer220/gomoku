@@ -171,7 +171,7 @@
         var col = Math.round(x / cellSize);
         var row = Math.round(y / cellSize);
         if (row >= 0 && row < G.BOARD_SIZE && col >= 0 && col < G.BOARD_SIZE) {
-            G.makeMove(row, col);
+            G.placePiece(row, col, G.currentPlayer);
         }
     });
 

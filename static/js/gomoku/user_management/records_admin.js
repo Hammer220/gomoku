@@ -84,9 +84,21 @@
 
             G.allRecordsData = records;
 
-            const usernames = [...new Set(records.map(r => r.player || '未知'))];
+            const isBuiltinUser = (username) => {
+                if (!username) return true;
+                if (username.startsWith('AI')) return true;
+                if (username === '玩家对战') return true;
+                return false;
+            };
+
+            const usernames = new Set();
+            records.forEach(r => {
+                if (r.player && !isBuiltinUser(r.player)) usernames.add(r.player);
+                if (r.opponent && !isBuiltinUser(r.opponent)) usernames.add(r.opponent);
+            });
+            const sortedUsernames = Array.from(usernames).sort();
             userFilter.innerHTML = '<option value="">所有用户</option>';
-            for (const username of usernames) {
+            for (const username of sortedUsernames) {
                 userFilter.innerHTML += `<option value="${G.escapeHtml(username)}">${G.escapeHtml(username)}</option>`;
             }
 
@@ -105,7 +117,7 @@
             return;
         }
 
-        let filtered = selectedUser ? records.filter(r => r.player === selectedUser) : records;
+        let filtered = selectedUser ? records.filter(r => r.player === selectedUser || r.opponent === selectedUser) : records;
         let totalRecords = filtered.length;
 
         let html = '';
@@ -219,11 +231,14 @@
             admins.forEach(function(admin) {
                 const perms = admin.permissions || {};
                 const tr = document.createElement('tr');
+                const isAdminUser = admin.username.toLowerCase() === 'admin';
 
                 const nameTd = document.createElement('td');
                 nameTd.className = 'border px-3 py-2 font-medium';
                 if (admin.isSuperAdmin) {
                     nameTd.innerHTML = G.escapeHtml(admin.username) + ' <span class="text-xs text-red-500">(超管)</span>';
+                } else if (isAdminUser) {
+                    nameTd.innerHTML = G.escapeHtml(admin.username) + ' <span class="text-xs text-red-500">(内置管理员)</span>';
                 } else {
                     nameTd.textContent = admin.username;
                 }
@@ -235,6 +250,8 @@
 
                     if (admin.isSuperAdmin) {
                         td.innerHTML = '<span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">启用</span>';
+                    } else if (isAdminUser) {
+                        td.innerHTML = '<span class="inline-block px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500 cursor-not-allowed" title="权限不足，无法进行任何操作">-</span>';
                     } else {
                         const enabled = !!perms[key];
                         const badge = document.createElement('span');
@@ -260,6 +277,17 @@
             });
 
             document.getElementById('adminPermissionsTable').classList.remove('hidden');
+
+            const selectEl = document.getElementById('selectAdminForBatchPerm');
+            selectEl.innerHTML = '<option value="">选择管理员...</option>';
+            admins.forEach(function(admin) {
+                if (!admin.isSuperAdmin && admin.username.toLowerCase() !== 'admin') {
+                    const opt = document.createElement('option');
+                    opt.value = admin.username;
+                    opt.textContent = admin.username;
+                    selectEl.appendChild(opt);
+                }
+            });
         } catch (error) {
             console.error('加载管理员列表失败', error);
         }
@@ -267,6 +295,11 @@
 
     G.toggleAdminPermission = async function(username, permKey) {
         if (!G.currentUser || !G.currentUser.isSuperAdmin) return;
+
+        if (username.toLowerCase() === 'admin') {
+            G.showToast('权限不足，无法对管理员账号进行任何操作', true);
+            return;
+        }
 
         const user = G.adminAllUsers.find(u => u.username === username);
         if (!user) return;
@@ -290,6 +323,54 @@
         }
     };
 
+    G.enableAllAdminPermissions = async function() {
+        const username = document.getElementById('selectAdminForBatchPerm').value;
+        if (!username) {
+            G.showToast('请先选择管理员', true);
+            return;
+        }
+
+        if (username.toLowerCase() === 'admin') {
+            G.showToast('权限不足，无法对管理员账号进行任何操作', true);
+            return;
+        }
+
+        try {
+            await G.apiCall('/api/admin/set_all_permissions', 'POST', {
+                username: username,
+                enable: true
+            });
+            G.showToast('已启用所有权限');
+            G.loadAdminList();
+        } catch (error) {
+            G.showToast('操作失败: ' + error.message, true);
+        }
+    };
+
+    G.disableAllAdminPermissions = async function() {
+        const username = document.getElementById('selectAdminForBatchPerm').value;
+        if (!username) {
+            G.showToast('请先选择管理员', true);
+            return;
+        }
+
+        if (username.toLowerCase() === 'admin') {
+            G.showToast('权限不足，无法对管理员账号进行任何操作', true);
+            return;
+        }
+
+        try {
+            await G.apiCall('/api/admin/set_all_permissions', 'POST', {
+                username: username,
+                enable: false
+            });
+            G.showToast('已关闭所有权限');
+            G.loadAdminList();
+        } catch (error) {
+            G.showToast('操作失败: ' + error.message, true);
+        }
+    };
+
     document.addEventListener('click', function(e) {
         const target = e.target;
 
@@ -310,6 +391,12 @@
         }
         if (target.classList.contains('perm-toggle-badge')) {
             G.toggleAdminPermission(target.dataset.username, target.dataset.perm);
+        }
+        if (target.id === 'enableAllPermsBtn' || target.closest('#enableAllPermsBtn')) {
+            G.enableAllAdminPermissions();
+        }
+        if (target.id === 'disableAllPermsBtn' || target.closest('#disableAllPermsBtn')) {
+            G.disableAllAdminPermissions();
         }
     });
 

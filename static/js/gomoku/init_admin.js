@@ -300,6 +300,11 @@ var Gomoku = window.Gomoku || {};
                 G.isLoggedIn = true;
                 // 更新用户信息显示
                 if (G.updateUserDisplay) G.updateUserDisplay();
+                // 额外确保用户名显示（专门处理管理员页面）
+                var userNameDisplay = document.getElementById('userNameDisplay');
+                if (userNameDisplay && G.currentUser && G.currentUser.username) {
+                    userNameDisplay.textContent = G.currentUser.username;
+                }
                 // 检查是否为管理员，非管理员跳转到游戏大厅
                 if (!G.currentUser.isAdmin && !G.currentUser.isSuperAdmin) {
                     window.location.href = '/game';
@@ -341,10 +346,16 @@ var Gomoku = window.Gomoku || {};
             var matchMonitor = $('onlineMatchMonitor');
             if (matchMonitor) matchMonitor.classList.remove('hidden');
             if (G.loadMatchList) G.loadMatchList();
+            // 初始化空棋盘（显示网格线）
+            setTimeout(function() {
+                if (G.drawMonitorBoard) G.drawMonitorBoard();
+            }, 200);
         }
 
         // 开始状态检查
         if (G.startStatusCheck) G.startStatusCheck();
+        // 更新未读消息数
+        if (G.updateUnreadBadge) G.updateUnreadBadge();
 
         // ==================== 页面关闭处理 ====================
 

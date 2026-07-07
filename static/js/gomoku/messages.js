@@ -84,10 +84,6 @@ var Gomoku = window.Gomoku || {};
     };
 
     G.addRecipient = function(username) {
-        if (!G.isAdminUser && G.selectedRecipients.length >= 1) {
-            G.showToast('普通用户只能选择一个收件人', true);
-            return;
-        }
         if (G.selectedRecipients.indexOf(username) === -1) {
             G.selectedRecipients.push(username);
             G.renderRecipientTags();
@@ -299,6 +295,29 @@ var Gomoku = window.Gomoku || {};
         }
     };
 
+    // ==================== 全部标为已读 ====================
+
+    G.markAllAsRead = async function() {
+        var btn = $('markAllReadBtn');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>处理中';
+        }
+        try {
+            await G.apiCall('/api/messages/read-all', 'POST');
+            G.showToast('已全部标记为已读');
+            G.loadInbox();
+            G.updateUnreadBadge();
+        } catch (err) {
+            G.showToast('操作失败: ' + err.message, true);
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-check-double mr-1"></i>全部标为已读';
+            }
+        }
+    };
+
     // ==================== 未读消息数 ====================
 
     G.updateUnreadBadge = async function() {
@@ -327,6 +346,7 @@ var Gomoku = window.Gomoku || {};
         var composeTab = $('composeTab');
         var sendBtn = $('sendMessageBtn');
         var refreshBtn = $('refreshMessagesBtn');
+        var markAllReadBtn = $('markAllReadBtn');
         var backBtn = $('backToListBtn');
         var searchInput = $('recipientSearch');
 
@@ -334,6 +354,7 @@ var Gomoku = window.Gomoku || {};
         if (sentTab) sentTab.addEventListener('click', function() { G.showMessageTab('sent'); });
         if (composeTab) composeTab.addEventListener('click', function() { G.showMessageTab('compose'); });
         if (sendBtn) sendBtn.addEventListener('click', G.sendMessage);
+        if (markAllReadBtn) markAllReadBtn.addEventListener('click', G.markAllAsRead);
         if (refreshBtn) refreshBtn.addEventListener('click', function() {
             if (G.currentMessageTab === 'inbox') G.loadInbox();
             else if (G.currentMessageTab === 'sent') G.loadSent();

@@ -25,7 +25,7 @@ var Gomoku = window.Gomoku || {};
 
     // 根据容器大小计算本地 Canvas 尺寸和格子大小
     G.calcCanvasSize = function() {
-        var container = document.querySelector('.aspect-square');
+        var container = document.querySelector('#gameContent .aspect-square');
         if (!container) return;
         var rect = container.getBoundingClientRect();
         var size = Math.min(rect.width, rect.height);
@@ -53,7 +53,7 @@ var Gomoku = window.Gomoku || {};
 
     // 初始化容器尺寸监听器，当容器大小变化时自动重绘棋盘
     G.initCanvasObserver = function() {
-        var gameContainer = document.querySelector('.aspect-square');
+        var gameContainer = document.querySelector('#gameContent .aspect-square');
         var onlineContainer = document.querySelector('#onlineContent .aspect-square');
         var monitorContainer = document.querySelector('#onlineMatchMonitor .aspect-square');
 
@@ -92,6 +92,8 @@ var Gomoku = window.Gomoku || {};
             G.canvas.height = boardHeight;
         }
         G.ctx.clearRect(0, 0, G.canvas.width, G.canvas.height);
+        G.ctx.fillStyle = '#E6C8A0';
+        G.ctx.fillRect(0, 0, G.canvas.width, G.canvas.height);
         // 绘制网格线
         G.ctx.strokeStyle = G.boardLineColor;
         G.ctx.lineWidth = 2;
@@ -179,6 +181,8 @@ var Gomoku = window.Gomoku || {};
             G.onlineCanvas.height = boardHeight;
         }
         G.onlineCtx.clearRect(0, 0, G.onlineCanvas.width, G.onlineCanvas.height);
+        G.onlineCtx.fillStyle = '#E6C8A0';
+        G.onlineCtx.fillRect(0, 0, G.onlineCanvas.width, G.onlineCanvas.height);
         // 绘制网格线
         G.onlineCtx.strokeStyle = G.boardLineColor;
         G.onlineCtx.lineWidth = 2;
@@ -259,11 +263,11 @@ var Gomoku = window.Gomoku || {};
         var ctx = canvas.getContext('2d');
         ctx.scale(dpr, dpr);
         // 棋盘底色
-        ctx.fillStyle = '#DEB887';
+        ctx.fillStyle = '#E6C8A0';
         ctx.fillRect(0, 0, boardWidth, boardHeight);
         // 网格线
-        ctx.strokeStyle = '#8B4513';
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = G.boardLineColor;
+        ctx.lineWidth = 2;
         for (var i = 0; i < G.BOARD_SIZE; i++) {
             var pos = i * cellSize + margin;
             ctx.beginPath();
@@ -280,7 +284,7 @@ var Gomoku = window.Gomoku || {};
         [[3, 3], [3, 11], [7, 7], [11, 3], [11, 11]].forEach(function(p) {
             ctx.beginPath();
             ctx.arc(p[0] * cellSize + margin, p[1] * cellSize + margin, dotSize, 0, Math.PI * 2);
-            ctx.fillStyle = '#8B5A2B';
+            ctx.fillStyle = G.boardDotColor;
             ctx.fill();
         });
         // 棋子
@@ -434,7 +438,7 @@ var Gomoku = window.Gomoku || {};
 
     // 判断当前模式是否需要检查禁手
     G.shouldCheckForbidden = function() {
-        if (G.gameMode === 'ai') return true;
+        if (G.gameMode === 'ai') return G.aiForbidden;
         if (G.gameMode === 'online') return true;
         if (G.gameMode === 'pvp') return G.pvpForbidden;
         return false;

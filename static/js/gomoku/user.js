@@ -30,7 +30,9 @@ var Gomoku = window.Gomoku || {};
 
     // ==================== 用户状态检查 ====================
 
-    // 定期检查用户状态（封禁、权限变更等）
+    G._lastUnreadCount = -1;
+
+    // 定期检查用户状态（封禁、权限变更、未读消息等）
     G.checkUserStatus = async function() {
         if (!G.isLoggedIn || !G.token) return;
         try {
@@ -65,6 +67,8 @@ var Gomoku = window.Gomoku || {};
                     if (G.loadMatchList) G.loadMatchList();
                 }
             }
+            // 更新未读消息数
+            if (G.updateUnreadBadge) G.updateUnreadBadge();
         } catch (err) {
             var errorStr = err.message || '';
             if (err.status === 403 && (errorStr.includes('封禁') || errorStr.includes('banned'))) {
@@ -154,6 +158,43 @@ var Gomoku = window.Gomoku || {};
             } else {
                 adminNavLink.classList.add('hidden');
             }
+        }
+    };
+
+    // ==================== 消息通知 ====================
+
+    G.showMessageNotification = function(newCount) {
+        var container = document.getElementById('toastContainer');
+        if (!container) return;
+        var toast = document.createElement('div');
+        toast.className = 'toast px-4 py-2 rounded-lg shadow-lg mb-2 bg-blue-100 text-blue-800';
+        toast.innerHTML = '<i class="fa-solid fa-envelope mr-2"></i>您有 ' + newCount + ' 条新消息，<a href="/messages" class="underline font-medium">点击查看</a>';
+        container.appendChild(toast);
+        setTimeout(function() { toast.remove(); }, 5000);
+    };
+
+    G.updateUnreadBadge = async function() {
+        try {
+            var data = await G.apiCall('/api/messages/unread-count');
+            var count = data.unreadCount || 0;
+
+            if (count > G._lastUnreadCount && G._lastUnreadCount >= 0) {
+                var newMsgs = count - G._lastUnreadCount;
+                G.showMessageNotification(newMsgs);
+            }
+            G._lastUnreadCount = count;
+
+            var badge = document.getElementById('unreadBadge');
+            if (badge) {
+                if (count > 0) {
+                    badge.textContent = count;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+        } catch (err) {
+            console.error('获取未读消息数失败:', err);
         }
     };
 

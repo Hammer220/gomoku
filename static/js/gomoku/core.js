@@ -131,7 +131,9 @@ var Gomoku = window.Gomoku || {};
 
     // ==================== 双人对战设置 ====================
 
-    // 是否启用禁手规则
+    // 人机对战是否启用禁手规则
+    G.aiForbidden = true;
+    // 双人对战是否启用禁手规则
     G.pvpForbidden = true;
     // 双人对战单步时间限制（秒，0=无限制）
     G.pvpTimeLimit = 0;

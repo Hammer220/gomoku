@@ -157,6 +157,24 @@ def mark_as_read(user):
         return jsonify({'error': '操作失败'}), 500
 
 
+@message_bp.route('/api/messages/read-all', methods=['POST'])
+@require_auth
+def mark_all_as_read(user):
+    try:
+        username = user['username']
+        data = _get_messages()
+
+        for msg in data['messages']:
+            if username in msg.get('to', []) and username not in msg.get('read_by', []):
+                msg['read_by'].append(username)
+
+        _save_messages(data)
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f'全部标记已读错误: {str(e)}')
+        return jsonify({'error': '操作失败'}), 500
+
+
 @message_bp.route('/api/messages/<message_id>', methods=['DELETE'])
 @require_auth
 def delete_message(user, message_id):

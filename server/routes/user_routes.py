@@ -163,12 +163,15 @@ def add_record(user):
         }
         diff_config = score_config.get(difficulty, score_config['medium'])
 
-        if data.get('result') == 'win':
+        result_key = data.get('resultKey', data.get('result'))
+        result = data.get('result')
+        
+        if result_key == 'win' or result == '胜利':
             user['wins'] = user.get('wins', 0) + 1
         user['games'] = user.get('games', 0) + 1
-        if data.get('result') == 'win':
+        if result_key == 'win' or result == '胜利':
             user['score'] = user.get('score', 0) + diff_config['win']
-        elif data.get('result') == 'lose':
+        elif result_key == 'lose' or result == '失败':
             user['score'] = user.get('score', 0) - diff_config['lose']
         save_user(user['username'], user)
 

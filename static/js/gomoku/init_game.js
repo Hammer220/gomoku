@@ -261,6 +261,19 @@ var Gomoku = window.Gomoku || {};
             onlineLeaveBtn.classList.add('hidden');
         }
 
+        // 退出观战
+        var spectateLeaveBtn = $('spectateLeaveBtn');
+        if (spectateLeaveBtn) {
+            spectateLeaveBtn.addEventListener('click', G.leaveSpectate);
+            spectateLeaveBtn.classList.add('hidden');
+        }
+
+        // 刷新观战列表
+        var refreshSpectateBtn = $('refreshSpectateBtn');
+        if (refreshSpectateBtn) {
+            refreshSpectateBtn.addEventListener('click', G.loadSpectatableMatches);
+        }
+
         // 关闭房间处理
         if (G.attachCloseRoomHandler) G.attachCloseRoomHandler();
 
@@ -688,6 +701,8 @@ var Gomoku = window.Gomoku || {};
                 G.resetGame();
                 // 开始状态检查
                 if (G.startStatusCheck) G.startStatusCheck();
+                // 更新未读消息数
+                if (G.updateUnreadBadge) G.updateUnreadBadge();
                 // 恢复联机对局
                 if (G.recoverOnlineMatch) await G.recoverOnlineMatch();
             } catch (e) {

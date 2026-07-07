@@ -209,6 +209,8 @@ var Gomoku = window.Gomoku || {};
 
         // 开始状态检查
         if (G.startStatusCheck) G.startStatusCheck();
+        // 更新未读消息数
+        if (G.updateUnreadBadge) G.updateUnreadBadge();
 
         // ==================== 页面关闭处理 ====================
 

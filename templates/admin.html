@@ -54,7 +54,7 @@
         <div class="bg-gray-50 border-b flex overflow-x-auto">
             <a href="/game" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">游戏大厅</a>
             <a href="/user" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">个人中心</a>
-            <a href="/messages" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">消息中心</a>
+            <a href="/messages" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">消息中心 <span id="unreadBadge" class="bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 ml-1 hidden">0</span></a>
             <span class="tab-active px-4 md:px-6 py-3 font-medium text-red-600 whitespace-nowrap">管理后台</span>
         </div>
 
@@ -74,7 +74,16 @@
     <script src="/static/js/gomoku/board.js"></script>
     <script src="/static/js/gomoku/game.js"></script>
     <script src="/static/js/gomoku/user.js"></script>
-    <script src="/static/js/gomoku/admin.js"></script>
+    <script src="/static/js/gomoku/messages.js"></script>
+    <script src="/static/js/gomoku/user_management/pagination.js"></script>
+<script src="/static/js/gomoku/user_management/users.js"></script>
+<script src="/static/js/gomoku/user_management/modals.js"></script>
+<script src="/static/js/gomoku/user_management/records_admin.js"></script>
+<script src="/static/js/gomoku/user_management.js"></script>
+    <script src="/static/js/gomoku/match_monitor.js"></script>
+    <script src="/static/js/gomoku/history_stats.js"></script>
+    <script src="/static/js/gomoku/replay.js"></script>
+    <script src="/static/js/gomoku/background_settings.js"></script>
     <script src="/static/js/gomoku/init_admin.js"></script>
 </body>
 </html>

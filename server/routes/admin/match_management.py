@@ -1,0 +1,78 @@
+"""管理后台 - 对局监控路由
+负责：对局列表查看、详情、强制关闭、全部关闭、强制重启、强制落子
+"""
+
+from flask import request, jsonify
+
+from ..admin_routes import admin_bp, require_permission
+from ...auth import require_admin
+from ...match_manager import (
+    get_all_matches, get_match_detail,
+    force_close_match, force_close_all_matches,
+    force_restart_match, force_move
+)
+from ...logger import logger
+
+
+@admin_bp.route('/api/admin/matches', methods=['GET'])
+@require_admin
+@require_permission('canMonitorMatches')
+def admin_get_matches(admin_user):
+    try:
+        return jsonify(get_all_matches())
+    except Exception as e:
+        logger.error(f'获取匹配列表错误: {str(e)}')
+        return jsonify({'error': '获取匹配列表失败'}), 500
+
+
+@admin_bp.route('/api/admin/match/<match_id>', methods=['GET'])
+@require_admin
+@require_permission('canMonitorMatches')
+def admin_get_match(admin_user, match_id):
+    return get_match_detail(match_id)
+
+
+@admin_bp.route('/api/admin/match/<match_id>/close', methods=['POST'])
+@require_admin
+@require_permission('canManageMatches')
+def admin_close_match(admin_user, match_id):
+    logger.info(f'管理员 {admin_user["username"]} 强制关闭房间 {match_id}')
+    return force_close_match(match_id)
+
+
+@admin_bp.route('/api/admin/matches/close-all', methods=['POST'])
+@require_admin
+@require_permission('canManageMatches')
+def admin_close_all_matches(admin_user):
+    logger.info(f'管理员 {admin_user["username"]} 强制关闭所有房间')
+    return force_close_all_matches()
+
+
+@admin_bp.route('/api/admin/match/<match_id>/restart', methods=['POST'])
+@require_admin
+@require_permission('canManageMatches')
+def admin_restart_match(admin_user, match_id):
+    logger.info(f'管理员 {admin_user["username"]} 强制重新开始房间 {match_id}')
+    return force_restart_match(match_id)
+
+
+@admin_bp.route('/api/admin/match/<match_id>/force-move', methods=['POST'])
+@require_admin
+@require_permission('canManageMatches')
+def admin_force_move(admin_user, match_id):
+    try:
+        data = request.get_json()
+        row = data.get('row')
+        col = data.get('col')
+        player = data.get('player')
+
+        if row is None or col is None or player is None:
+            return jsonify({'error': '缺少参数'}), 400
+        if player not in [1, 2]:
+            return jsonify({'error': '玩家编号必须为1或2'}), 400
+
+        logger.info(f'管理员 {admin_user["username"]} 强制落子 房间 {match_id} ({row},{col}) player={player}')
+        return force_move(match_id, row, col, player)
+    except Exception as e:
+        logger.error(f'强制落子错误: {str(e)}')
+        return jsonify({'error': '强制落子失败'}), 500

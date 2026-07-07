@@ -1,7 +1,7 @@
 <!-- 游戏界面 -->
 <div id="gameContent" class="p-4 md:p-6 flex flex-col lg:flex-row gap-6">
     <div class="flex-1">
-        <div class="aspect-square bg-board rounded-lg shadow-lg board-grid relative">
+        <div class="aspect-square bg-board rounded-lg shadow-lg relative">
             <canvas id="gameCanvas" class="w-full h-full cursor-pointer relative" style="z-index: 2;"></canvas>
         </div>
         <div id="gameStatus" class="mt-4 p-3 bg-amber-50 rounded-lg text-center border border-amber-200">
@@ -25,7 +25,7 @@
                 <div id="aiSettings">
                     <div><label class="block text-sm mb-1">你的棋子</label><div class="flex"><button id="playerColorBlack" class="flex-1 py-2 border rounded-l-lg bg-primary text-white">黑棋</button><button id="playerColorWhite" class="flex-1 py-2 border rounded-r-lg">白棋</button></div></div>
                     <div><label class="block text-sm mb-1">AI难度</label><div class="grid grid-cols-3 gap-1"><button id="aiEasy" class="py-2 border rounded-lg">简单</button><button id="aiMedium" class="py-2 border rounded-lg bg-primary text-white">中等</button><button id="aiHard" class="py-2 border rounded-lg">困难</button></div></div>
-                    <div class="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-600"><i class="fa-solid fa-info-circle mr-1"></i>人机对战默认启用禁手规则</div>
+                    <div class="mt-2"><label class="block text-sm mb-1">禁手规则</label><div class="flex items-center gap-2"><input type="checkbox" id="aiForbidden" class="w-4 h-4 rounded" checked><span class="text-sm">启用禁手（三三、四四、长连）</span></div></div>
                 </div>
                 <div id="pvpSettings" class="hidden">
                     <div><label class="block text-sm mb-1">禁手规则</label><div class="flex items-center gap-2"><input type="checkbox" id="pvpForbidden" class="w-4 h-4 rounded" checked><span class="text-sm">启用禁手（三三、四四、长连）</span></div></div>

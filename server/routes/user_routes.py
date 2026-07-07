@@ -73,31 +73,31 @@ def update_profile(user):
 def get_statistics(user):
     try:
         records = load_json_with_lock(RECORDS_FILE)
-        user_records = []
+        all_records = []
         if isinstance(records, dict):
             for record_id, record in records.items():
-                if record.get('player') == user['username'] or record.get('opponent') == user['username']:
-                    record['id'] = record_id
-                    user_records.append(record)
+                record['id'] = record_id
+                all_records.append(record)
         elif isinstance(records, list):
-            for record in records:
-                if record.get('player') == user['username'] or record.get('opponent') == user['username']:
-                    user_records.append(record)
+            all_records = records
 
+        all_records.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
+
+        user_records = [r for r in all_records
+                        if r.get('player') == user['username'] or r.get('opponent') == user['username']]
         total = len(user_records)
         wins = sum(1 for r in user_records if r.get('result') in ('胜利', 'win'))
         losses = sum(1 for r in user_records if r.get('result') in ('失败', 'lose'))
         draws = total - wins - losses
         win_rate = round(wins / total * 100, 1) if total > 0 else 0
 
-        user_records.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
         return jsonify({
             'total': total,
             'wins': wins,
             'losses': losses,
             'draws': draws,
             'winRate': win_rate,
-            'records': user_records[:50]
+            'records': all_records[:200]
         })
     except Exception as e:
         logger.error(f'获取统计错误: {str(e)}')

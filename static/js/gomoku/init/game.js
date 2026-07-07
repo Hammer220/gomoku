@@ -13,7 +13,6 @@
     document.getElementById('historyTab').addEventListener('click', function() { G.showTab('historyContent'); });
     document.getElementById('statsTab').addEventListener('click', function() { G.showTab('statsContent'); });
     document.getElementById('leaderboardTab').addEventListener('click', function() { G.showTab('leaderboardContent'); });
-    document.getElementById('adminTab').addEventListener('click', function() { G.showTab('adminContent'); });
 
     document.getElementById('onlineCreateBtn').addEventListener('click', G.onlineCreateMatch);
     document.getElementById('onlineJoinBtn').addEventListener('click', G.onlineJoinMatch);

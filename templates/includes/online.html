@@ -1,87 +1,91 @@
 <!-- 联机对战页面 -->
-<div id="onlineContent" class="p-4 md:p-6 flex flex-col lg:flex-row gap-6 hidden">
-    <div class="flex-1">
-        <div class="aspect-square bg-board rounded-lg shadow-lg relative">
-            <canvas id="onlineCanvas" class="w-full h-full cursor-pointer relative" style="z-index: 2;"></canvas>
-        </div>
-        <div id="onlineGameStatus" class="mt-4 p-3 bg-amber-50 rounded-lg text-center border border-amber-200">
-            <p id="onlineStatusText" class="text-lg font-medium">等待加入房间...</p>
-            <div class="flex justify-center gap-4 mt-2 text-sm">
-                <span>步数: <span id="onlineMoveCount">0</span></span>
-                <span>时间: <span id="onlineGameTimeDisplay">00:00</span></span>
-                <span>房间号: <span id="onlineMatchIdDisplay">-</span></span>
-            </div>
-            <!-- 计时模式倒计时 -->
-            <div id="timedCountdown" class="mt-2 hidden">
-                <div class="flex justify-center gap-4 text-sm">
-                    <span>黑棋剩余: <span id="blackTimeDisplay" class="font-mono font-bold">10:00</span></span>
-                    <span>白棋剩余: <span id="whiteTimeDisplay" class="font-mono font-bold">10:00</span></span>
+<div id="onlineContent" class="p-4 md:p-6 hidden">
+    <div class="max-w-7xl mx-auto">
+        <div class="flex flex-col lg:flex-row gap-6">
+            <div class="flex-1">
+                <div class="aspect-square bg-board rounded-lg shadow-lg relative">
+                    <canvas id="onlineCanvas" class="w-full h-full cursor-pointer relative" style="z-index: 2;"></canvas>
                 </div>
-                <div id="moveDeadlineBar" class="hidden mt-2 mx-auto w-48 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                    <div id="moveDeadlineFill" class="h-full bg-gradient-to-r from-green-500 to-red-500 rounded-full transition-all duration-1000" style="width: 100%"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="w-full lg:w-80 space-y-4">
-        <div class="bg-white rounded-lg shadow-md p-4">
-            <h3 class="font-semibold mb-3">房间信息</h3>
-            <div id="roomInfo" class="space-y-2 text-sm">
-                <p class="text-gray-500">未加入房间</p>
-            </div>
-            <div id="roomActions" class="mt-3 space-y-2 hidden">
-                <!-- 悔棋/和棋按钮 -->
-                <div id="undoDrawActions" class="hidden flex gap-2">
-                    <button id="requestUndoBtn" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2 rounded-lg text-sm transition-all">悔棋</button>
-                    <button id="requestDrawBtn" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg text-sm transition-all">和棋</button>
-                </div>
-                <button id="closeRoomBtn" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm mt-2">关闭房间</button>
-            </div>
-        </div>
-        <div class="bg-white rounded-lg shadow-md p-4">
-            <h3 class="font-semibold mb-3">房间大厅</h3>
-            <!-- 计时模式选择 -->
-            <div class="mb-3">
-                <label class="text-sm font-medium text-gray-600 block mb-1">计时模式</label>
-                <select id="timeModeSelect" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
-                    <option value="untimed">无计时</option>
-                    <option value="move">每步限时 (30秒)</option>
-                    <option value="total">总时间 (10分钟)</option>
-                    <option value="both">每步限时 + 总时间</option>
-                </select>
-            </div>
-            <!-- 房间设置 -->
-            <div class="mb-3 space-y-2">
-                <label class="flex items-center gap-2 text-sm text-gray-600">
-                    <input type="checkbox" id="allowSpectateCheck" checked class="rounded text-primary">
-                    <span>允许观战</span>
-                </label>
-                <div>
-                    <label class="text-sm font-medium text-gray-600 block mb-1">房间密码（可选）</label>
-                    <input type="text" id="roomPasswordInput" placeholder="留空表示无密码" class="w-full px-3 py-2 border rounded-lg text-sm">
+                <div id="onlineGameStatus" class="mt-4 p-3 bg-amber-50 rounded-lg text-center border border-amber-200">
+                    <p id="onlineStatusText" class="text-lg font-medium">等待加入房间...</p>
+                    <div class="flex justify-center gap-4 mt-2 text-sm">
+                        <span>步数: <span id="onlineMoveCount">0</span></span>
+                        <span>时间: <span id="onlineGameTimeDisplay">00:00</span></span>
+                        <span>房间号: <span id="onlineMatchIdDisplay">-</span></span>
+                    </div>
+                    <!-- 计时模式倒计时 -->
+                    <div id="timedCountdown" class="mt-2 hidden">
+                        <div class="flex justify-center gap-4 text-sm">
+                            <span>黑棋剩余: <span id="blackTimeDisplay" class="font-mono font-bold">10:00</span></span>
+                            <span>白棋剩余: <span id="whiteTimeDisplay" class="font-mono font-bold">10:00</span></span>
+                        </div>
+                        <div id="moveDeadlineBar" class="hidden mt-2 mx-auto w-48 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                            <div id="moveDeadlineFill" class="h-full bg-gradient-to-r from-green-500 to-red-500 rounded-full transition-all duration-1000" style="width: 100%"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <button id="onlineCreateBtn" class="w-full bg-primary hover:bg-primary/90 text-white py-2 rounded-lg mb-3">创建房间</button>
-            <div class="flex gap-2 mb-3">
-                <input type="text" id="onlineMatchIdInput" placeholder="输入房间号" class="flex-1 px-3 py-2 border rounded-lg text-sm">
-                <input type="password" id="joinPasswordInput" placeholder="密码" class="w-20 px-2 py-2 border rounded-lg text-sm">
-                <button id="onlineJoinBtn" class="px-4 bg-primary hover:bg-primary/90 text-white py-2 rounded-lg text-sm">加入</button>
+            <div class="w-full lg:w-96 xl:w-[420px] space-y-4">
+                <div class="bg-white rounded-lg shadow-md p-4">
+                    <h3 class="font-semibold mb-3">房间信息</h3>
+                    <div id="roomInfo" class="space-y-2 text-sm">
+                        <p class="text-gray-500">未加入房间</p>
+                    </div>
+                    <div id="roomActions" class="mt-3 space-y-2 hidden">
+                        <!-- 悔棋/和棋按钮 -->
+                        <div id="undoDrawActions" class="hidden flex gap-2">
+                            <button id="requestUndoBtn" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2 rounded-lg text-sm transition-all">悔棋</button>
+                            <button id="requestDrawBtn" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg text-sm transition-all">和棋</button>
+                        </div>
+                        <button id="closeRoomBtn" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm mt-2">关闭房间</button>
+                    </div>
+                </div>
+                <div class="bg-white rounded-lg shadow-md p-4">
+                    <h3 class="font-semibold mb-3">房间大厅</h3>
+                    <!-- 计时模式选择 -->
+                    <div class="mb-3">
+                        <label class="text-sm font-medium text-gray-600 block mb-1">计时模式</label>
+                        <select id="timeModeSelect" class="w-full px-3 py-2 border rounded-lg text-sm bg-white">
+                            <option value="untimed">无计时</option>
+                            <option value="move">每步限时 (30秒)</option>
+                            <option value="total">总时间 (10分钟)</option>
+                            <option value="both">每步限时 + 总时间</option>
+                        </select>
+                    </div>
+                    <!-- 房间设置 -->
+                    <div class="mb-3 space-y-2">
+                        <label class="flex items-center gap-2 text-sm text-gray-600">
+                            <input type="checkbox" id="allowSpectateCheck" checked class="rounded text-primary">
+                            <span>允许观战</span>
+                        </label>
+                        <div>
+                            <label class="text-sm font-medium text-gray-600 block mb-1">房间密码（可选）</label>
+                            <input type="text" id="roomPasswordInput" placeholder="留空表示无密码" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                    </div>
+                    <button id="onlineCreateBtn" class="w-full bg-primary hover:bg-primary/90 text-white py-2 rounded-lg mb-3">创建房间</button>
+                    <div class="flex gap-2 mb-3">
+                        <input type="text" id="onlineMatchIdInput" placeholder="输入房间号" class="flex-1 min-w-0 px-3 py-2 border rounded-lg text-sm">
+                        <input type="password" id="joinPasswordInput" placeholder="密码" class="w-24 px-2 py-2 border rounded-lg text-sm">
+                        <button id="onlineJoinBtn" class="px-4 bg-primary hover:bg-primary/90 text-white py-2 rounded-lg text-sm">加入</button>
+                    </div>
+                    <div class="border-t pt-3">
+                        <h4 class="text-sm font-medium mb-2">可用房间</h4>
+                        <div id="availableMatchesContainer" class="max-h-48 overflow-y-auto space-y-2"></div>
+                        <button id="refreshAvailableBtn" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm mt-2 transition-all">刷新列表</button>
+                    </div>
+                </div>
+                <!-- 观战面板 -->
+                <div class="bg-white rounded-lg shadow-md p-4">
+                    <h3 class="font-semibold mb-3">观战大厅 <span id="spectateCount" class="text-xs text-gray-400"></span></h3>
+                    <div id="spectatableMatchesContainer" class="max-h-36 overflow-y-auto space-y-2 mb-3"></div>
+                    <button id="refreshSpectateBtn" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm transition-all">刷新列表</button>
+                </div>
+                <div class="bg-white rounded-lg shadow-md p-4">
+                    <button id="onlineLeaveBtn" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg hidden">离开房间</button>
+                    <button id="spectateLeaveBtn" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg hidden">退出观战</button>
+                </div>
             </div>
-            <div class="border-t pt-3">
-                <h4 class="text-sm font-medium mb-2">可用房间</h4>
-                <div id="availableMatchesContainer" class="max-h-48 overflow-y-auto space-y-2"></div>
-                <button id="refreshAvailableBtn" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm mt-2 transition-all">刷新列表</button>
-            </div>
-        </div>
-        <!-- 观战面板 -->
-        <div class="bg-white rounded-lg shadow-md p-4">
-            <h3 class="font-semibold mb-3">观战大厅 <span id="spectateCount" class="text-xs text-gray-400"></span></h3>
-            <div id="spectatableMatchesContainer" class="max-h-36 overflow-y-auto space-y-2 mb-3"></div>
-            <button id="refreshSpectateBtn" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm transition-all">刷新列表</button>
-        </div>
-        <div class="bg-white rounded-lg shadow-md p-4">
-            <button id="onlineLeaveBtn" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg hidden">离开房间</button>
-            <button id="spectateLeaveBtn" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg hidden">退出观战</button>
         </div>
     </div>
 </div>

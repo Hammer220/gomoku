@@ -14,6 +14,21 @@
     G.onlineCanvas = $('onlineCanvas');
     G.onlineCtx = G.onlineCanvas ? G.onlineCanvas.getContext('2d') : null;
 
+    // ==================== 标签页切换 ====================
+
+    var gameTab = $('gameTab');
+    if (gameTab) gameTab.addEventListener('click', function() { G.showTab('gameContent'); });
+    var onlineTab = $('onlineTab');
+    if (onlineTab) onlineTab.addEventListener('click', function() { G.showTab('onlineContent'); });
+    var profileTab = $('profileTab');
+    if (profileTab) profileTab.addEventListener('click', function() { G.showTab('profileContent'); });
+    var historyTab = $('historyTab');
+    if (historyTab) historyTab.addEventListener('click', function() { G.showTab('historyContent'); });
+    var statsTab = $('statsTab');
+    if (statsTab) statsTab.addEventListener('click', function() { G.showTab('statsContent'); });
+    var leaderboardTab = $('leaderboardTab');
+    if (leaderboardTab) leaderboardTab.addEventListener('click', function() { G.showTab('leaderboardContent'); });
+
     // ==================== 密码修改 ====================
 
     var changePasswordBtn = $('changePasswordBtn');

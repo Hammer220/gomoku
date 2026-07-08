@@ -80,6 +80,16 @@ def api_get_match_status_by_id(user, match_id):
         logger.error(f'Status error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
+
+@match_bp.route('/api/match/<match_id>/status', methods=['GET'])
+@require_auth
+def api_get_match_status_by_id_alt(user, match_id):
+    try:
+        return get_match_status(user, match_id)
+    except Exception as e:
+        logger.error(f'Status error for user {user.get("username", "unknown")}: {e}')
+        return jsonify({'error': 'Internal server error'}), 500
+
 @match_bp.route('/api/match/leave', methods=['POST'])
 @require_auth
 def api_leave_match(user):

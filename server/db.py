@@ -1,0 +1,304 @@
+"""SQLite 数据库模块
+负责 SQLite 连接管理、表结构定义、数据迁移和基础 CRUD 操作
+"""
+
+import sqlite3
+import os
+import json
+import time
+
+from .config import SCRIPT_DIR
+from .logger import logger
+
+DB_DIR = os.path.join(SCRIPT_DIR, 'data')
+os.makedirs(DB_DIR, exist_ok=True)
+DB_PATH = os.path.join(DB_DIR, 'gomoku.db')
+
+conn = None
+cursor = None
+
+
+def get_connection():
+    global conn
+    if conn is None:
+        conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+        conn.execute('PRAGMA journal_mode=WAL')
+        conn.execute('PRAGMA synchronous=NORMAL')
+        conn.execute('PRAGMA cache_size=-50000')
+        conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    connection = get_connection()
+    c = connection.cursor()
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            username TEXT PRIMARY KEY,
+            password TEXT NOT NULL,
+            score INTEGER DEFAULT 1000,
+            wins INTEGER DEFAULT 0,
+            games INTEGER DEFAULT 0,
+            join_date TEXT NOT NULL,
+            last_login TEXT DEFAULT '',
+            is_admin INTEGER DEFAULT 0,
+            is_super_admin INTEGER DEFAULT 0,
+            banned_until REAL DEFAULT NULL,
+            can_ban_user INTEGER DEFAULT 0,
+            can_kick_user INTEGER DEFAULT 0,
+            can_delete_user INTEGER DEFAULT 0,
+            can_change_password INTEGER DEFAULT 0,
+            can_modify_score INTEGER DEFAULT 0,
+            can_set_password_free INTEGER DEFAULT 0,
+            can_monitor_matches INTEGER DEFAULT 0,
+            can_manage_matches INTEGER DEFAULT 0,
+            created_at REAL DEFAULT (strftime('%s', 'now')),
+            updated_at REAL DEFAULT (strftime('%s', 'now'))
+        )
+    ''')
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS passwords (
+            username TEXT PRIMARY KEY,
+            password TEXT NOT NULL,
+            created_at REAL DEFAULT (strftime('%s', 'now')),
+            updated_at REAL DEFAULT (strftime('%s', 'now'))
+        )
+    ''')
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS tokens (
+            token TEXT PRIMARY KEY,
+            username TEXT NOT NULL,
+            turnstile_verified INTEGER DEFAULT 1,
+            created_at REAL DEFAULT (strftime('%s', 'now')),
+            FOREIGN KEY (username) REFERENCES users(username)
+        )
+    ''')
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS matches (
+            id TEXT PRIMARY KEY,
+            data TEXT NOT NULL,
+            status TEXT NOT NULL,
+            start_time REAL NOT NULL,
+            last_activity REAL DEFAULT (strftime('%s', 'now')),
+            created_at REAL DEFAULT (strftime('%s', 'now')),
+            updated_at REAL DEFAULT (strftime('%s', 'now'))
+        )
+    ''')
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            player1 TEXT NOT NULL,
+            player2 TEXT NOT NULL,
+            winner TEXT,
+            moves TEXT NOT NULL,
+            board TEXT NOT NULL,
+            time_mode TEXT DEFAULT 'untimed',
+            move_time INTEGER DEFAULT 30,
+            total_time INTEGER DEFAULT 600,
+            start_time REAL NOT NULL,
+            end_time REAL NOT NULL,
+            created_at REAL DEFAULT (strftime('%s', 'now'))
+        )
+    ''')
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS saves (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            match_id TEXT,
+            board TEXT NOT NULL,
+            moves TEXT NOT NULL,
+            current_player INTEGER DEFAULT 1,
+            time_mode TEXT DEFAULT 'untimed',
+            black_time INTEGER DEFAULT 600,
+            white_time INTEGER DEFAULT 600,
+            saved_at REAL DEFAULT (strftime('%s', 'now')),
+            FOREIGN KEY (username) REFERENCES users(username)
+        )
+    ''')
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at REAL DEFAULT (strftime('%s', 'now'))
+        )
+    ''')
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            from_user TEXT NOT NULL,
+            to_user TEXT NOT NULL,
+            content TEXT NOT NULL,
+            timestamp REAL DEFAULT (strftime('%s', 'now')),
+            read INTEGER DEFAULT 0,
+            FOREIGN KEY (from_user) REFERENCES users(username),
+            FOREIGN KEY (to_user) REFERENCES users(username)
+        )
+    ''')
+
+    c.execute('''
+        CREATE INDEX IF NOT EXISTS idx_tokens_username ON tokens(username)
+    ''')
+    c.execute('''
+        CREATE INDEX IF NOT EXISTS idx_matches_status ON matches(status)
+    ''')
+    c.execute('''
+        CREATE INDEX IF NOT EXISTS idx_matches_start_time ON matches(start_time)
+    ''')
+    c.execute('''
+        CREATE INDEX IF NOT EXISTS idx_records_player1 ON records(player1)
+    ''')
+    c.execute('''
+        CREATE INDEX IF NOT EXISTS idx_records_player2 ON records(player2)
+    ''')
+    c.execute('''
+        CREATE INDEX IF NOT EXISTS idx_messages_from_user ON messages(from_user)
+    ''')
+    c.execute('''
+        CREATE INDEX IF NOT EXISTS idx_messages_to_user ON messages(to_user)
+    ''')
+
+    connection.commit()
+    logger.info('SQLite 数据库初始化完成')
+
+
+def migrate_from_json():
+    from .models import (
+        USERS_FILE, PASSWORD_FILE, TOKENS_FILE, RECORDS_FILE,
+        SAVES_FILE, SETTINGS_FILE, MESSAGES_FILE, load_json_with_lock
+    )
+
+    connection = get_connection()
+    c = connection.cursor()
+
+    c.execute('SELECT COUNT(*) FROM users')
+    if c.fetchone()[0] == 0:
+        users = load_json_with_lock(USERS_FILE, {})
+        for username, user in users.items():
+            c.execute('''
+                INSERT OR IGNORE INTO users (
+                    username, password, score, wins, games, join_date, last_login,
+                    is_admin, is_super_admin, banned_until, can_ban_user,
+                    can_kick_user, can_delete_user, can_change_password,
+                    can_modify_score, can_set_password_free, can_monitor_matches,
+                    can_manage_matches
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                username,
+                user.get('password', ''),
+                user.get('score', 1000),
+                user.get('wins', 0),
+                user.get('games', 0),
+                user.get('joinDate', ''),
+                user.get('lastLogin', ''),
+                1 if user.get('isAdmin') else 0,
+                1 if user.get('isSuperAdmin') else 0,
+                user.get('bannedUntil'),
+                1 if user.get('canBanUser') else 0,
+                1 if user.get('canKickUser') else 0,
+                1 if user.get('canDeleteUser') else 0,
+                1 if user.get('canChangePassword') else 0,
+                1 if user.get('canModifyScore') else 0,
+                1 if user.get('canSetPasswordFree') else 0,
+                1 if user.get('canMonitorMatches') else 0,
+                1 if user.get('canManageMatches') else 0
+            ))
+        logger.info(f'迁移 {len(users)} 个用户到数据库')
+
+    c.execute('SELECT COUNT(*) FROM passwords')
+    if c.fetchone()[0] == 0:
+        passwords = load_json_with_lock(PASSWORD_FILE, {})
+        for username, password in passwords.items():
+            c.execute('INSERT OR IGNORE INTO passwords (username, password) VALUES (?, ?)',
+                      (username, password))
+        logger.info(f'迁移 {len(passwords)} 个密码到数据库')
+
+    c.execute('SELECT COUNT(*) FROM tokens')
+    if c.fetchone()[0] == 0:
+        tokens = load_json_with_lock(TOKENS_FILE, {})
+        for token, token_data in tokens.items():
+            if isinstance(token_data, dict):
+                username = token_data.get('username', '')
+                turnstile_verified = 1 if token_data.get('turnstile_verified', True) else 0
+            else:
+                username = token_data
+                turnstile_verified = 1
+            c.execute('INSERT OR IGNORE INTO tokens (token, username, turnstile_verified) VALUES (?, ?, ?)',
+                      (token, username, turnstile_verified))
+        logger.info(f'迁移 {len(tokens)} 个 Token 到数据库')
+
+    c.execute('SELECT COUNT(*) FROM records')
+    if c.fetchone()[0] == 0:
+        records = load_json_with_lock(RECORDS_FILE, {})
+        for record_id, record in records.items():
+            c.execute('''
+                INSERT INTO records (player1, player2, winner, moves, board,
+                    time_mode, move_time, total_time, start_time, end_time)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                record.get('player1', ''),
+                record.get('player2', ''),
+                record.get('winner'),
+                json.dumps(record.get('moves', []), ensure_ascii=False),
+                json.dumps(record.get('board', []), ensure_ascii=False),
+                record.get('timeMode', 'untimed'),
+                record.get('moveTime', 30),
+                record.get('totalTime', 600),
+                record.get('startTime', time.time()),
+                record.get('endTime', time.time())
+            ))
+        logger.info(f'迁移 {len(records)} 条记录到数据库')
+
+    c.execute('SELECT COUNT(*) FROM saves')
+    if c.fetchone()[0] == 0:
+        saves = load_json_with_lock(SAVES_FILE, {})
+        for save_id, save in saves.items():
+            c.execute('''
+                INSERT INTO saves (username, match_id, board, moves, current_player,
+                    time_mode, black_time, white_time)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                save.get('username', ''),
+                save.get('matchId'),
+                json.dumps(save.get('board', []), ensure_ascii=False),
+                json.dumps(save.get('moves', []), ensure_ascii=False),
+                save.get('currentPlayer', 1),
+                save.get('timeMode', 'untimed'),
+                save.get('blackTime', 600),
+                save.get('whiteTime', 600)
+            ))
+        logger.info(f'迁移 {len(saves)} 个存档到数据库')
+
+    c.execute('SELECT COUNT(*) FROM settings')
+    if c.fetchone()[0] == 0:
+        settings = load_json_with_lock(SETTINGS_FILE, {})
+        for key, value in settings.items():
+            c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
+                      (key, json.dumps(value, ensure_ascii=False)))
+        logger.info(f'迁移 {len(settings)} 个设置到数据库')
+
+    c.execute('SELECT COUNT(*) FROM messages')
+    if c.fetchone()[0] == 0:
+        messages = load_json_with_lock(MESSAGES_FILE, {})
+        for msg_id, msg in messages.items():
+            c.execute('''
+                INSERT INTO messages (from_user, to_user, content, timestamp, read)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (
+                msg.get('from', ''),
+                msg.get('to', ''),
+                msg.get('content', ''),
+                msg.get('timestamp', time.time()),
+                1 if msg.get('read') else 0
+            ))
+        logger.info(f'迁移 {len(messages)} 条消息到数据库')
+
+    connection.commit()
+    logger.info('JSON 数据迁移完成')

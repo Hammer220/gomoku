@@ -16,6 +16,10 @@ def create_app():
 
     setup_logging()
 
+    from .db import init_db, migrate_from_json
+    init_db()
+    migrate_from_json()
+
     from .routes import register_routes
     register_routes(app)
 

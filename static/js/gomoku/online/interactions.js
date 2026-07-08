@@ -317,4 +317,6 @@ var Gomoku = window.Gomoku || {};
         }
     };
 
+    G.makeOnlineMove = G.placeOnlinePiece;
+
 })();

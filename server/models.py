@@ -1,13 +1,11 @@
 """数据模型与持久化模块
-提供 JSON 文件读写（带文件锁）、用户 CRUD 操作、密码管理、
-数据文件路径常量定义等基础数据操作。
+提供 SQLite 数据库操作、用户 CRUD 操作、密码管理等基础数据操作。
 """
 
 import os
 import json
 import time
 import threading
-from datetime import datetime
 
 from .config import SCRIPT_DIR
 
@@ -34,8 +32,8 @@ PERMISSION_FIELDS = {
     'canManageMatches': '管理对局',
 }
 
+
 def get_admin_permissions(user):
-    """获取管理员的各项权限，超级管理员默认全部为 True"""
     if user.get('isSuperAdmin'):
         return {field: True for field in PERMISSION_FIELDS}
     if not user.get('isAdmin'):
@@ -44,6 +42,7 @@ def get_admin_permissions(user):
     for field in PERMISSION_FIELDS:
         perms[field] = user.get(field, False)
     return perms
+
 
 file_locks = {
     USERS_FILE: threading.Lock(),
@@ -62,8 +61,10 @@ cache = {
     'matches': {}
 }
 
+
 def get_file_lock(file_path):
     return file_locks.get(file_path, threading.Lock())
+
 
 def load_json_with_lock(file_path, default=None):
     if default is None:
@@ -77,6 +78,7 @@ def load_json_with_lock(file_path, default=None):
                 return json.load(f)
         except (json.JSONDecodeError, IOError):
             return default
+
 
 def save_json_with_lock(file_path, data):
     lock = get_file_lock(file_path)
@@ -92,6 +94,7 @@ def save_json_with_lock(file_path, data):
         except IOError:
             return False
 
+
 def get_cached_data(cache_key, ttl=30):
     now = time.time()
     cache_item = cache.get(cache_key)
@@ -99,12 +102,14 @@ def get_cached_data(cache_key, ttl=30):
         return cache_item['data']
     return None
 
+
 def set_cached_data(cache_key, data, ttl=30):
     cache[cache_key] = {
         'data': data,
         'timestamp': time.time(),
         'ttl': ttl
     }
+
 
 def clear_cache(cache_key=None):
     if cache_key:
@@ -120,11 +125,39 @@ def clear_cache(cache_key=None):
             else:
                 cache[key] = None
 
+
 def load_json(file_path, default=None):
     return load_json_with_lock(file_path, default)
 
+
 def save_json(file_path, data):
     return save_json_with_lock(file_path, data)
+
+
+def _row_to_user(row):
+    if row is None:
+        return None
+    return {
+        'username': row['username'],
+        'password': row['password'],
+        'score': row['score'],
+        'wins': row['wins'],
+        'games': row['games'],
+        'joinDate': row['join_date'],
+        'lastLogin': row['last_login'],
+        'isAdmin': bool(row['is_admin']),
+        'isSuperAdmin': bool(row['is_super_admin']),
+        'bannedUntil': row['banned_until'],
+        'canBanUser': bool(row['can_ban_user']),
+        'canKickUser': bool(row['can_kick_user']),
+        'canDeleteUser': bool(row['can_delete_user']),
+        'canChangePassword': bool(row['can_change_password']),
+        'canModifyScore': bool(row['can_modify_score']),
+        'canSetPasswordFree': bool(row['can_set_password_free']),
+        'canMonitorMatches': bool(row['can_monitor_matches']),
+        'canManageMatches': bool(row['can_manage_matches']),
+    }
+
 
 def get_user(username):
     if username in cache['user_info']:
@@ -140,8 +173,12 @@ def get_user(username):
                 }
             return user_data
 
-    users = load_json_with_lock(USERS_FILE)
-    user_data = users.get(username)
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT * FROM users WHERE username = ?', (username,))
+    row = c.fetchone()
+    user_data = _row_to_user(row)
 
     if user_data and user_data.get('bannedUntil') and time.time() >= user_data['bannedUntil']:
         user_data['bannedUntil'] = None
@@ -155,21 +192,62 @@ def get_user(username):
 
     return user_data
 
+
 def save_user(username, data):
-    users = load_json_with_lock(USERS_FILE)
-    users[username] = data
-    save_json_with_lock(USERS_FILE, users)
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('''
+        INSERT OR REPLACE INTO users (
+            username, password, score, wins, games, join_date, last_login,
+            is_admin, is_super_admin, banned_until, can_ban_user,
+            can_kick_user, can_delete_user, can_change_password,
+            can_modify_score, can_set_password_free, can_monitor_matches,
+            can_manage_matches, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        username,
+        data.get('password', ''),
+        data.get('score', 1000),
+        data.get('wins', 0),
+        data.get('games', 0),
+        data.get('joinDate', ''),
+        data.get('lastLogin', ''),
+        1 if data.get('isAdmin') else 0,
+        1 if data.get('isSuperAdmin') else 0,
+        data.get('bannedUntil'),
+        1 if data.get('canBanUser') else 0,
+        1 if data.get('canKickUser') else 0,
+        1 if data.get('canDeleteUser') else 0,
+        1 if data.get('canChangePassword') else 0,
+        1 if data.get('canModifyScore') else 0,
+        1 if data.get('canSetPasswordFree') else 0,
+        1 if data.get('canMonitorMatches') else 0,
+        1 if data.get('canManageMatches') else 0,
+        time.time()
+    ))
+    conn.commit()
     if username in cache['user_info']:
         del cache['user_info'][username]
 
+
 def save_plain_password(username, password):
-    password_data = load_json_with_lock(PASSWORD_FILE)
-    password_data[username] = password
-    save_json_with_lock(PASSWORD_FILE, password_data)
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('INSERT OR REPLACE INTO passwords (username, password, updated_at) VALUES (?, ?, ?)',
+              (username, password, time.time()))
+    conn.commit()
+
 
 def get_plain_password(username):
-    password_data = load_json_with_lock(PASSWORD_FILE)
-    return password_data.get(username)
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT password FROM passwords WHERE username = ?', (username,))
+    row = c.fetchone()
+    return row['password'] if row else None
+
 
 def get_current_user_from_request(request):
     token = request.headers.get('Authorization', '').replace('Bearer ', '')
@@ -182,63 +260,277 @@ def get_current_user_from_request(request):
         username = token_data.get('username') if isinstance(token_data, dict) else token_data
         user = get_user(username)
         if user:
-            # user['_turnstile_verified'] = token_data.get('turnstile_verified', True) if isinstance(token_data, dict) else True  # 已注释 - 第二层人机认证（Turnstile）
             pass
         return user
 
-    tokens = load_json_with_lock(TOKENS_FILE)
-    token_data = tokens.get(token)
-    if not token_data:
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT username, turnstile_verified FROM tokens WHERE token = ?', (token,))
+    row = c.fetchone()
+
+    if not row:
         return None
 
-    if isinstance(token_data, dict):
-        username = token_data.get('username')
-        # turnstile_verified = token_data.get('turnstile_verified', True)  # 已注释 - 第二层人机认证（Turnstile）
-    else:
-        username = token_data
-        # turnstile_verified = True  # 已注释 - 第二层人机认证（Turnstile）
+    username = row['username']
+    turnstile_verified = bool(row['turnstile_verified'])
+
+    tokens = {}
+    c.execute('SELECT token, username, turnstile_verified FROM tokens')
+    for r in c.fetchall():
+        tokens[r['token']] = {
+            'username': r['username'],
+            'turnstile_verified': bool(r['turnstile_verified'])
+        }
 
     set_cached_data('tokens', tokens.copy(), ttl=10)
 
     user = get_user(username)
     if user:
-        # user['_turnstile_verified'] = turnstile_verified  # 已注释 - 第二层人机认证（Turnstile）
         pass
     return user
+
 
 def init_admin():
     from .logger import logger
     import hashlib
-    users = load_json_with_lock(USERS_FILE)
-    if 'admin' in users:
+    from .db import get_connection
+
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT COUNT(*) FROM users WHERE username = ?', ('admin',))
+    if c.fetchone()[0] > 0:
         logger.info('管理员账号已存在，跳过初始化')
         return
 
     import random
     import string
     admin_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
-    password_data = load_json_with_lock(PASSWORD_FILE)
-    password_data['admin'] = admin_password
-    save_json_with_lock(PASSWORD_FILE, password_data)
+
+    c.execute('INSERT OR REPLACE INTO passwords (username, password) VALUES (?, ?)',
+              ('admin', admin_password))
 
     print(f'管理员账号: admin')
     print(f'管理员密码: {admin_password}')
-    print(f'密码已保存至: {PASSWORD_FILE}')
+    print(f'密码已保存至数据库')
 
-    admin = {
-        'admin': {
-            'username': 'admin',
-            'password': hashlib.sha256(admin_password.encode()).hexdigest(),
-            'score': 1000,
-            'wins': 0,
-            'games': 0,
-            'joinDate': datetime.now().strftime('%Y-%m-%d'),
-            'lastLogin': '',
-            'isAdmin': True,
-            'isSuperAdmin': True,
-            'bannedUntil': None
-        }
-    }
-    users['admin'] = admin['admin']
-    save_json_with_lock(USERS_FILE, users)
+    c.execute('''
+        INSERT INTO users (
+            username, password, score, wins, games, join_date, last_login,
+            is_admin, is_super_admin, banned_until
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        'admin',
+        hashlib.sha256(admin_password.encode()).hexdigest(),
+        1000,
+        0,
+        0,
+        time.strftime('%Y-%m-%d'),
+        '',
+        1,
+        1,
+        None
+    ))
+    conn.commit()
     logger.info('管理员账户初始化完成')
+
+
+def add_token(token, username):
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('INSERT OR REPLACE INTO tokens (token, username, created_at) VALUES (?, ?, ?)',
+              (token, username, time.time()))
+    conn.commit()
+    clear_cache('tokens')
+
+
+def remove_token(token):
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('DELETE FROM tokens WHERE token = ?', (token,))
+    conn.commit()
+    clear_cache('tokens')
+
+
+def remove_user_tokens(username):
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('DELETE FROM tokens WHERE username = ?', (username,))
+    conn.commit()
+    clear_cache('tokens')
+
+
+def get_users():
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT * FROM users ORDER BY username')
+    rows = c.fetchall()
+    return {row['username']: _row_to_user(row) for row in rows}
+
+
+def delete_user(username):
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('DELETE FROM users WHERE username = ?', (username,))
+    c.execute('DELETE FROM passwords WHERE username = ?', (username,))
+    c.execute('DELETE FROM tokens WHERE username = ?', (username,))
+    conn.commit()
+    if username in cache['user_info']:
+        del cache['user_info'][username]
+
+
+def load_records():
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT * FROM records ORDER BY end_time DESC')
+    rows = c.fetchall()
+    records = {}
+    for row in rows:
+        records[str(row['id'])] = {
+            'id': row['id'],
+            'player1': row['player1'],
+            'player2': row['player2'],
+            'winner': row['winner'],
+            'moves': json.loads(row['moves']),
+            'board': json.loads(row['board']),
+            'timeMode': row['time_mode'],
+            'moveTime': row['move_time'],
+            'totalTime': row['total_time'],
+            'startTime': row['start_time'],
+            'endTime': row['end_time'],
+        }
+    return records
+
+
+def save_record(record):
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO records (player1, player2, winner, moves, board,
+            time_mode, move_time, total_time, start_time, end_time)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        record.get('player1', ''),
+        record.get('player2', ''),
+        record.get('winner'),
+        json.dumps(record.get('moves', []), ensure_ascii=False),
+        json.dumps(record.get('board', []), ensure_ascii=False),
+        record.get('timeMode', 'untimed'),
+        record.get('moveTime', 30),
+        record.get('totalTime', 600),
+        record.get('startTime', time.time()),
+        record.get('endTime', time.time())
+    ))
+    conn.commit()
+
+
+def load_saves():
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT * FROM saves ORDER BY saved_at DESC')
+    rows = c.fetchall()
+    saves = {}
+    for row in rows:
+        saves[str(row['id'])] = {
+            'id': row['id'],
+            'username': row['username'],
+            'matchId': row['match_id'],
+            'board': json.loads(row['board']),
+            'moves': json.loads(row['moves']),
+            'currentPlayer': row['current_player'],
+            'timeMode': row['time_mode'],
+            'blackTime': row['black_time'],
+            'whiteTime': row['white_time'],
+            'savedAt': row['saved_at'],
+        }
+    return saves
+
+
+def save_save(save_data):
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO saves (username, match_id, board, moves, current_player,
+            time_mode, black_time, white_time)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        save_data.get('username', ''),
+        save_data.get('matchId'),
+        json.dumps(save_data.get('board', []), ensure_ascii=False),
+        json.dumps(save_data.get('moves', []), ensure_ascii=False),
+        save_data.get('currentPlayer', 1),
+        save_data.get('timeMode', 'untimed'),
+        save_data.get('blackTime', 600),
+        save_data.get('whiteTime', 600)
+    ))
+    conn.commit()
+
+
+def load_settings():
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT key, value FROM settings')
+    rows = c.fetchall()
+    settings = {}
+    for row in rows:
+        try:
+            settings[row['key']] = json.loads(row['value'])
+        except json.JSONDecodeError:
+            settings[row['key']] = row['value']
+    return settings
+
+
+def save_settings(settings):
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    for key, value in settings.items():
+        c.execute('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)',
+                  (key, json.dumps(value, ensure_ascii=False), time.time()))
+    conn.commit()
+
+
+def load_messages():
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT * FROM messages ORDER BY timestamp DESC')
+    rows = c.fetchall()
+    messages = {}
+    for row in rows:
+        messages[str(row['id'])] = {
+            'id': row['id'],
+            'from': row['from_user'],
+            'to': row['to_user'],
+            'content': row['content'],
+            'timestamp': row['timestamp'],
+            'read': bool(row['read']),
+        }
+    return messages
+
+
+def save_message(message):
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO messages (from_user, to_user, content, timestamp, read)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (
+        message.get('from', ''),
+        message.get('to', ''),
+        message.get('content', ''),
+        message.get('timestamp', time.time()),
+        1 if message.get('read') else 0
+    ))
+    conn.commit()

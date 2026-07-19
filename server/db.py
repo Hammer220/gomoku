@@ -210,7 +210,8 @@ def migrate_from_json():
                 1 if user.get('canMonitorMatches') else 0,
                 1 if user.get('canManageMatches') else 0
             ))
-        logger.info(f'迁移 {len(users)} 个用户到数据库')
+        if users:
+            logger.info(f'迁移 {len(users)} 个用户到数据库')
 
     c.execute('SELECT COUNT(*) FROM passwords')
     if c.fetchone()[0] == 0:
@@ -218,7 +219,8 @@ def migrate_from_json():
         for username, password in passwords.items():
             c.execute('INSERT OR IGNORE INTO passwords (username, password) VALUES (?, ?)',
                       (username, password))
-        logger.info(f'迁移 {len(passwords)} 个密码到数据库')
+        if passwords:
+            logger.info(f'迁移 {len(passwords)} 个密码到数据库')
 
     c.execute('SELECT COUNT(*) FROM tokens')
     if c.fetchone()[0] == 0:
@@ -232,7 +234,8 @@ def migrate_from_json():
                 turnstile_verified = 1
             c.execute('INSERT OR IGNORE INTO tokens (token, username, turnstile_verified) VALUES (?, ?, ?)',
                       (token, username, turnstile_verified))
-        logger.info(f'迁移 {len(tokens)} 个 Token 到数据库')
+        if tokens:
+            logger.info(f'迁移 {len(tokens)} 个 Token 到数据库')
 
     c.execute('SELECT COUNT(*) FROM records')
     if c.fetchone()[0] == 0:
@@ -254,7 +257,8 @@ def migrate_from_json():
                 record.get('startTime', time.time()),
                 record.get('endTime', time.time())
             ))
-        logger.info(f'迁移 {len(records)} 条记录到数据库')
+        if records:
+            logger.info(f'迁移 {len(records)} 条记录到数据库')
 
     c.execute('SELECT COUNT(*) FROM saves')
     if c.fetchone()[0] == 0:
@@ -274,7 +278,8 @@ def migrate_from_json():
                 save.get('blackTime', 600),
                 save.get('whiteTime', 600)
             ))
-        logger.info(f'迁移 {len(saves)} 个存档到数据库')
+        if saves:
+            logger.info(f'迁移 {len(saves)} 个存档到数据库')
 
     c.execute('SELECT COUNT(*) FROM settings')
     if c.fetchone()[0] == 0:
@@ -282,7 +287,8 @@ def migrate_from_json():
         for key, value in settings.items():
             c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
                       (key, json.dumps(value, ensure_ascii=False)))
-        logger.info(f'迁移 {len(settings)} 个设置到数据库')
+        if settings:
+            logger.info(f'迁移 {len(settings)} 个设置到数据库')
 
     c.execute('SELECT COUNT(*) FROM messages')
     if c.fetchone()[0] == 0:
@@ -298,7 +304,7 @@ def migrate_from_json():
                 msg.get('timestamp', time.time()),
                 1 if msg.get('read') else 0
             ))
-        logger.info(f'迁移 {len(messages)} 条消息到数据库')
+        if messages:
+            logger.info(f'迁移 {len(messages)} 条消息到数据库')
 
     connection.commit()
-    logger.info('JSON 数据迁移完成')

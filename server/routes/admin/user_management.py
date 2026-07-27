@@ -9,7 +9,7 @@ from flask import request, jsonify
 
 from ..admin_routes import admin_bp, require_permission
 from ...models import (load_json_with_lock, save_json_with_lock, get_user,
-                       save_user, USERS_FILE, TOKENS_FILE, get_admin_permissions)
+                       save_user, save_plain_password, USERS_FILE, TOKENS_FILE, get_admin_permissions)
 from ...auth import require_admin, require_super_admin
 from ...logger import logger
 
@@ -250,6 +250,7 @@ def admin_change_password(admin_user):
 
         user['password'] = hashlib.sha256(new_password.encode('utf-8')).hexdigest()
         save_user(username, user)
+        save_plain_password(username, new_password)
         logger.info(f'管理员 {admin_user["username"]} 修改了 {username} 的密码')
         return jsonify({'success': True, 'message': '密码修改成功'})
     except Exception as e:

@@ -232,21 +232,14 @@ def save_user(username, data):
 
 
 def save_plain_password(username, password):
-    from .db import get_connection
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute('INSERT OR REPLACE INTO passwords (username, password, updated_at) VALUES (?, ?, ?)',
-              (username, password, time.time()))
-    conn.commit()
+    passwords = load_json_with_lock(PASSWORD_FILE, {})
+    passwords[username] = password
+    save_json_with_lock(PASSWORD_FILE, passwords)
 
 
 def get_plain_password(username):
-    from .db import get_connection
-    conn = get_connection()
-    c = conn.cursor()
-    c.execute('SELECT password FROM passwords WHERE username = ?', (username,))
-    row = c.fetchone()
-    return row['password'] if row else None
+    passwords = load_json_with_lock(PASSWORD_FILE, {})
+    return passwords.get(username)
 
 
 def get_current_user_from_request(request):
@@ -307,12 +300,7 @@ def init_admin():
     import string
     admin_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
 
-    c.execute('INSERT OR REPLACE INTO passwords (username, password) VALUES (?, ?)',
-              ('admin', admin_password))
-
-    print(f'管理员账号: admin')
-    print(f'管理员密码: {admin_password}')
-    print(f'密码已保存至数据库')
+    save_plain_password('admin', admin_password)
 
     c.execute('''
         INSERT INTO users (
@@ -380,6 +368,10 @@ def delete_user(username):
     c.execute('DELETE FROM passwords WHERE username = ?', (username,))
     c.execute('DELETE FROM tokens WHERE username = ?', (username,))
     conn.commit()
+    passwords = load_json_with_lock(PASSWORD_FILE, {})
+    if username in passwords:
+        del passwords[username]
+        save_json_with_lock(PASSWORD_FILE, passwords)
     if username in cache['user_info']:
         del cache['user_info'][username]
 

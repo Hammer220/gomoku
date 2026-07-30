@@ -55,6 +55,7 @@
             <a href="/game" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">游戏大厅</a>
             <a href="/user" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">个人中心</a>
             <a href="/messages" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">消息中心 <span id="unreadBadge" class="bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 ml-1 hidden">0</span></a>
+            <a href="/settings" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap"><i class="fa-solid fa-gear mr-1"></i>设置</a>
             <span class="tab-active px-4 md:px-6 py-3 font-medium text-red-600 whitespace-nowrap">管理后台</span>
         </div>
 
@@ -69,8 +70,11 @@
 
     <div id="toastContainer" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50"></div>
 
+    <script src="/static/js/socket.io.min.js"></script>
     <script src="/static/js/gomoku/core.js"></script>
+    <script src="/static/js/gomoku/i18n.js"></script>
     <script src="/static/js/gomoku/utils.js"></script>
+    <script src="/static/js/gomoku/websocket_manager.js"></script>
     <script src="/static/js/gomoku/board_render.js"></script>
 <script src="/static/js/gomoku/board_rules.js"></script>
     <script src="/static/js/gomoku/game_core.js"></script>

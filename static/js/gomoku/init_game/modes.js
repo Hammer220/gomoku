@@ -31,9 +31,13 @@
     var modeOnline = $('modeOnline');
     if (modeOnline) {
         modeOnline.addEventListener('click', function() {
-            if (!G.currentUser) {
+            if (!G.currentUser && !G.isGuest) {
                 alert('请先登录');
                 G.showTab('loginContent');
+                return;
+            }
+            if (G.isGuest) {
+                G.showToast('访客模式无法使用联机对战功能，请注册账号', true);
                 return;
             }
             G.showTab('onlineContent');

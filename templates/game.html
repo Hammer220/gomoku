@@ -63,14 +63,19 @@
 
         <div class="bg-gray-50 border-b flex overflow-x-auto">
             <span class="tab-active px-4 md:px-6 py-3 font-medium whitespace-nowrap">游戏大厅</span>
-            <a href="/user" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">个人中心</a>
-            <a href="/messages" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">消息中心 <span id="unreadBadge" class="bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 ml-1 hidden">0</span></a>
+            <a href="/user" id="userCenterLink" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">个人中心</a>
+            <a href="/messages" id="messagesLink" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">消息中心 <span id="unreadBadge" class="bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 ml-1 hidden">0</span></a>
+            <a href="/settings" id="settingsLink" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap"><i class="fa-solid fa-gear mr-1"></i>设置</a>
             <a href="/admin" id="adminNavLink" class="px-4 md:px-6 py-3 font-medium text-red-600 hover:text-red-800 whitespace-nowrap hidden">管理后台</a>
         </div>
 
         <div class="bg-gray-50 border-b flex overflow-x-auto">
             <button id="gameTab" class="tab-active px-4 md:px-6 py-3 font-medium whitespace-nowrap">本地对局</button>
             <button id="onlineTab" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">联机对战</button>
+        </div>
+
+        <div id="guestBanner" class="hidden bg-yellow-100 border-b border-yellow-300 p-3 text-center">
+            <p class="text-sm text-yellow-800"><i class="fa-solid fa-info-circle mr-1"></i>访客模式 · 剩余游戏次数: <span id="guestRemainingGames">5</span> 次 · <a href="/login" class="underline font-medium">注册账号</a> 以保存记录</p>
         </div>
 
         {% include 'includes/modals.html' %}
@@ -97,8 +102,11 @@
 
     <div id="toastContainer" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50"></div>
 
+    <script src="/static/js/socket.io.min.js"></script>
     <script src="/static/js/gomoku/core.js"></script>
+    <script src="/static/js/gomoku/i18n.js"></script>
     <script src="/static/js/gomoku/utils.js"></script>
+    <script src="/static/js/gomoku/websocket_manager.js"></script>
     <script src="/static/js/gomoku/board_render.js"></script>
 <script src="/static/js/gomoku/board_rules.js"></script>
     <script src="/static/js/gomoku/ai.js"></script>

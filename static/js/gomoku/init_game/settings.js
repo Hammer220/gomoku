@@ -158,7 +158,40 @@
     // ==================== 退出登录 ====================
 
     var logoutBtn = $('logoutBtn');
-    if (logoutBtn) logoutBtn.addEventListener('click', G.logout);
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', function() {
+            if (G.isGuest) {
+                G.guestLogout();
+            } else {
+                G.logout();
+            }
+        });
+    }
+
+    // ==================== 访客模式初始化 ====================
+
+    if (G.isGuest) {
+        // 隐藏访客不能访问的链接
+        var userCenterLink = $('userCenterLink');
+        var messagesLink = $('messagesLink');
+        var onlineTab = $('onlineTab');
+        var guestBanner = $('guestBanner');
+        var guestRemainingGames = $('guestRemainingGames');
+
+        if (userCenterLink) userCenterLink.classList.add('hidden');
+        if (messagesLink) messagesLink.classList.add('hidden');
+        if (onlineTab) {
+            onlineTab.classList.add('opacity-50', 'cursor-not-allowed');
+            onlineTab.title = '访客模式无法使用联机对战';
+        }
+        if (guestBanner) guestBanner.classList.remove('hidden');
+        if (guestRemainingGames) guestRemainingGames.textContent = G.guestRemainingGames;
+
+        // 更新退出按钮文字
+        if (logoutBtn) {
+            logoutBtn.innerHTML = '<i class="fa-solid fa-right-from-bracket"></i> 退出访客';
+        }
+    }
 
     // ==================== 窗口尺寸变化 ====================
 
@@ -172,7 +205,16 @@
 
     // ==================== 自动登录恢复 ====================
 
-    if (G.token) {
+    // 优先检查访客模式
+    if (G.isGuest) {
+        G.isLoggedIn = true;
+        G.currentUser = { username: '访客', isGuest: true };
+        if (G.updateUserDisplay) G.updateUserDisplay();
+        if (G.loadBoardColorSettings) G.loadBoardColorSettings();
+        if (G.showGameUI) G.showGameUI();
+        G.calcCanvasSize();
+        G.resetGame();
+    } else if (G.token) {
         (async function() {
             try {
                 G.currentUser = await G.apiCall('/api/current_user', 'GET', null, true);

@@ -90,6 +90,7 @@
                 <input type="password" id="password" placeholder="密码" required autocomplete="current-password" class="w-full px-4 py-2.5 sm:py-2 border rounded-lg text-base">
                 <div id="geetestLoginWidget" class="w-full h-12 border rounded cursor-pointer bg-gray-100 flex items-center justify-center text-sm text-gray-500"></div>
                 <button type="submit" class="w-full bg-primary hover:bg-primary/90 active:bg-primary/80 text-white py-3 rounded-lg font-medium transition-colors">登录</button>
+                <button type="button" id="guestLoginBtn" class="w-full bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white py-3 rounded-lg font-medium transition-colors">访客登录（剩余<span id="guestRemainingDisplay">5</span>次）</button>
                 <p class="text-center text-gray-600 text-sm sm:text-base">没有账号? <a href="#" id="showRegister" class="text-primary">立即注册</a></p>
                 <p class="text-center text-gray-500 text-sm"><a href="#" id="showPasswordFreeLogin" class="text-primary hover:underline">免密登录</a></p>
             </form>
@@ -133,8 +134,10 @@
 
     <div id="toastContainer" class="fixed bottom-4 left-1/2 z-50" style="transform: translateX(-50%); -webkit-transform: translateX(-50%);"></div>
 
+    <script src="/static/js/socket.io.min.js"></script>
     <script src="/static/js/gomoku/core.js"></script>
     <script src="/static/js/gomoku/utils.js"></script>
+    <script src="/static/js/gomoku/websocket_manager.js"></script>
     <script src="/static/js/gomoku/captcha.js"></script>
     <script src="/static/js/gomoku/user.js"></script>
     <script src="/static/js/gomoku/init_login.js"></script>

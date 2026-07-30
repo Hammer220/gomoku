@@ -20,6 +20,13 @@ var Gomoku = window.Gomoku || {};
 
         document.getElementById('loginModal').classList.remove('hidden');
 
+        if (G.WebSocketManager) {
+            G.WebSocketManager.init();
+            if (G.initWebSocketPollingIntegration) {
+                G.initWebSocketPollingIntegration();
+            }
+        }
+
         await new Promise(function(resolve) {
             G.initGeetestWidget('geetestLoginWidget', function() {
                 resolve();

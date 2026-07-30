@@ -50,6 +50,11 @@ def register_routes(app):
     def messages_page():
         return render_template('messages.html')
 
+    # 设置页面
+    @app.route('/settings')
+    def settings_page():
+        return render_template('settings.html')
+
     # 404 错误处理：返回登录页面
     @app.errorhandler(404)
     def not_found(e):

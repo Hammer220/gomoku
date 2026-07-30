@@ -10,6 +10,14 @@ var Gomoku = window.Gomoku || {};
 
     // ==================== 初始化入口 ====================
 
+    // 更新访客剩余次数显示
+    G.updateGuestRemainingDisplay = function() {
+        var display = document.getElementById('guestRemainingDisplay');
+        if (display) {
+            display.textContent = G.guestRemainingGames;
+        }
+    };
+
     // 登录页面初始化
     G.init = async function() {
         // 获取 Canvas 引用（登录页可能没有 Canvas，防御性获取）
@@ -23,6 +31,15 @@ var Gomoku = window.Gomoku || {};
             G.onlineCanvas = onlineCanvas;
             G.onlineCtx = onlineCanvas.getContext('2d');
         }
+
+        // 访客登录按钮点击事件
+        var guestLoginBtn = document.getElementById('guestLoginBtn');
+        if (guestLoginBtn) {
+            guestLoginBtn.addEventListener('click', function() {
+                G.loginAsGuest();
+            });
+        }
+        G.updateGuestRemainingDisplay();
 
         // 初始化极验登录验证码
         await new Promise(function(resolve) {
@@ -163,7 +180,11 @@ var Gomoku = window.Gomoku || {};
         // ==================== 自动登录 ====================
 
         // 如果已有 token，尝试自动登录，成功则跳转到游戏大厅
-        if (G.token) {
+        if (G.isGuest) {
+            G.isLoggedIn = true;
+            G.currentUser = { username: '访客', isGuest: true };
+            window.location.href = '/game';
+        } else if (G.token) {
             try {
                 G.currentUser = await G.apiCall('/api/current_user', 'GET', null, true);
                 G.isLoggedIn = true;
@@ -174,6 +195,11 @@ var Gomoku = window.Gomoku || {};
                 G.token = '';
                 localStorage.removeItem('token');
             }
+        }
+
+        // 初始化WebSocket管理器
+        if (G.WebSocketManager) {
+            G.WebSocketManager.init();
         }
     };
 

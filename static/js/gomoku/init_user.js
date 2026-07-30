@@ -37,7 +37,15 @@ var Gomoku = window.Gomoku || {};
         // ==================== 退出按钮 ====================
 
         var logoutBtn = $('logoutBtn');
-        if (logoutBtn) logoutBtn.addEventListener('click', G.logout);
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', function() {
+                if (G.isGuest) {
+                    G.guestLogout();
+                } else {
+                    G.logout();
+                }
+            });
+        }
 
         // ==================== 密码修改 ====================
 
@@ -178,6 +186,12 @@ var Gomoku = window.Gomoku || {};
 
         // ==================== 自动登录 ====================
 
+        // 访客模式不允许访问个人中心，跳转到游戏大厅
+        if (G.isGuest) {
+            window.location.href = '/game';
+            return;
+        }
+
         // 如果已有 token，尝试自动登录
         if (G.token) {
             try {
@@ -222,6 +236,11 @@ var Gomoku = window.Gomoku || {};
 
         // 初始化复盘事件
         if (G.initReplayEvents) G.initReplayEvents();
+
+        // 初始化WebSocket管理器
+        if (G.WebSocketManager) {
+            G.WebSocketManager.init();
+        }
     };
 
     // 启动初始化

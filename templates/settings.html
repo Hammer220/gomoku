@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="settingsPage">五子棋 - 设置</title>
+    <script src="/static/js/tailwind.min.js"></script>
+    <link href="/static/css/font-awesome.min.css" rel="stylesheet">
+    <style>
+        .bg-primary { background-color: #8B5A2B; }
+        .text-primary { color: #8B5A2B; }
+        .border-primary { border-color: #8B5A2B; }
+        .tab-active { border-bottom: 3px solid #8B5A2B; color: #8B5A2B; font-weight: 600; }
+        .toast { animation: fadeIn 0.3s, fadeOut 0.3s 2.7s forwards; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes fadeOut { to { opacity: 0; } }
+        .btn-hover { transition: all 0.2s ease; }
+        .btn-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .lang-option { transition: all 0.2s ease; }
+        .lang-option:hover { transform: translateX(5px); }
+        .lang-option.selected { background-color: #8B5A2B; color: white; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4 font-sans bg-gradient-to-br from-[#f8f0e3] via-[#e8d3b8] to-[#d4b88e] bg-fixed relative">
+
+    <style>
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%238b5a2b' fill-opacity='0.05' fill-rule='evenodd'%3E%3Ccircle cx='3' cy='3' r='1'/%3E%3Ccircle cx='13' cy='13' r='1'/%3E%3C/g%3E%3C/svg%3E");
+            z-index: -1;
+        }
+    </style>
+
+    <div id="settingsContainer" class="max-w-2xl w-full bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="bg-primary text-white p-6 flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold" data-i18n="settings">设置</h1>
+                <p class="text-sm opacity-80" data-i18n="settingsPage">设置页面</p>
+            </div>
+            <div class="flex items-center space-x-4">
+                <a href="/game" id="backToGame" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors">
+                    <i class="fa-solid fa-arrow-left mr-2"></i><span data-i18n="back">返回</span>
+                </a>
+                <button id="logoutBtn" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors">
+                    <i class="fa-solid fa-right-from-bracket mr-2"></i><span data-i18n="logout">退出</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-gray-50 border-b flex overflow-x-auto">
+            <button class="tab-active px-6 py-3 font-medium whitespace-nowrap" data-tab="general">
+                <i class="fa-solid fa-gear mr-2"></i><span data-i18n="generalSettings">通用设置</span>
+            </button>
+            <button class="px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap" data-tab="game">
+                <i class="fa-solid fa-gamepad mr-2"></i><span data-i18n="gameSettings">游戏设置</span>
+            </button>
+            <button class="px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap" data-tab="display">
+                <i class="fa-solid fa-palette mr-2"></i><span data-i18n="displaySettings">显示设置</span>
+            </button>
+        </div>
+
+        <div class="p-6">
+            <div id="generalTab" class="tab-content">
+                <div class="space-y-6">
+                    <div class="bg-gray-50 rounded-xl p-5">
+                        <h3 class="text-lg font-bold text-primary mb-4">
+                            <i class="fa-solid fa-language mr-2"></i><span data-i18n="languageSettings">语言设置</span>
+                        </h3>
+                        <p class="text-gray-600 mb-4" data-i18n="selectLanguage">选择语言</p>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="languageOptions">
+                            <button class="lang-option p-4 border-2 rounded-xl text-center" data-lang="zh-CN">
+                                <div class="text-2xl mb-1">🇨🇳</div>
+                                <div class="font-medium" data-i18n="simplifiedChinese">简体中文</div>
+                            </button>
+                            <button class="lang-option p-4 border-2 rounded-xl text-center" data-lang="zh-TW">
+                                <div class="text-2xl mb-1">🇹🇼</div>
+                                <div class="font-medium" data-i18n="traditionalChinese">繁體中文</div>
+                            </button>
+                            <button class="lang-option p-4 border-2 rounded-xl text-center" data-lang="en">
+                                <div class="text-2xl mb-1">🇺🇸</div>
+                                <div class="font-medium" data-i18n="english">English</div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-xl p-5">
+                        <h3 class="text-lg font-bold text-primary mb-4">
+                            <i class="fa-solid fa-user mr-2"></i><span data-i18n="accountSettings">账号设置</span>
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between p-3 bg-white rounded-lg">
+                                <div>
+                                    <div class="font-medium" data-i18n="username">用户名</div>
+                                    <div id="usernameDisplay" class="text-gray-500 text-sm">-</div>
+                                </div>
+                                <i class="fa-solid fa-check text-green-500"></i>
+                            </div>
+                            <div class="flex items-center justify-between p-3 bg-white rounded-lg">
+                                <div>
+                                    <div class="font-medium" data-i18n="points">积分</div>
+                                    <div id="pointsDisplay" class="text-gray-500 text-sm">-</div>
+                                </div>
+                                <i class="fa-solid fa-star text-yellow-500"></i>
+                            </div>
+                            <div class="flex items-center justify-between p-3 bg-white rounded-lg">
+                                <div>
+                                    <div class="font-medium" data-i18n="wins">胜</div>
+                                    <div id="winsDisplay" class="text-gray-500 text-sm">-</div>
+                                </div>
+                                <i class="fa-solid fa-trophy text-amber-500"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="gameTab" class="tab-content hidden">
+                <div class="space-y-6">
+                    <div class="bg-gray-50 rounded-xl p-5">
+                        <h3 class="text-lg font-bold text-primary mb-4">
+                            <i class="fa-solid fa-robot mr-2"></i><span data-i18n="aiDifficulty">AI难度</span>
+                        </h3>
+                        <div class="grid grid-cols-3 gap-3">
+                            <button id="aiEasyBtn" class="ai-difficulty p-4 border-2 rounded-xl text-center transition-all hover:border-primary" data-difficulty="easy">
+                                <div class="text-2xl mb-1">😊</div>
+                                <div class="font-medium" data-i18n="easy">简单</div>
+                            </button>
+                            <button id="aiMediumBtn" class="ai-difficulty p-4 border-2 border-primary bg-primary/10 rounded-xl text-center transition-all" data-difficulty="medium">
+                                <div class="text-2xl mb-1">🤔</div>
+                                <div class="font-medium" data-i18n="medium">中等</div>
+                            </button>
+                            <button id="aiHardBtn" class="ai-difficulty p-4 border-2 rounded-xl text-center transition-all hover:border-primary" data-difficulty="hard">
+                                <div class="text-2xl mb-1">😈</div>
+                                <div class="font-medium" data-i18n="hard">困难</div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-xl p-5">
+                        <h3 class="text-lg font-bold text-primary mb-4">
+                            <i class="fa-solid fa-ban mr-2"></i><span data-i18n="forbiddenRule">启用禁手规则</span>
+                        </h3>
+                        <label class="flex items-center cursor-pointer">
+                            <div class="relative">
+                                <input type="checkbox" id="forbiddenRuleToggle" class="sr-only" checked>
+                                <div class="block bg-gray-300 w-14 h-8 rounded-full toggle-bg"></div>
+                                <div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform"></div>
+                            </div>
+                            <span class="ml-3 text-gray-700" data-i18n="enabled">启用</span>
+                        </label>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-xl p-5">
+                        <h3 class="text-lg font-bold text-primary mb-4">
+                            <i class="fa-solid fa-clock mr-2"></i><span data-i18n="timeLimit">单步时间限制</span>
+                        </h3>
+                        <div class="flex items-center gap-4">
+                            <input type="range" id="timeLimitSlider" min="0" max="60" step="5" value="0" class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            <span id="timeLimitDisplay" class="text-gray-700 font-medium min-w-[80px] text-right" data-i18n="noLimit">无限制</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="displayTab" class="tab-content hidden">
+                <div class="space-y-6">
+                    <div class="bg-gray-50 rounded-xl p-5">
+                        <h3 class="text-lg font-bold text-primary mb-4">
+                            <i class="fa-solid fa-palette mr-2"></i><span data-i18n="boardColorSettings">棋盘颜色设置</span>
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <label class="text-gray-700" data-i18n="lineColor">线条颜色</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="color" id="boardLineColor" value="#8B5A2B" class="w-10 h-10 rounded cursor-pointer border-0">
+                                    <input type="text" id="boardLineColorText" value="#8B5A2B" class="w-24 px-2 py-1 border rounded text-sm">
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <label class="text-gray-700" data-i18n="dotColor">星位颜色</label>
+                                <div class="flex items-center gap-2">
+                                    <input type="color" id="boardDotColor" value="#8B5A2B" class="w-10 h-10 rounded cursor-pointer border-0">
+                                    <input type="text" id="boardDotColorText" value="#8B5A2B" class="w-24 px-2 py-1 border rounded text-sm">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex gap-3 mt-4">
+                            <button id="saveBoardColorBtn" class="flex-1 bg-primary hover:bg-primary/90 text-white py-2 rounded-lg transition-colors">
+                                <i class="fa-solid fa-save mr-2"></i><span data-i18n="saveSettings">保存设置</span>
+                            </button>
+                            <button id="resetBoardColorBtn" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
+                                <i class="fa-solid fa-rotate-left mr-2"></i><span data-i18n="reset">重置</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-xl p-5">
+                        <h3 class="text-lg font-bold text-primary mb-4">
+                            <i class="fa-solid fa-image mr-2"></i><span data-i18n="backgroundImage">背景图片</span>
+                        </h3>
+                        <div id="backgroundGrid" class="grid grid-cols-4 gap-3 mb-4">
+                        </div>
+                        <button id="loadBackgroundsBtn" class="w-full bg-gray-200 hover:bg-gray-300 py-2 rounded-lg transition-colors">
+                            <i class="fa-solid fa-refresh mr-2"></i><span data-i18n="loadSettings">加载背景</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gray-50 p-4 text-center text-sm text-gray-500 border-t">
+            <span>&copy; 2026 </span><span data-i18n="appName">五子棋</span><span> · </span><span data-i18n="settingsPage">设置页面</span>
+        </div>
+    </div>
+
+    <div id="toastContainer" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50"></div>
+
+    <script src="/static/js/gomoku/core.js"></script>
+    <script src="/static/js/gomoku/i18n.js"></script>
+    <script src="/static/js/gomoku/utils.js"></script>
+    <script src="/static/js/gomoku/background_settings.js"></script>
+    <script src="/static/js/gomoku/init/auth.js"></script>
+    <script>
+    (function() {
+        var G = window.Gomoku;
+        var i18n = G.i18n;
+
+        function updateLanguageSelection() {
+            document.querySelectorAll('.lang-option').forEach(function(btn) {
+                btn.classList.remove('selected', 'border-primary');
+                if (btn.dataset.lang === i18n.currentLang) {
+                    btn.classList.add('selected', 'border-primary');
+                } else {
+                    btn.classList.add('border-gray-200');
+                }
+            });
+        }
+
+        function updateAiDifficultySelection() {
+            document.querySelectorAll('.ai-difficulty').forEach(function(btn) {
+                btn.classList.remove('border-primary', 'bg-primary/10');
+                btn.classList.add('border-gray-200');
+                if (btn.dataset.difficulty === (G.aiDifficulty || 'medium')) {
+                    btn.classList.add('border-primary', 'bg-primary/10');
+                    btn.classList.remove('border-gray-200');
+                }
+            });
+        }
+
+        function updateTimeLimitDisplay() {
+            var value = parseInt(document.getElementById('timeLimitSlider').value);
+            var display = document.getElementById('timeLimitDisplay');
+            if (value === 0) {
+                display.textContent = i18n.t('noLimit');
+            } else {
+                display.textContent = value + ' ' + i18n.t('seconds');
+            }
+        }
+
+        function showToast(message, type) {
+            type = type || 'info';
+            var colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                info: 'bg-blue-500',
+                warning: 'bg-yellow-500'
+            };
+            var toast = document.createElement('div');
+            toast.className = 'toast ' + colors[type] + ' text-white px-6 py-3 rounded-lg shadow-lg mb-2';
+            toast.textContent = message;
+            var container = document.getElementById('toastContainer');
+            container.appendChild(toast);
+            setTimeout(function() {
+                toast.remove();
+            }, 3000);
+        }
+
+        document.querySelectorAll('.lang-option').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var lang = this.dataset.lang;
+                i18n.setLang(lang);
+                updateLanguageSelection();
+                showToast(i18n.t('settingsSaved'), 'success');
+                setTimeout(function() {
+                    location.reload();
+                }, 500);
+            });
+        });
+
+        document.querySelectorAll('[data-tab]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var tabId = this.dataset.tab;
+                document.querySelectorAll('[data-tab]').forEach(function(b) {
+                    b.classList.remove('tab-active');
+                    b.classList.add('text-gray-600');
+                });
+                this.classList.add('tab-active');
+                this.classList.remove('text-gray-600');
+                document.querySelectorAll('.tab-content').forEach(function(content) {
+                    content.classList.add('hidden');
+                });
+                document.getElementById(tabId + 'Tab').classList.remove('hidden');
+            });
+        });
+
+        document.querySelectorAll('.ai-difficulty').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                G.aiDifficulty = this.dataset.difficulty;
+                localStorage.setItem('aiDifficulty', G.aiDifficulty);
+                updateAiDifficultySelection();
+                showToast(i18n.t('settingsSaved'), 'success');
+            });
+        });
+
+        document.getElementById('forbiddenRuleToggle').addEventListener('change', function() {
+            G.aiForbidden = this.checked;
+            localStorage.setItem('aiForbidden', G.aiForbidden ? 'true' : 'false');
+            showToast(i18n.t('settingsSaved'), 'success');
+        });
+
+        var timeLimitSlider = document.getElementById('timeLimitSlider');
+        timeLimitSlider.addEventListener('input', function() {
+            updateTimeLimitDisplay();
+        });
+        timeLimitSlider.addEventListener('change', function() {
+            G.pvpTimeLimit = parseInt(this.value);
+            localStorage.setItem('pvpTimeLimit', G.pvpTimeLimit);
+            showToast(i18n.t('settingsSaved'), 'success');
+        });
+
+        var lineColorInput = document.getElementById('boardLineColor');
+        var lineColorText = document.getElementById('boardLineColorText');
+        var dotColorInput = document.getElementById('boardDotColor');
+        var dotColorText = document.getElementById('boardDotColorText');
+
+        lineColorInput.addEventListener('input', function() {
+            lineColorText.value = this.value;
+        });
+        lineColorText.addEventListener('input', function() {
+            var color = this.value;
+            if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                lineColorInput.value = color;
+            }
+        });
+
+        dotColorInput.addEventListener('input', function() {
+            dotColorText.value = this.value;
+        });
+        dotColorText.addEventListener('input', function() {
+            var color = this.value;
+            if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                dotColorInput.value = color;
+            }
+        });
+
+        document.getElementById('saveBoardColorBtn').addEventListener('click', function() {
+            G.boardLineColor = lineColorInput.value;
+            G.boardDotColor = dotColorInput.value;
+            localStorage.setItem('boardLineColor', G.boardLineColor);
+            localStorage.setItem('boardDotColor', G.boardDotColor);
+            if (G.saveBoardColorSettings) {
+                G.saveBoardColorSettings();
+            }
+            showToast(i18n.t('settingsSaved'), 'success');
+        });
+
+        document.getElementById('resetBoardColorBtn').addEventListener('click', function() {
+            G.boardLineColor = '#8B5A2B';
+            G.boardDotColor = '#8B5A2B';
+            lineColorInput.value = G.boardLineColor;
+            lineColorText.value = G.boardLineColor;
+            dotColorInput.value = G.boardDotColor;
+            dotColorText.value = G.boardDotColor;
+            G.selectedBackground = '';
+            G.applyBackground('');
+            G.renderBackgroundGrid();
+            localStorage.setItem('boardLineColor', G.boardLineColor);
+            localStorage.setItem('boardDotColor', G.boardDotColor);
+            if (G.saveBoardColorSettings) {
+                G.saveBoardColorSettings();
+            }
+            showToast(i18n.t('defaultSettings'), 'info');
+        });
+
+        document.getElementById('loadBackgroundsBtn').addEventListener('click', function() {
+            if (G.loadBackgrounds) {
+                G.loadBackgrounds();
+                showToast(i18n.t('loading'), 'info');
+            }
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', function() {
+            G.token = '';
+            localStorage.removeItem('token');
+            location.href = '/login';
+        });
+
+        async function initSettings() {
+            if (G.token) {
+                try {
+                    G.currentUser = await G.apiCall('/api/current_user', 'GET', null, true);
+                    G.isLoggedIn = true;
+                    document.getElementById('usernameDisplay').textContent = G.currentUser.username || '-';
+                    document.getElementById('pointsDisplay').textContent = G.currentUser.score || 0;
+                    document.getElementById('winsDisplay').textContent = G.currentUser.wins || 0;
+                } catch (e) {
+                    G.token = '';
+                    localStorage.removeItem('token');
+                    location.href = '/login';
+                    return;
+                }
+            } else {
+                location.href = '/login';
+                return;
+            }
+
+            if (G.loadBoardColorSettings) {
+                await G.loadBoardColorSettings();
+            }
+            lineColorInput.value = G.boardLineColor || '#8B5A2B';
+            lineColorText.value = G.boardLineColor || '#8B5A2B';
+            dotColorInput.value = G.boardDotColor || '#8B5A2B';
+            dotColorText.value = G.boardDotColor || '#8B5A2B';
+
+            var savedDifficulty = localStorage.getItem('aiDifficulty');
+            if (savedDifficulty) {
+                G.aiDifficulty = savedDifficulty;
+            }
+            updateAiDifficultySelection();
+
+            var savedForbidden = localStorage.getItem('aiForbidden');
+            if (savedForbidden !== null) {
+                G.aiForbidden = savedForbidden === 'true';
+            }
+            document.getElementById('forbiddenRuleToggle').checked = G.aiForbidden;
+
+            var savedTimeLimit = localStorage.getItem('pvpTimeLimit');
+            if (savedTimeLimit !== null) {
+                G.pvpTimeLimit = parseInt(savedTimeLimit);
+                timeLimitSlider.value = G.pvpTimeLimit;
+            }
+            updateTimeLimitDisplay();
+
+            updateLanguageSelection();
+
+            if (G.loadBackgrounds) {
+                G.loadBackgrounds();
+            }
+        }
+
+        initSettings();
+
+    })();
+    </script>
+</body>
+</html>

@@ -28,6 +28,13 @@ var Gomoku = window.Gomoku || {};
     // 是否已登录
     G.isLoggedIn = false;
 
+    // ==================== 访客模式状态 ====================
+
+    // 是否为访客模式
+    G.isGuest = localStorage.getItem('isGuest') === 'true';
+    // 访客剩余游戏次数
+    G.guestRemainingGames = parseInt(localStorage.getItem('guestRemainingGames')) || 5;
+
     // ==================== 游戏模式 ====================
 
     // 当前游戏模式：'ai' | 'pvp' | 'online'

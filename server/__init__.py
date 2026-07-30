@@ -5,9 +5,12 @@
 import os
 from flask import Flask, send_from_directory
 import secrets
+from flask_socketio import SocketIO, emit, join_room, leave_room
 
 from .config import cfg, SCRIPT_DIR, STATIC_DIR, get_config
 from .logger import setup_logging, logger
+
+socketio = SocketIO()
 
 def create_app():
     app = Flask(__name__, static_folder=STATIC_DIR, static_url_path='/static',
@@ -28,4 +31,64 @@ def create_app():
     if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
         start_cleanup_task()
 
+    socketio.init_app(app, cors_allowed_origins="*", async_mode='threading')
+
+    register_socket_events(socketio)
+
     return app
+
+def register_socket_events(sio):
+    """注册Socket.IO事件处理器"""
+
+    @sio.on('connect')
+    def handle_connect():
+        logger.info('客户端已连接')
+        emit('connected', {'status': 'ok'})
+
+    @sio.on('disconnect')
+    def handle_disconnect():
+        logger.info('客户端已断开')
+
+    @sio.on('join')
+    def handle_join(data):
+        match_id = data.get('match_id')
+        if match_id:
+            join_room(match_id)
+            logger.info(f'客户端加入房间: {match_id}')
+            emit('joined', {'match_id': match_id})
+
+    @sio.on('leave')
+    def handle_leave(data):
+        match_id = data.get('match_id')
+        if match_id:
+            leave_room(match_id)
+            logger.info(f'客户端离开房间: {match_id}')
+            emit('left', {'match_id': match_id})
+
+    @sio.on('match_update')
+    def handle_match_update(data):
+        match_id = data.get('match_id')
+        if match_id:
+            emit('match_updated', data, room=match_id, include_self=False)
+
+    @sio.on('game_move')
+    def handle_game_move(data):
+        match_id = data.get('match_id')
+        if match_id:
+            emit('move_made', data, room=match_id, include_self=False)
+
+    @sio.on('request_undo')
+    def handle_undo_request(data):
+        match_id = data.get('match_id')
+        if match_id:
+            emit('undo_requested', data, room=match_id, include_self=False)
+
+    @sio.on('request_draw')
+    def handle_draw_request(data):
+        match_id = data.get('match_id')
+        if match_id:
+            emit('draw_requested', data, room=match_id, include_self=False)
+
+    @sio.on('heartbeat')
+    def handle_heartbeat(data):
+        emit('heartbeat_ack', data)

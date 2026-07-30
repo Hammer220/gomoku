@@ -215,6 +215,7 @@ var Gomoku = window.Gomoku || {};
         localStorage.setItem('token', G.token);
         G.currentUser = res.user;
         G.isLoggedIn = true;
+        G.resetGuestData();
         G.showToast('欢迎回来，' + G.currentUser.username + '！');
         window.location.href = '/game';
     };
@@ -226,6 +227,7 @@ var Gomoku = window.Gomoku || {};
         localStorage.setItem('token', G.token);
         G.currentUser = res.user;
         G.isLoggedIn = true;
+        G.resetGuestData();
         G.showToast('欢迎回来，' + G.currentUser.username + '！');
         window.location.href = '/game';
     };
@@ -284,6 +286,55 @@ var Gomoku = window.Gomoku || {};
         if (registerModal) registerModal.classList.add('hidden');
         if (loginModal) loginModal.classList.remove('hidden');
         sessionStorage.removeItem('registerFormInteracted');
+    };
+
+    // ==================== 访客登录 ====================
+
+    // 访客登录
+    G.loginAsGuest = function() {
+        if (G.guestRemainingGames <= 0) {
+            G.showToast('访客次数已用完，请注册账号', true);
+            return;
+        }
+        G.isGuest = true;
+        G.isLoggedIn = true;
+        G.currentUser = { username: '访客', isGuest: true };
+        localStorage.setItem('isGuest', 'true');
+        localStorage.setItem('guestRemainingGames', G.guestRemainingGames.toString());
+        G.showToast('欢迎来到五子棋！访客模式剩余 ' + G.guestRemainingGames + ' 次游戏机会');
+        window.location.href = '/game';
+    };
+
+    // 访客使用一次游戏机会
+    G.useGuestGame = function() {
+        if (!G.isGuest) return;
+        G.guestRemainingGames--;
+        localStorage.setItem('guestRemainingGames', G.guestRemainingGames.toString());
+        if (G.guestRemainingGames <= 0) {
+            G.showToast('访客游戏次数已用完，请注册账号', true);
+        }
+    };
+
+    // 重置访客次数（当用户注册并登录后调用）
+    G.resetGuestData = function() {
+        G.isGuest = false;
+        G.guestRemainingGames = 5;
+        localStorage.removeItem('isGuest');
+        localStorage.removeItem('guestRemainingGames');
+    };
+
+    // 访客登出
+    G.guestLogout = function() {
+        G.isGuest = false;
+        G.isLoggedIn = false;
+        G.currentUser = null;
+        G.token = '';
+        localStorage.removeItem('token');
+        localStorage.removeItem('isGuest');
+        localStorage.removeItem('guestRemainingGames');
+        G.gameMode = 'ai';
+        G.showToast('已退出访客模式');
+        setTimeout(function() { window.location.href = '/login'; }, 1500);
     };
 
     // ==================== 登出 ====================

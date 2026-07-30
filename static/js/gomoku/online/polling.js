@@ -1,6 +1,7 @@
 // ============================================================
 // 联机对战模块 - 轮询
 // 负责：后台轮询更新对局状态、自动重连、心跳
+// 已升级：支持WebSocket优先，失败时自动切换轮询
 // ============================================================
 
 var Gomoku = window.Gomoku || {};
@@ -43,7 +44,11 @@ var Gomoku = window.Gomoku || {};
 
     G.sendHeartbeat = async function() {
         try {
-            await G.apiCall('/api/match/heartbeat', 'POST', {});
+            if (G.WebSocketManager && G.WebSocketManager.usingWebSocket) {
+                G.WebSocketManager.sendHeartbeat();
+            } else {
+                await G.apiCall('/api/match/heartbeat', 'POST', {});
+            }
         } catch (e) {
             console.error('心跳发送失败:', e);
         }
@@ -243,6 +248,137 @@ var Gomoku = window.Gomoku || {};
                 G.stopOnlinePolling();
                 G.startOnlinePolling();
             }
+        }
+    };
+
+    G.initWebSocketPollingIntegration = function() {
+        if (!G.WebSocketManager) return;
+
+        G.WebSocketManager.on('match_updated', function(data) {
+            console.log('WebSocket收到游戏更新:', data);
+            G.handleMatchUpdate(data);
+        });
+
+        G.WebSocketManager.on('move_made', function(data) {
+            console.log('WebSocket收到落子:', data);
+            G.handleMoveMade(data);
+        });
+
+        G.WebSocketManager.on('undo_requested', function(data) {
+            console.log('WebSocket收到悔棋请求:', data);
+            if (data.requestedBy !== G.username) {
+                G.showUndoRequestPrompt();
+            }
+        });
+
+        G.WebSocketManager.on('draw_requested', function(data) {
+            console.log('WebSocket收到和棋请求:', data);
+            if (data.requestedBy !== G.username) {
+                G.showDrawRequestPrompt();
+            }
+        });
+
+        G.WebSocketManager.on('joined', function(data) {
+            console.log('WebSocket加入房间成功:', data);
+        });
+
+        G.WebSocketManager.on('left', function(data) {
+            console.log('WebSocket离开房间:', data);
+        });
+
+        G.WebSocketManager.on('disconnected', function() {
+            console.log('WebSocket连接断开，切换到轮询');
+            G.showToast('WebSocket连接断开，切换到轮询模式', true);
+        });
+
+        G.WebSocketManager.on('polling_started', function() {
+            console.log('已切换到轮询模式');
+            G.showToast('已切换到轮询模式');
+        });
+    };
+
+    G.handleMatchUpdate = function(data) {
+        if (!data || !data.match_id) return;
+        if (data.match_id !== G.onlineMatchId) return;
+
+        if (data.status === 'closed' || data.status === 'finished') {
+            G.onlineGameActive = false;
+            G.stopOnlinePolling();
+            G.stopOnlineTimer();
+            G.stopTimedCountdown();
+            G.stopHeartbeat();
+            G.showToast(data.status === 'closed' ? '房间已被关闭' : '对局已结束');
+            G.returnToLobby();
+        }
+    };
+
+    G.handleMoveMade = function(data) {
+        if (!data || !data.match_id) return;
+        if (data.match_id !== G.onlineMatchId) return;
+
+        if (data.board && data.moves) {
+            G.onlineBoard = data.board.map(function(r) { return r.slice(); });
+            G.onlineMoveHistory = data.moves.slice();
+            G.onlineCurrentPlayer = data.currentPlayer;
+            if (data.timeMode !== 'untimed') {
+                G.onlineBlackTime = data.blackTime;
+                G.onlineWhiteTime = data.whiteTime;
+                G.onlineLastMoveTime = Date.now() / 1000;
+                G.updateTimedCountdown();
+            }
+            if (G.drawOnlineBoard) G.drawOnlineBoard();
+            G.updateOnlineUI();
+        }
+    };
+
+    G.returnToLobby = function() {
+        var matchIdDisplay = $('onlineMatchIdDisplay');
+        var roomInfo = $('roomInfo');
+        var roomActions = $('roomActions');
+        var onlineLeaveBtn = $('onlineLeaveBtn');
+        var onlineCreateBtn = $('onlineCreateBtn');
+        var onlineJoinBtn = $('onlineJoinBtn');
+        if (matchIdDisplay) matchIdDisplay.textContent = '-';
+        if (roomInfo) roomInfo.innerHTML = '<p class="text-gray-500">未加入房间</p>';
+        if (roomActions) roomActions.classList.add('hidden');
+        if (onlineLeaveBtn) onlineLeaveBtn.classList.add('hidden');
+        if (onlineCreateBtn) onlineCreateBtn.classList.remove('hidden');
+        if (onlineJoinBtn) onlineJoinBtn.parentElement.classList.remove('hidden');
+        G.onlineMatchId = null;
+        G.onlineMyColor = null;
+        G.onlineOpponent = null;
+        G.gameMode = 'ai';
+        G.initOnlineBoard();
+        if (G.drawOnlineBoard) G.drawOnlineBoard();
+        G.updateOnlineUI();
+        G.startMatchListRefresh();
+    };
+
+    G.sendWebSocketMove = function(row, col) {
+        if (G.WebSocketManager && G.WebSocketManager.usingWebSocket) {
+            G.WebSocketManager.sendMove({
+                match_id: G.onlineMatchId,
+                row: row,
+                col: col
+            });
+        }
+    };
+
+    G.sendWebSocketUndoRequest = function() {
+        if (G.WebSocketManager && G.WebSocketManager.usingWebSocket) {
+            G.WebSocketManager.sendUndoRequest({
+                match_id: G.onlineMatchId,
+                requestedBy: G.username
+            });
+        }
+    };
+
+    G.sendWebSocketDrawRequest = function() {
+        if (G.WebSocketManager && G.WebSocketManager.usingWebSocket) {
+            G.WebSocketManager.sendDrawRequest({
+                match_id: G.onlineMatchId,
+                requestedBy: G.username
+            });
         }
     };
 

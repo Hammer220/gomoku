@@ -11,7 +11,7 @@ sys.path.insert(0, SCRIPT_DIR)
 
 from server.config import PORT
 from server.models import init_admin
-from server import create_app
+from server import create_app, socketio
 
 if __name__ == '__main__':
     if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
@@ -21,4 +21,4 @@ if __name__ == '__main__':
         logger.info(f'五子棋服务启动在端口 {PORT}')
     else:
         app = Flask(__name__)
-    app.run(host='0.0.0.0', port=PORT, debug=True, threaded=True)
+    socketio.run(app, host='0.0.0.0', port=PORT, debug=True)

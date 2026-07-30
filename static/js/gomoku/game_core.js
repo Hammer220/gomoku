@@ -108,6 +108,16 @@ var Gomoku = window.Gomoku || {};
                 G.saveGameRecord(winner === 0 ? 'draw' : (winner === 1 ? 'win' : 'lose'), 'pvp');
             }
         }
+
+        // 访客模式：游戏结束后减少剩余次数
+        if (G.isGuest && (G.gameMode === 'ai' || G.gameMode === 'pvp')) {
+            G.useGuestGame();
+            var guestRemainingDisplay = $('guestRemainingGames');
+            if (guestRemainingDisplay) guestRemainingDisplay.textContent = G.guestRemainingGames;
+            if (G.guestRemainingGames <= 0) {
+                G.showToast('访客游戏次数已用完，请注册账号', true);
+            }
+        }
     };
 
     // 启动游戏计时器（每秒更新）
@@ -130,6 +140,11 @@ var Gomoku = window.Gomoku || {};
 
     // 重置游戏状态
     G.resetGame = function() {
+        // 访客模式检查剩余游戏次数
+        if (G.isGuest && G.guestRemainingGames <= 0) {
+            G.showToast('访客游戏次数已用完，请注册账号', true);
+            return;
+        }
         G.stopTimer();
         G.stopPvpTurnTimer();
         G.initBoard();

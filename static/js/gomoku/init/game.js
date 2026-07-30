@@ -5,7 +5,13 @@
 (function() {
     var G = window.Gomoku;
 
-    document.getElementById('logoutBtn').addEventListener('click', G.logout);
+    document.getElementById('logoutBtn').addEventListener('click', function() {
+        if (G.isGuest) {
+            G.guestLogout();
+        } else {
+            G.logout();
+        }
+    });
 
     document.getElementById('gameTab').addEventListener('click', function() { G.showTab('gameContent'); });
     document.getElementById('onlineTab').addEventListener('click', function() { G.showTab('onlineContent'); });
@@ -34,9 +40,13 @@
     });
 
     document.getElementById('modeOnline').addEventListener('click', function() {
-        if (!G.currentUser) {
+        if (!G.currentUser && !G.isGuest) {
             alert('请先登录');
             G.showTab('loginContent');
+            return;
+        }
+        if (G.isGuest) {
+            G.showToast('访客模式无法使用联机对战功能，请注册账号', true);
             return;
         }
         G.showTab('onlineContent');

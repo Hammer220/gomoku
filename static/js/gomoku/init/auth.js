@@ -83,6 +83,11 @@
         sessionStorage.setItem('loginFormInteracted', 'true');
     });
 
+    document.getElementById('guestLoginBtn').addEventListener('click', function() {
+        G.loginAsGuest();
+    });
+    G.updateGuestRemainingDisplay();
+
     document.getElementById('registerForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         var u = document.getElementById('regUsername').value;

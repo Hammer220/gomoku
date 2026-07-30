@@ -11,6 +11,12 @@ var Gomoku = window.Gomoku || {};
     var $ = function(id) { return document.getElementById(id); };
 
     G.init = async function() {
+        // 访客模式不允许访问消息中心，跳转到游戏大厅
+        if (G.isGuest) {
+            window.location.href = '/game';
+            return;
+        }
+
         G.bindMessageEvents();
 
         var logoutBtn = $('logoutBtn');
@@ -48,6 +54,11 @@ var Gomoku = window.Gomoku || {};
             window.location.href = '/login';
         }
     };
+
+    // 初始化WebSocket管理器
+    if (G.WebSocketManager) {
+        G.WebSocketManager.init();
+    }
 
 })();
 

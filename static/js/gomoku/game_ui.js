@@ -91,6 +91,11 @@ var Gomoku = window.Gomoku || {};
 
     // 切换标签页显示
     G.showTab = function(tabId) {
+        // 访客模式不允许访问联机对战和消息中心
+        if (G.isGuest && (tabId === 'onlineContent' || tabId === 'profileContent' || tabId === 'historyContent' || tabId === 'statsContent' || tabId === 'leaderboardContent' || tabId === 'adminContent' || tabId === 'boardColorContent')) {
+            G.showToast('访客模式无法使用此功能，请注册账号', true);
+            return;
+        }
         ['gameContent', 'onlineContent', 'profileContent', 'historyContent', 'statsContent', 'leaderboardContent', 'adminContent', 'boardColorContent'].forEach(function(id) {
             var el = $(id);
             if (el) el.classList.add('hidden');

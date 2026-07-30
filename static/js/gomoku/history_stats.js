@@ -9,6 +9,18 @@
 
     // 加载游戏历史记录
     G.loadHistory = async function(){
+        if (G.isGuest) {
+            var tbody = document.getElementById('historyTableBody');
+            var emptyDiv = document.getElementById('historyEmpty');
+            var paginationDiv = document.getElementById('historyPagination');
+            if (tbody) tbody.innerHTML = '';
+            if (emptyDiv) {
+                emptyDiv.classList.remove('hidden');
+                emptyDiv.innerHTML = '<i class="fa-solid fa-info-circle mr-2"></i>访客模式无法查看游戏记录，请注册账号';
+            }
+            if (paginationDiv) paginationDiv.classList.add('hidden');
+            return;
+        }
         try {
             const data = await G.apiCall('/api/statistics');
             G.historyAllRecords = data.records || [];
@@ -120,6 +132,15 @@
 
     // 加载统计数据
     G.loadStats = async function(){
+        if (G.isGuest) {
+            document.getElementById('statTotalGames').textContent = '-';
+            document.getElementById('statWins').textContent = '-';
+            document.getElementById('statLosses').textContent = '-';
+            document.getElementById('statDraws').textContent = '-';
+            document.getElementById('statWinRate').textContent = '-';
+            G.showToast('访客模式无法查看统计数据，请注册账号', true);
+            return;
+        }
         try {
             const data = await G.apiCall('/api/statistics');
             document.getElementById('statTotalGames').textContent = data.total;

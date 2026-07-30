@@ -9,7 +9,7 @@ from flask import request, jsonify
 
 from ..admin_routes import admin_bp, require_permission
 from ...models import (load_json_with_lock, save_json_with_lock, get_user,
-                       save_user, save_plain_password, USERS_FILE, TOKENS_FILE, get_admin_permissions)
+                       save_user, save_plain_password, USERS_FILE, get_admin_permissions, get_all_tokens)
 from ...auth import require_admin, require_super_admin
 from ...logger import logger
 
@@ -19,7 +19,7 @@ from ...logger import logger
 def admin_get_users(admin_user):
     try:
         users = load_json_with_lock(USERS_FILE)
-        tokens = load_json_with_lock(TOKENS_FILE)
+        tokens = get_all_tokens()
         online_users = set()
         current_time = time.time()
         for token, token_data in tokens.items():
@@ -334,17 +334,9 @@ def admin_kick(admin_user):
         if user.get('isSuperAdmin'):
             return jsonify({'error': '不能强制登出超级管理员'}), 403
 
-        tokens = load_json_with_lock(TOKENS_FILE)
-        tokens_to_remove = []
-        for token, token_data in tokens.items():
-            token_username = token_data.get('username') if isinstance(token_data, dict) else token_data
-            if token_username == username:
-                tokens_to_remove.append(token)
-        for token in tokens_to_remove:
-            del tokens[token]
-        save_json_with_lock(TOKENS_FILE, tokens)
+        remove_user_tokens(username)
 
-        logger.info(f'管理员 {admin_user["username"]} 强制登出了 {username}，清除了 {len(tokens_to_remove)} 个token')
+        logger.info(f'管理员 {admin_user["username"]} 强制登出了 {username}')
         return jsonify({'success': True, 'message': '操作成功'})
     except Exception as e:
         logger.error(f'强制登出错误: {str(e)}')
@@ -369,15 +361,7 @@ def admin_delete_user(admin_user, username):
             del users[username]
         save_json_with_lock(USERS_FILE, users)
 
-        tokens = load_json_with_lock(TOKENS_FILE)
-        tokens_to_remove = []
-        for token, token_data in tokens.items():
-            token_username = token_data.get('username') if isinstance(token_data, dict) else token_data
-            if token_username == username:
-                tokens_to_remove.append(token)
-        for token in tokens_to_remove:
-            del tokens[token]
-        save_json_with_lock(TOKENS_FILE, tokens)
+        remove_user_tokens(username)
 
         logger.info(f'管理员 {admin_user["username"]} 注销了用户 {username}')
         return jsonify({'success': True, 'message': '操作成功'})

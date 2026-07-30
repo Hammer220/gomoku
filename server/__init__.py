@@ -31,7 +31,7 @@ def create_app():
     if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
         start_cleanup_task()
 
-    socketio.init_app(app, cors_allowed_origins="*", async_mode='threading')
+    socketio.init_app(app, cors_allowed_origins="*", async_mode='gevent')
 
     register_socket_events(socketio)
 

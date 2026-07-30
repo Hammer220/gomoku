@@ -26,6 +26,23 @@ var Gomoku = window.Gomoku || {};
                 passwordFreeDesc: '需管理员开启免密权限后方可使用',
                 enterUsername: '请输入用户名',
                 ordinaryLogin: '普通登录?',
+                gameTitle: '五子棋',
+                gameSubtitle: '经典对弈 · 双人/人机/联机',
+                guestLogin: '访客登录',
+                remaining: '剩余',
+                times: '次',
+                randomAccount: '随机账号',
+                passwordMinLenPlaceholder: '密码(至少6位)',
+                confirmPasswordPlaceholder: '确认密码',
+                enterUsernamePlaceholder: '请输入用户名',
+                loginBtn: '登录',
+                registerBtn: '注册',
+                passwordFreeTitle: '免密登录',
+                passwordFreeBtn: '免密登录',
+                normalLogin: '普通登录',
+                langSimplifiedCN: '简体中文',
+                langTraditionalCN: '繁體中文',
+                langEnglish: 'English',
                 gameHall: '游戏大厅',
                 userCenter: '个人中心',
                 messageCenter: '消息中心',
@@ -343,6 +360,23 @@ var Gomoku = window.Gomoku || {};
                 passwordFreeDesc: '需管理員開啟免密權限後方可使用',
                 enterUsername: '請輸入使用者名稱',
                 ordinaryLogin: '普通登入?',
+                gameTitle: '五子棋',
+                gameSubtitle: '經典對弈 · 雙人/人機/聯機',
+                guestLogin: '訪客登入',
+                remaining: '剩餘',
+                times: '次',
+                randomAccount: '隨機帳號',
+                passwordMinLenPlaceholder: '密碼(至少6位)',
+                confirmPasswordPlaceholder: '確認密碼',
+                enterUsernamePlaceholder: '請輸入使用者名稱',
+                loginBtn: '登入',
+                registerBtn: '註冊',
+                passwordFreeTitle: '免密登入',
+                passwordFreeBtn: '免密登入',
+                normalLogin: '普通登入',
+                langSimplifiedCN: '简体中文',
+                langTraditionalCN: '繁體中文',
+                langEnglish: 'English',
                 gameHall: '遊戲大廳',
                 userCenter: '個人中心',
                 messageCenter: '訊息中心',
@@ -660,6 +694,23 @@ var Gomoku = window.Gomoku || {};
                 passwordFreeDesc: 'Requires admin to enable password-free permission',
                 enterUsername: 'Please enter username',
                 ordinaryLogin: 'Regular login?',
+                gameTitle: 'Gomoku',
+                gameSubtitle: 'Classic Battle · PvP/AI/Online',
+                guestLogin: 'Guest Login',
+                remaining: 'Remaining',
+                times: 'times',
+                randomAccount: 'Random account',
+                passwordMinLenPlaceholder: 'Password (min 6 characters)',
+                confirmPasswordPlaceholder: 'Confirm password',
+                enterUsernamePlaceholder: 'Please enter username',
+                loginBtn: 'Login',
+                registerBtn: 'Register',
+                passwordFreeTitle: 'Password-Free Login',
+                passwordFreeBtn: 'Password-Free Login',
+                normalLogin: 'Regular login',
+                langSimplifiedCN: '简体中文',
+                langTraditionalCN: '繁體中文',
+                langEnglish: 'English',
                 gameHall: 'Game Hall',
                 userCenter: 'User Center',
                 messageCenter: 'Messages',
@@ -973,12 +1024,17 @@ var Gomoku = window.Gomoku || {};
             return text;
         },
 
-        setLang: function(lang) {
+        setLang: function(lang, skipServer) {
             if (this.translations[lang]) {
                 this.currentLang = lang;
                 localStorage.setItem('language', lang);
                 this.updatePageTranslations();
                 document.documentElement.lang = lang;
+                if (!skipServer && G && G.token && G.apiCall) {
+                    G.apiCall('/api/profile/update', 'POST', { language: lang }, true).catch(function(err) {
+                        console.log('Language sync to server failed:', err);
+                    });
+                }
             }
         },
 
@@ -1017,6 +1073,30 @@ var Gomoku = window.Gomoku || {};
             }
             document.documentElement.lang = this.currentLang;
             this.updatePageTranslations();
+            this.loadServerLanguage();
+        },
+
+        loadServerLanguage: function() {
+            if (G && G.token && G.currentUser && G.currentUser.language) {
+                if (this.translations[G.currentUser.language]) {
+                    this.currentLang = G.currentUser.language;
+                    localStorage.setItem('language', this.currentLang);
+                    document.documentElement.lang = this.currentLang;
+                    this.updatePageTranslations();
+                }
+            } else if (G && G.token && !G.currentUser) {
+                var self = this;
+                G.apiCall('/api/profile', 'GET', null, true).then(function(profile) {
+                    if (profile.language && self.translations[profile.language]) {
+                        self.currentLang = profile.language;
+                        localStorage.setItem('language', self.currentLang);
+                        document.documentElement.lang = self.currentLang;
+                        self.updatePageTranslations();
+                    }
+                }).catch(function(err) {
+                    console.log('Failed to load language from server:', err);
+                });
+            }
         }
     };
 

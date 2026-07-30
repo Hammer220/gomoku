@@ -203,8 +203,8 @@ def save_user(username, data):
             is_admin, is_super_admin, banned_until, can_ban_user,
             can_kick_user, can_delete_user, can_change_password,
             can_modify_score, can_set_password_free, can_monitor_matches,
-            can_manage_matches, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            can_manage_matches, language, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         username,
         data.get('password', ''),
@@ -224,6 +224,7 @@ def save_user(username, data):
         1 if data.get('canSetPasswordFree') else 0,
         1 if data.get('canMonitorMatches') else 0,
         1 if data.get('canManageMatches') else 0,
+        data.get('language', 'zh-CN'),
         time.time()
     ))
     conn.commit()
@@ -349,6 +350,15 @@ def remove_user_tokens(username):
     c.execute('DELETE FROM tokens WHERE username = ?', (username,))
     conn.commit()
     clear_cache('tokens')
+
+
+def get_all_tokens():
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT token, username, created_at FROM tokens')
+    rows = c.fetchall()
+    return {row['token']: {'username': row['username'], 'createdAt': row['created_at']} for row in rows}
 
 
 def get_users():

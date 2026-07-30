@@ -47,6 +47,7 @@ var Gomoku = window.Gomoku || {};
                 G.resetGame();
                 G.startStatusCheck();
                 await G.recoverOnlineMatch();
+                if (G.handleHashChange) G.handleHashChange();
             } catch (e) {
                 G.token = '';
                 localStorage.removeItem('token');
@@ -55,5 +56,7 @@ var Gomoku = window.Gomoku || {};
     }
 
     G.initReplayEvents();
+
+    if (G.handleHashChange) G.handleHashChange();
 
 })();

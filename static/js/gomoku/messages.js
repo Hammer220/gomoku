@@ -16,9 +16,29 @@ var Gomoku = window.Gomoku || {};
     G.allUsers = [];
     G.isAdminUser = false;
 
+    G.messageHashToTab = {
+        'inbox': 'inbox',
+        'sent': 'sent',
+        'compose': 'compose'
+    };
+
+    G.handleMessagesHashChange = function() {
+        var hash = window.location.hash.replace('#', '');
+        var tab = G.messageHashToTab[hash];
+        if (tab) {
+            G.showMessageTab(tab);
+        }
+    };
+
+    window.addEventListener('hashchange', G.handleMessagesHashChange);
+
+    if (window.location.hash) {
+        G.handleMessagesHashChange();
+    }
+
     // ==================== 标签页切换 ====================
 
-    G.showMessageTab = function(tab) {
+    G.showMessageTab = function(tab, skipHashUpdate) {
         G.currentMessageTab = tab;
         var inboxTab = $('inboxTab');
         var sentTab = $('sentTab');
@@ -36,6 +56,10 @@ var Gomoku = window.Gomoku || {};
         if (sentPanel) sentPanel.classList.toggle('hidden', tab !== 'sent');
         if (composePanel) composePanel.classList.toggle('hidden', tab !== 'compose');
         if (detailPanel) detailPanel.classList.add('hidden');
+
+        if (!skipHashUpdate) {
+            history.replaceState(null, '', '#' + tab);
+        }
 
         if (tab === 'inbox') G.loadInbox();
         else if (tab === 'sent') G.loadSent();

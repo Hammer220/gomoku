@@ -215,7 +215,7 @@ var Gomoku = window.Gomoku || {};
         localStorage.setItem('token', G.token);
         G.currentUser = res.user;
         G.isLoggedIn = true;
-        G.resetGuestData();
+        await G.resetGuestData();
         G.showToast('欢迎回来，' + G.currentUser.username + '！');
         window.location.href = '/game';
     };
@@ -227,7 +227,7 @@ var Gomoku = window.Gomoku || {};
         localStorage.setItem('token', G.token);
         G.currentUser = res.user;
         G.isLoggedIn = true;
-        G.resetGuestData();
+        await G.resetGuestData();
         G.showToast('欢迎回来，' + G.currentUser.username + '！');
         window.location.href = '/game';
     };
@@ -280,6 +280,7 @@ var Gomoku = window.Gomoku || {};
             geetestPassToken: parts[2],
             geetestGenTime: parts[3]
         }, true);
+        await G.resetGuestData();
         G.showToast('注册成功，请登录');
         var registerModal = document.getElementById('registerModal');
         var loginModal = document.getElementById('loginModal');
@@ -290,15 +291,58 @@ var Gomoku = window.Gomoku || {};
 
     // ==================== 访客登录 ====================
 
+    // 生成随机访客账号名（英文、下划线、数字）
+    G.generateGuestUsername = function() {
+        var chars = 'abcdefghijklmnopqrstuvwxyz0123456789_';
+        var result = 'guest_';
+        for (var i = 0; i < 8; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    };
+
+    // 获取或创建访客账号名
+    G.getGuestUsername = function() {
+        return localStorage.getItem('guestUsername') || G.generateGuestUsername();
+    };
+
+    // 保存访客账号名
+    G.saveGuestUsername = function(username) {
+        localStorage.setItem('guestUsername', username);
+    };
+
+    // 删除访客账号（服务器端）
+    G.deleteGuestAccount = async function() {
+        var guestUsername = localStorage.getItem('guestUsername');
+        if (guestUsername) {
+            try {
+                await G.apiCall('/api/guest/delete', 'POST', { username: guestUsername }, true);
+            } catch (e) {
+                console.log('删除访客账号失败:', e);
+            }
+        }
+    };
+
+    // 清除访客本地数据
+    G.clearGuestData = function() {
+        G.isGuest = false;
+        G.guestRemainingGames = 5;
+        localStorage.removeItem('isGuest');
+        localStorage.removeItem('guestRemainingGames');
+        localStorage.removeItem('guestUsername');
+    };
+
     // 访客登录
     G.loginAsGuest = function() {
         if (G.guestRemainingGames <= 0) {
             G.showToast('访客次数已用完，请注册账号', true);
             return;
         }
+        var guestUsername = G.getGuestUsername();
+        G.saveGuestUsername(guestUsername);
         G.isGuest = true;
         G.isLoggedIn = true;
-        G.currentUser = { username: '访客', isGuest: true };
+        G.currentUser = { username: guestUsername, isGuest: true };
         localStorage.setItem('isGuest', 'true');
         localStorage.setItem('guestRemainingGames', G.guestRemainingGames.toString());
         G.showToast('欢迎来到五子棋！访客模式剩余 ' + G.guestRemainingGames + ' 次游戏机会');
@@ -316,22 +360,19 @@ var Gomoku = window.Gomoku || {};
     };
 
     // 重置访客次数（当用户注册并登录后调用）
-    G.resetGuestData = function() {
-        G.isGuest = false;
-        G.guestRemainingGames = 5;
-        localStorage.removeItem('isGuest');
-        localStorage.removeItem('guestRemainingGames');
+    G.resetGuestData = async function() {
+        await G.deleteGuestAccount();
+        G.clearGuestData();
     };
 
     // 访客登出
-    G.guestLogout = function() {
-        G.isGuest = false;
+    G.guestLogout = async function() {
+        await G.deleteGuestAccount();
+        G.clearGuestData();
         G.isLoggedIn = false;
         G.currentUser = null;
         G.token = '';
         localStorage.removeItem('token');
-        localStorage.removeItem('isGuest');
-        localStorage.removeItem('guestRemainingGames');
         G.gameMode = 'ai';
         G.showToast('已退出访客模式');
         setTimeout(function() { window.location.href = '/login'; }, 1500);
@@ -400,6 +441,10 @@ var Gomoku = window.Gomoku || {};
 
     // 修改密码
     G.changePassword = async function() {
+        if (G.isGuest) {
+            G.showToast('访客模式无法修改密码，请注册账号', true);
+            return;
+        }
         var oldPasswordEl = document.getElementById('changeOldPassword');
         var newPasswordEl = document.getElementById('changeNewPassword');
         var confirmPasswordEl = document.getElementById('changeConfirmPassword');

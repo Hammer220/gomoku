@@ -33,7 +33,11 @@ var Gomoku = window.Gomoku || {};
         }
 
         G.startStatusCheck();
-        G.showMessageTab('inbox');
+        if (window.location.hash && G.handleMessagesHashChange) {
+            G.handleMessagesHashChange();
+        } else {
+            G.showMessageTab('inbox');
+        }
         G.updateUnreadBadge();
     };
 

@@ -16,6 +16,11 @@ var Gomoku = window.Gomoku || {};
         if (display) {
             display.textContent = G.guestRemainingGames;
         }
+        var randomUsername = document.getElementById('guestRandomUsername');
+        if (randomUsername) {
+            var username = G.getGuestUsername();
+            randomUsername.textContent = username;
+        }
     };
 
     // 登录页面初始化
@@ -151,6 +156,7 @@ var Gomoku = window.Gomoku || {};
             var u = document.getElementById('regUsername').value;
             var p = document.getElementById('regPassword').value;
             var cp = document.getElementById('confirmPassword').value;
+            if (!/^[a-zA-Z0-9_]+$/.test(u)) { G.showToast('用户名只能包含英文、数字和下划线', true); return; }
             if (p !== cp) { G.showToast('密码不一致', true); return; }
             if (p.length < 6) { G.showToast('密码至少6位', true); return; }
             if (!G.registerGeetestToken) { G.showToast('请完成验证码验证', true); return; }
@@ -180,11 +186,8 @@ var Gomoku = window.Gomoku || {};
         // ==================== 自动登录 ====================
 
         // 如果已有 token，尝试自动登录，成功则跳转到游戏大厅
-        if (G.isGuest) {
-            G.isLoggedIn = true;
-            G.currentUser = { username: '访客', isGuest: true };
-            window.location.href = '/game';
-        } else if (G.token) {
+        // 注意：不再根据 isGuest 自动跳转，让访客用户也能访问登录页面选择登录或注册
+        if (G.token) {
             try {
                 G.currentUser = await G.apiCall('/api/current_user', 'GET', null, true);
                 G.isLoggedIn = true;

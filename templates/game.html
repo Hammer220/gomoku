@@ -58,6 +58,10 @@
             <div class="flex items-center space-x-3 md:space-x-6">
                 <div class="flex items-center"><i class="fa-solid fa-user-circle text-2xl mr-2"></i><div><p id="userNameDisplay" class="font-semibold"></p><p class="text-xs">积分: <span id="userScoreDisplay">0</span> · 胜: <span id="userWinsDisplay">0</span></p></div></div>
                 <button id="logoutBtn" class="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg"><i class="fa-solid fa-right-from-bracket"></i> 退出</button>
+                <div id="guestAuthButtons" class="hidden space-x-2">
+                    <a href="/login" class="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg"><i class="fa-solid fa-right-to-bracket"></i> 登录</a>
+                    <a href="/register" class="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg"><i class="fa-solid fa-user-plus"></i> 注册</a>
+                </div>
             </div>
         </div>
 
@@ -75,7 +79,7 @@
         </div>
 
         <div id="guestBanner" class="hidden bg-yellow-100 border-b border-yellow-300 p-3 text-center">
-            <p class="text-sm text-yellow-800"><i class="fa-solid fa-info-circle mr-1"></i>访客模式 · 剩余游戏次数: <span id="guestRemainingGames">5</span> 次 · <a href="/login" class="underline font-medium">注册账号</a> 以保存记录</p>
+            <p class="text-sm text-yellow-800"><i class="fa-solid fa-info-circle mr-1"></i>访客账号: <span id="guestDisplayUsername"></span> · 剩余游戏次数: <span id="guestRemainingGames">5</span> 次 · <a href="/login" class="underline font-medium">注册账号</a> 以保存记录</p>
         </div>
 
         {% include 'includes/modals.html' %}

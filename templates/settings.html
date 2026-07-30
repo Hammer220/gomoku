@@ -290,19 +290,40 @@
             });
         });
 
+        var settingsHashValidTabs = ['general', 'game', 'display'];
+
+        window.handleSettingsHashChange = function() {
+            var hash = window.location.hash.replace('#', '');
+            if (settingsHashValidTabs.indexOf(hash) !== -1) {
+                showSettingsTab(hash);
+            } else {
+                showSettingsTab('general');
+            }
+        };
+
+        function showSettingsTab(tabId) {
+            document.querySelectorAll('[data-tab]').forEach(function(b) {
+                b.classList.remove('tab-active');
+                b.classList.add('text-gray-600');
+            });
+            document.querySelector('[data-tab="' + tabId + '"]').classList.add('tab-active');
+            document.querySelector('[data-tab="' + tabId + '"]').classList.remove('text-gray-600');
+            document.querySelectorAll('.tab-content').forEach(function(content) {
+                content.classList.add('hidden');
+            });
+            document.getElementById(tabId + 'Tab').classList.remove('hidden');
+            history.replaceState(null, '', '#' + tabId);
+        }
+
+        window.addEventListener('hashchange', handleSettingsHashChange);
+
+        if (window.location.hash) {
+            handleSettingsHashChange();
+        }
+
         document.querySelectorAll('[data-tab]').forEach(function(btn) {
             btn.addEventListener('click', function() {
-                var tabId = this.dataset.tab;
-                document.querySelectorAll('[data-tab]').forEach(function(b) {
-                    b.classList.remove('tab-active');
-                    b.classList.add('text-gray-600');
-                });
-                this.classList.add('tab-active');
-                this.classList.remove('text-gray-600');
-                document.querySelectorAll('.tab-content').forEach(function(content) {
-                    content.classList.add('hidden');
-                });
-                document.getElementById(tabId + 'Tab').classList.remove('hidden');
+                showSettingsTab(this.dataset.tab);
             });
         });
 

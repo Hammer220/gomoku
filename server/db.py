@@ -165,6 +165,15 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_messages_to_user ON messages(to_user)
     ''')
 
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'zh-CN'")
+        logger.info('添加 language 列到 users 表')
+    except sqlite3.OperationalError as e:
+        if 'duplicate column' in str(e).lower():
+            pass
+        else:
+            raise
+
     connection.commit()
     logger.info('SQLite 数据库初始化完成')
 

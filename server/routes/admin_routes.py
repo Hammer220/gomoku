@@ -11,7 +11,7 @@
 from functools import wraps
 from flask import Blueprint, jsonify
 
-from ..models import PERMISSION_FIELDS
+from ..models import PERMISSION_FIELDS, remove_user_tokens
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -64,24 +64,14 @@ def _batch_operate(admin_user, usernames, operation, **kwargs):
                 save_user(username, user)
                 success_count += 1
             elif operation == 'kick':
-                tokens = load_json_with_lock(TOKENS_FILE)
-                tokens_to_remove = [t for t, td in tokens.items()
-                                    if (td.get('username') if isinstance(td, dict) else td) == username]
-                for t in tokens_to_remove:
-                    del tokens[t]
-                save_json_with_lock(TOKENS_FILE, tokens)
+                remove_user_tokens(username)
                 success_count += 1
             elif operation == 'delete':
                 users = load_json_with_lock(USERS_FILE)
                 if username in users:
                     del users[username]
                 save_json_with_lock(USERS_FILE, users)
-                tokens = load_json_with_lock(TOKENS_FILE)
-                tokens_to_remove = [t for t, td in tokens.items()
-                                    if (td.get('username') if isinstance(td, dict) else td) == username]
-                for t in tokens_to_remove:
-                    del tokens[t]
-                save_json_with_lock(TOKENS_FILE, tokens)
+                remove_user_tokens(username)
                 success_count += 1
         except Exception:
             failed_count += 1

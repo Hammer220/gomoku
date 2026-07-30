@@ -13,6 +13,40 @@ var Gomoku = window.Gomoku || {};
         return document.getElementById(id);
     };
 
+    G.hashToContent = {
+        'game': 'gameContent',
+        'online': 'onlineContent',
+        'profile': 'profileContent',
+        'history': 'historyContent',
+        'stats': 'statsContent',
+        'leaderboard': 'leaderboardContent',
+        'admin': 'adminContent',
+        'board': 'boardColorContent'
+    };
+
+    G.contentToHash = {
+        'gameContent': 'game',
+        'onlineContent': 'online',
+        'profileContent': 'profile',
+        'historyContent': 'history',
+        'statsContent': 'stats',
+        'leaderboardContent': 'leaderboard',
+        'adminContent': 'admin',
+        'boardColorContent': 'board'
+    };
+
+    G.handleHashChange = function() {
+        var hash = window.location.hash.replace('#', '');
+        var contentId = G.hashToContent[hash];
+        if (contentId && $(contentId)) {
+            G.showTab(contentId);
+        } else if (!hash && $('gameContainer') && !$('gameContainer').classList.contains('hidden')) {
+            G.showTab('gameContent');
+        }
+    };
+
+    window.addEventListener('hashchange', G.handleHashChange);
+
     // 更新游戏界面显示（状态文本、步数、悔棋次数、时间）
     G.updateUI = function() {
         if (!G.gameActive) return;
@@ -90,10 +124,9 @@ var Gomoku = window.Gomoku || {};
     };
 
     // 切换标签页显示
-    G.showTab = function(tabId) {
-        // 访客模式不允许访问联机对战和消息中心
-        if (G.isGuest && (tabId === 'onlineContent' || tabId === 'profileContent' || tabId === 'historyContent' || tabId === 'statsContent' || tabId === 'leaderboardContent' || tabId === 'adminContent' || tabId === 'boardColorContent')) {
-            G.showToast('访客模式无法使用此功能，请注册账号', true);
+    G.showTab = function(tabId, skipHashUpdate) {
+        if (G.isGuest && tabId === 'adminContent') {
+            G.showToast('管理后台仅限管理员访问', true);
             return;
         }
         ['gameContent', 'onlineContent', 'profileContent', 'historyContent', 'statsContent', 'leaderboardContent', 'adminContent', 'boardColorContent'].forEach(function(id) {
@@ -108,6 +141,11 @@ var Gomoku = window.Gomoku || {};
         });
         var tabBtn = $(tabId.replace('Content', 'Tab'));
         if (tabBtn) tabBtn.classList.add('tab-active');
+
+        var hash = G.contentToHash[tabId];
+        if (hash && !skipHashUpdate) {
+            history.replaceState(null, '', '#' + hash);
+        }
 
         if (tabId === 'adminContent' && G.loadAdminUsers) {
             G.loadAdminUsers();
@@ -126,9 +164,16 @@ var Gomoku = window.Gomoku || {};
             if (G.calcOnlineCanvasSize) G.calcOnlineCanvasSize();
             if (!G.onlineBoard || !G.onlineBoard[0]) G.initOnlineBoard();
             if (G.drawOnlineBoard) G.drawOnlineBoard();
-            if (G.loadOnlineAvailableMatches) G.loadOnlineAvailableMatches();
-            if (G.checkExistingMatch) G.checkExistingMatch();
-            if (G.startMatchListRefresh) G.startMatchListRefresh();
+            if (G.isGuest) {
+                var guestOverlay = $('guestOnlineOverlay');
+                if (guestOverlay) guestOverlay.classList.remove('hidden');
+            } else {
+                var guestOverlay = $('guestOnlineOverlay');
+                if (guestOverlay) guestOverlay.classList.add('hidden');
+                if (G.loadOnlineAvailableMatches) G.loadOnlineAvailableMatches();
+                if (G.checkExistingMatch) G.checkExistingMatch();
+                if (G.startMatchListRefresh) G.startMatchListRefresh();
+            }
         } else {
             if (G.stopMatchListRefresh) G.stopMatchListRefresh();
         }

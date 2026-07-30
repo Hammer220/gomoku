@@ -4,6 +4,7 @@
 """
 
 import hashlib
+import re
 import time
 import uuid
 from datetime import datetime
@@ -15,8 +16,8 @@ from ..config import (GT4_CAPTCHA_ID, GT4_LOGIN_CAPTCHA_ID,
                       # TURNSTILE_SITE_KEY
 from ..models import (load_json_with_lock, save_json_with_lock, get_user,
                       save_user, save_plain_password, get_plain_password,
-                      TOKENS_FILE, USERS_FILE, PASSWORD_FILE,
-                      get_admin_permissions)
+                      USERS_FILE, PASSWORD_FILE, get_admin_permissions,
+                      add_token, remove_token)
 from ..auth import (geetest_verify, get_current_user,
                     require_auth)
 from ..logger import logger
@@ -53,6 +54,8 @@ def register():
             return jsonify({'error': '用户名和密码不能为空'}), 400
         if len(username) < 3 or len(username) > 20:
             return jsonify({'error': '用户名长度应为3-20个字符'}), 400
+        if not re.match(r'^[a-zA-Z0-9_]+$', username):
+            return jsonify({'error': '用户名只能包含英文、数字和下划线'}), 400
         if len(password) < 6:
             return jsonify({'error': '密码长度至少为6个字符'}), 400
 
@@ -94,13 +97,7 @@ def register():
         save_plain_password(username, password)
 
         token = str(uuid.uuid4())
-        tokens = load_json_with_lock(TOKENS_FILE)
-        tokens[token] = {
-            'username': username,
-            'createdAt': time.time(),
-            # 'turnstile_verified': bool(turnstile_token)  # 已注释 - 第二层人机认证（Turnstile）
-        }
-        save_json_with_lock(TOKENS_FILE, tokens)
+        add_token(token, username)
 
         logger.info(f'用户注册成功: {username}')
         return jsonify({
@@ -178,13 +175,7 @@ def login():
         save_user(username, user)
 
         token = str(uuid.uuid4())
-        tokens = load_json_with_lock(TOKENS_FILE)
-        tokens[token] = {
-            'username': username,
-            'createdAt': time.time(),
-            # 'turnstile_verified': bool(turnstile_token)  # 已注释 - 第二层人机认证（Turnstile）
-        }
-        save_json_with_lock(TOKENS_FILE, tokens)
+        add_token(token, username)
 
         logger.info(f'用户登录成功: {username}')
         return jsonify({
@@ -209,13 +200,38 @@ def logout(user):
     """用户登出：删除服务端 token"""
     try:
         token = request.headers.get('Authorization', '').replace('Bearer ', '')
-        tokens = load_json_with_lock(TOKENS_FILE)
-        if token in tokens:
-            del tokens[token]
-            save_json_with_lock(TOKENS_FILE, tokens)
+        remove_token(token)
         return jsonify({'success': True})
     except Exception as e:
         logger.error(f'退出错误: {str(e)}')
+        return jsonify({'success': True})
+
+@auth_bp.route('/api/guest/delete', methods=['POST'])
+def delete_guest():
+    """删除访客账号"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': True})
+
+        username = data.get('username', '').strip()
+        if not username or not username.startswith('guest_'):
+            return jsonify({'success': True})
+
+        users = load_json_with_lock(USERS_FILE)
+        if username in users:
+            del users[username]
+            save_json_with_lock(USERS_FILE, users)
+            logger.info(f'访客账号已删除: {username}')
+
+        passwords = load_json_with_lock(PASSWORD_FILE)
+        if username in passwords:
+            del passwords[username]
+            save_json_with_lock(PASSWORD_FILE, passwords)
+
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f'删除访客账号错误: {str(e)}')
         return jsonify({'success': True})
 
 @auth_bp.route('/api/current_user', methods=['GET'])
@@ -274,12 +290,7 @@ def login_password_free():
         save_user(username, user)
 
         token = str(uuid.uuid4())
-        tokens = load_json_with_lock(TOKENS_FILE)
-        tokens[token] = {
-            'username': username,
-            'createdAt': time.time()
-        }
-        save_json_with_lock(TOKENS_FILE, tokens)
+        add_token(token, username)
 
         logger.info(f'免密登录成功: {username}')
         return jsonify({

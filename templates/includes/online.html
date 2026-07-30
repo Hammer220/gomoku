@@ -1,5 +1,18 @@
 <!-- 联机对战页面 -->
-<div id="onlineContent" class="p-4 md:p-6 hidden">
+<div id="onlineContent" class="p-4 md:p-6 hidden relative">
+    <!-- 访客模式遮罩 -->
+    <div id="guestOnlineOverlay" class="absolute inset-0 bg-black/60 flex items-center justify-center z-30 hidden">
+        <div class="bg-white rounded-2xl p-8 max-w-sm w-full mx-4 text-center shadow-2xl">
+            <div class="text-5xl mb-4 text-gray-400">
+                <i class="fa-solid fa-user-slash"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">访客模式</h3>
+            <p class="text-gray-500 mb-6">联机对战功能仅限注册用户使用</p>
+            <button onclick="G.showTab('gameContent');" class="bg-primary text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-dark transition-colors">
+                返回游戏
+            </button>
+        </div>
+    </div>
     <div class="max-w-7xl mx-auto">
         <div class="flex flex-col lg:flex-row gap-6">
             <div class="flex-1">

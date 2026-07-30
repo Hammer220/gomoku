@@ -34,6 +34,8 @@ var Gomoku = window.Gomoku || {};
     G.isGuest = localStorage.getItem('isGuest') === 'true';
     // 访客剩余游戏次数
     G.guestRemainingGames = parseInt(localStorage.getItem('guestRemainingGames')) || 5;
+    // 访客用户名
+    G.guestUsername = localStorage.getItem('guestUsername') || '';
 
     // ==================== 游戏模式 ====================
 

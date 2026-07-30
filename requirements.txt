@@ -1,2 +1,6 @@
+-i https://pypi.tuna.tsinghua.edu.cn/simple
 Flask==3.1.0
+flask-socketio==5.6.1
 requests==2.32.3
+gevent==24.11.1
+gevent-websocket==0.10.1

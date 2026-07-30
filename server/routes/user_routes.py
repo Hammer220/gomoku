@@ -30,7 +30,8 @@ def get_profile(user):
         'lastLogin': user.get('lastLogin', ''),
         'isAdmin': user.get('isAdmin', False),
         'isSuperAdmin': user.get('isSuperAdmin', False),
-        'bannedUntil': user.get('bannedUntil')
+        'bannedUntil': user.get('bannedUntil'),
+        'language': user.get('language', 'zh-CN')
     })
 
 @user_bp.route('/api/profile/update', methods=['POST'])
@@ -40,6 +41,13 @@ def update_profile(user):
         data = request.get_json()
         if not data:
             return jsonify({'error': '无效的请求数据'}), 400
+
+        # 更新语言设置
+        new_language = data.get('language')
+        if new_language and new_language in ('zh-CN', 'zh-TW', 'en'):
+            user['language'] = new_language
+            save_user(user['username'], user)
+            return jsonify({'success': True, 'message': '语言设置已更新'})
 
         # 更新密码
         old_password = data.get('oldPassword', '').strip()
@@ -63,7 +71,7 @@ def update_profile(user):
             save_plain_password(user['username'], new_password)
             return jsonify({'success': True, 'message': '密码修改成功'})
 
-        return jsonify({'error': '请提供原密码和新密码'}), 400
+        return jsonify({'error': '请提供有效的更新内容'}), 400
     except Exception as e:
         logger.error(f'更新资料错误: {str(e)}')
         return jsonify({'error': '服务器内部错误'}), 500

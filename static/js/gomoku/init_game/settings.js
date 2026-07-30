@@ -177,20 +177,18 @@
         var onlineTab = $('onlineTab');
         var guestBanner = $('guestBanner');
         var guestRemainingGames = $('guestRemainingGames');
+        var guestDisplayUsername = $('guestDisplayUsername');
+        var guestAuthButtons = $('guestAuthButtons');
 
         if (userCenterLink) userCenterLink.classList.add('hidden');
         if (messagesLink) messagesLink.classList.add('hidden');
-        if (onlineTab) {
-            onlineTab.classList.add('opacity-50', 'cursor-not-allowed');
-            onlineTab.title = '访客模式无法使用联机对战';
-        }
         if (guestBanner) guestBanner.classList.remove('hidden');
         if (guestRemainingGames) guestRemainingGames.textContent = G.guestRemainingGames;
+        if (guestDisplayUsername) guestDisplayUsername.textContent = G.getGuestUsername();
 
-        // 更新退出按钮文字
-        if (logoutBtn) {
-            logoutBtn.innerHTML = '<i class="fa-solid fa-right-from-bracket"></i> 退出访客';
-        }
+        // 显示登录/注册按钮，隐藏退出按钮
+        if (logoutBtn) logoutBtn.classList.add('hidden');
+        if (guestAuthButtons) guestAuthButtons.classList.remove('hidden');
     }
 
     // ==================== 窗口尺寸变化 ====================
@@ -208,7 +206,7 @@
     // 优先检查访客模式
     if (G.isGuest) {
         G.isLoggedIn = true;
-        G.currentUser = { username: '访客', isGuest: true };
+        G.currentUser = { username: G.getGuestUsername(), isGuest: true };
         if (G.updateUserDisplay) G.updateUserDisplay();
         if (G.loadBoardColorSettings) G.loadBoardColorSettings();
         if (G.showGameUI) G.showGameUI();

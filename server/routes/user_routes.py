@@ -10,9 +10,9 @@ import os
 from flask import Blueprint, request, jsonify
 
 from ..config import SCRIPT_DIR
-from ..models import (load_json_with_lock, save_json_with_lock, get_user,
-                      save_user, save_plain_password, get_plain_password,
-                      RECORDS_FILE, SAVES_FILE, SETTINGS_FILE, USERS_FILE)
+from ..models import (get_user, save_user, save_plain_password, get_plain_password,
+                      load_records, save_record, load_saves, save_save, delete_save,
+                      load_settings, save_settings)
 from ..auth import require_auth
 from ..logger import logger
 
@@ -80,7 +80,7 @@ def update_profile(user):
 @require_auth
 def get_statistics(user):
     try:
-        records = load_json_with_lock(RECORDS_FILE)
+        records = load_records()
         all_records = []
         if isinstance(records, dict):
             for record_id, record in records.items():
@@ -89,13 +89,15 @@ def get_statistics(user):
         elif isinstance(records, list):
             all_records = records
 
-        all_records.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
+        all_records.sort(key=lambda x: x.get('endTime', x.get('timestamp', 0)), reverse=True)
 
         user_records = [r for r in all_records
-                        if r.get('player') == user['username'] or r.get('opponent') == user['username']]
+                        if r.get('player1') == user['username'] or r.get('player2') == user['username']]
         total = len(user_records)
-        wins = sum(1 for r in user_records if r.get('result') in ('胜利', 'win'))
-        losses = sum(1 for r in user_records if r.get('result') in ('失败', 'lose'))
+        wins = sum(1 for r in user_records if r.get('winner') == user['username'])
+        losses = sum(1 for r in user_records
+                     if r.get('winner') and r.get('winner') != user['username']
+                     and (r.get('player1') == user['username'] or r.get('player2') == user['username']))
         draws = total - wins - losses
         win_rate = round(wins / total * 100, 1) if total > 0 else 0
 
@@ -115,19 +117,19 @@ def get_statistics(user):
 @require_auth
 def get_records(user):
     try:
-        records = load_json_with_lock(RECORDS_FILE)
+        records = load_records()
         user_records = []
         if isinstance(records, dict):
             for record_id, record in records.items():
-                if record.get('player') == user['username'] or record.get('opponent') == user['username']:
+                if record.get('player1') == user['username'] or record.get('player2') == user['username']:
                     record['id'] = record_id
                     user_records.append(record)
         elif isinstance(records, list):
             for record in records:
-                if record.get('player') == user['username'] or record.get('opponent') == user['username']:
+                if record.get('player1') == user['username'] or record.get('player2') == user['username']:
                     user_records.append(record)
 
-        user_records.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
+        user_records.sort(key=lambda x: x.get('endTime', x.get('timestamp', 0)), reverse=True)
         return jsonify({'records': user_records[:50]})
     except Exception as e:
         logger.error(f'获取记录错误: {str(e)}')
@@ -141,27 +143,23 @@ def add_record(user):
         if not data:
             return jsonify({'error': '无效的请求数据'}), 400
 
-        records = load_json_with_lock(RECORDS_FILE)
-        if not isinstance(records, dict):
-            records = {}
-
-        record_id = str(int(time.time() * 1000))
+        timestamp = data.get('timestamp', int(time.time()))
         record = {
-            'id': record_id,
             'player': user['username'],
             'opponent': data.get('opponent', 'AI'),
-            'result': data.get('result', ''),
+            'winner': user['username'] if data.get('result') in ('胜利', 'win') else (
+                data.get('opponent', 'AI') if data.get('result') in ('失败', 'lose') else ''
+            ),
             'mode': data.get('mode', 'ai'),
             'aiDifficulty': data.get('aiDifficulty', 'medium'),
-            'timestamp': data.get('timestamp', int(time.time())),
+            'timestamp': timestamp,
             'duration': data.get('duration', 0),
-            'moves': data.get('moves', 0),
+            'moveCount': data.get('moves', 0),
             'moveHistory': data.get('moveHistory', []),
             'boardSize': data.get('boardSize', 15),
             'playerColor': data.get('playerColor', 1)
         }
-        records[record_id] = record
-        save_json_with_lock(RECORDS_FILE, records)
+        save_record(record)
 
         difficulty = data.get('aiDifficulty', 'medium')
         score_config = {
@@ -172,14 +170,12 @@ def add_record(user):
         diff_config = score_config.get(difficulty, score_config['medium'])
 
         result_key = data.get('resultKey', data.get('result'))
-        result = data.get('result')
-        
-        if result_key == 'win' or result == '胜利':
+        if result_key == 'win' or data.get('result') == '胜利':
             user['wins'] = user.get('wins', 0) + 1
         user['games'] = user.get('games', 0) + 1
-        if result_key == 'win' or result == '胜利':
+        if result_key == 'win' or data.get('result') == '胜利':
             user['score'] = user.get('score', 0) + diff_config['win']
-        elif result_key == 'lose' or result == '失败':
+        elif result_key == 'lose' or data.get('result') == '失败':
             user['score'] = user.get('score', 0) - diff_config['lose']
         save_user(user['username'], user)
 
@@ -192,7 +188,7 @@ def add_record(user):
 @require_auth
 def get_record_detail(user, record_id):
     try:
-        records = load_json_with_lock(RECORDS_FILE)
+        records = load_records()
         if not isinstance(records, dict):
             return jsonify({'error': '记录不存在'}), 404
 
@@ -200,7 +196,7 @@ def get_record_detail(user, record_id):
         if not record:
             return jsonify({'error': '记录不存在'}), 404
 
-        if not user.get('isAdmin') and record.get('player') != user['username'] and record.get('opponent') != user['username']:
+        if not user.get('isAdmin') and record.get('player1') != user['username'] and record.get('player2') != user['username']:
             return jsonify({'error': '无权查看此记录'}), 403
 
         record['id'] = record_id
@@ -213,17 +209,17 @@ def get_record_detail(user, record_id):
 @require_auth
 def get_saves(user):
     try:
-        saves = load_json_with_lock(SAVES_FILE)
+        saves = load_saves()
         user_saves = []
         if isinstance(saves, dict):
             for save_id in sorted(saves.keys(), reverse=True):
                 save = saves[save_id]
-                if save.get('player') == user['username']:
+                if save.get('username') == user['username']:
                     save['id'] = save_id
                     user_saves.append(save)
         elif isinstance(saves, list):
             for save in saves:
-                if save.get('player') == user['username']:
+                if save.get('username') == user['username']:
                     user_saves.append(save)
         return jsonify({'saves': user_saves[:20]})
     except Exception as e:
@@ -238,13 +234,7 @@ def save_game(user):
         if not data:
             return jsonify({'error': '无效的请求数据'}), 400
 
-        saves = load_json_with_lock(SAVES_FILE)
-        if not isinstance(saves, dict):
-            saves = {}
-
-        save_id = str(int(time.time() * 1000))
         save_data = {
-            'id': save_id,
             'player': user['username'],
             'board': data.get('board', []),
             'currentPlayer': data.get('currentPlayer', 1),
@@ -252,8 +242,7 @@ def save_game(user):
             'timestamp': int(time.time()),
             'name': data.get('name', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
         }
-        saves[save_id] = save_data
-        save_json_with_lock(SAVES_FILE, saves)
+        save_save(save_data)
 
         return jsonify({'success': True, 'save': save_data})
     except Exception as e:
@@ -262,15 +251,14 @@ def save_game(user):
 
 @user_bp.route('/api/saves/<save_id>', methods=['DELETE'])
 @require_auth
-def delete_save(user, save_id):
+def delete_save_route(user, save_id):
     try:
-        saves = load_json_with_lock(SAVES_FILE)
+        saves = load_saves()
         if save_id in saves:
             save = saves[save_id]
-            if save.get('player') != user['username']:
+            if save.get('username') != user['username']:
                 return jsonify({'error': '无权删除此存档'}), 403
-            del saves[save_id]
-            save_json_with_lock(SAVES_FILE, saves)
+            delete_save(save_id)
             return jsonify({'success': True})
         return jsonify({'error': '存档不存在'}), 404
     except Exception as e:
@@ -281,7 +269,7 @@ def delete_save(user, save_id):
 @require_auth
 def get_settings(user):
     try:
-        settings = load_json_with_lock(SETTINGS_FILE)
+        settings = load_settings()
         user_settings = settings.get(user['username'], {})
         return jsonify({'settings': user_settings})
     except Exception as e:
@@ -290,15 +278,15 @@ def get_settings(user):
 
 @user_bp.route('/api/settings', methods=['POST'])
 @require_auth
-def save_settings(user):
+def save_settings_route(user):
     try:
         data = request.get_json()
         if not data:
             return jsonify({'error': '无效的请求数据'}), 400
 
-        settings = load_json_with_lock(SETTINGS_FILE)
+        settings = load_settings()
         settings[user['username']] = data.get('settings', data)
-        save_json_with_lock(SETTINGS_FILE, settings)
+        save_settings(settings)
 
         return jsonify({'success': True})
     except Exception as e:

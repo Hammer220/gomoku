@@ -174,6 +174,59 @@ def init_db():
         else:
             raise
 
+    try:
+        c.execute("ALTER TABLE records ADD COLUMN mode TEXT DEFAULT 'ai'")
+    except sqlite3.OperationalError as e:
+        if 'duplicate column' in str(e).lower():
+            pass
+    try:
+        c.execute("ALTER TABLE records ADD COLUMN ai_difficulty TEXT DEFAULT 'medium'")
+    except sqlite3.OperationalError as e:
+        if 'duplicate column' in str(e).lower():
+            pass
+    try:
+        c.execute("ALTER TABLE records ADD COLUMN duration INTEGER DEFAULT 0")
+    except sqlite3.OperationalError as e:
+        if 'duplicate column' in str(e).lower():
+            pass
+    try:
+        c.execute("ALTER TABLE records ADD COLUMN board_size INTEGER DEFAULT 15")
+    except sqlite3.OperationalError as e:
+        if 'duplicate column' in str(e).lower():
+            pass
+    try:
+        c.execute("ALTER TABLE records ADD COLUMN player_color INTEGER DEFAULT 1")
+    except sqlite3.OperationalError as e:
+        if 'duplicate column' in str(e).lower():
+            pass
+    try:
+        c.execute("ALTER TABLE records ADD COLUMN move_count INTEGER DEFAULT 0")
+    except sqlite3.OperationalError as e:
+        if 'duplicate column' in str(e).lower():
+            pass
+
+    try:
+        c.execute("ALTER TABLE saves ADD COLUMN mode TEXT DEFAULT 'ai'")
+    except sqlite3.OperationalError as e:
+        if 'duplicate column' in str(e).lower():
+            pass
+    try:
+        c.execute("ALTER TABLE saves ADD COLUMN name TEXT DEFAULT ''")
+    except sqlite3.OperationalError as e:
+        if 'duplicate column' in str(e).lower():
+            pass
+    try:
+        c.execute("ALTER TABLE saves ADD COLUMN timestamp REAL DEFAULT 0")
+    except sqlite3.OperationalError as e:
+        if 'duplicate column' in str(e).lower():
+            pass
+
+    try:
+        c.execute("ALTER TABLE messages ADD COLUMN read_by TEXT DEFAULT '[]'")
+    except sqlite3.OperationalError as e:
+        if 'duplicate column' in str(e).lower():
+            pass
+
     connection.commit()
     logger.info('SQLite 数据库初始化完成')
 

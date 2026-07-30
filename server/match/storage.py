@@ -16,7 +16,7 @@ active_matches_lock = threading.Lock()
 
 user_connections = {}
 user_connections_lock = threading.Lock()
-CONNECT_TIMEOUT = 600
+CONNECT_TIMEOUT = 120
 
 
 def init_matches():

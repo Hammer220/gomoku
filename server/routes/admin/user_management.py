@@ -8,8 +8,8 @@ import hashlib
 from flask import request, jsonify
 
 from ..admin_routes import admin_bp, require_permission
-from ...models import (load_json_with_lock, save_json_with_lock, get_user,
-                       save_user, save_plain_password, USERS_FILE, get_admin_permissions, get_all_tokens)
+from ...models import (get_user, save_user, delete_user, save_plain_password,
+                       get_admin_permissions, get_all_tokens, get_all_users_from_db)
 from ...auth import require_admin, require_super_admin
 from ...logger import logger
 
@@ -18,7 +18,7 @@ from ...logger import logger
 @require_admin
 def admin_get_users(admin_user):
     try:
-        users = load_json_with_lock(USERS_FILE)
+        users = get_all_users_from_db()
         tokens = get_all_tokens()
         online_users = set()
         current_time = time.time()
@@ -356,12 +356,7 @@ def admin_delete_user(admin_user, username):
         if user.get('isSuperAdmin'):
             return jsonify({'error': '不能注销超级管理员'}), 403
 
-        users = load_json_with_lock(USERS_FILE)
-        if username in users:
-            del users[username]
-        save_json_with_lock(USERS_FILE, users)
-
-        remove_user_tokens(username)
+        delete_user(username)
 
         logger.info(f'管理员 {admin_user["username"]} 注销了用户 {username}')
         return jsonify({'success': True, 'message': '操作成功'})

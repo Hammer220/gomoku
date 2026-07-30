@@ -156,6 +156,7 @@ def _row_to_user(row):
         'canSetPasswordFree': bool(row['can_set_password_free']),
         'canMonitorMatches': bool(row['can_monitor_matches']),
         'canManageMatches': bool(row['can_manage_matches']),
+        'language': row['language'] if 'language' in row.keys() else 'zh-CN',
     }
 
 
@@ -394,7 +395,7 @@ def load_records():
     rows = c.fetchall()
     records = {}
     for row in rows:
-        records[str(row['id'])] = {
+        record = {
             'id': row['id'],
             'player1': row['player1'],
             'player2': row['player2'],
@@ -407,6 +408,19 @@ def load_records():
             'startTime': row['start_time'],
             'endTime': row['end_time'],
         }
+        if 'mode' in row.keys():
+            record['mode'] = row['mode']
+        if 'ai_difficulty' in row.keys():
+            record['aiDifficulty'] = row['ai_difficulty']
+        if 'duration' in row.keys():
+            record['duration'] = row['duration']
+        if 'board_size' in row.keys():
+            record['boardSize'] = row['board_size']
+        if 'player_color' in row.keys():
+            record['playerColor'] = row['player_color']
+        if 'move_count' in row.keys():
+            record['moveCount'] = row['move_count']
+        records[str(row['id'])] = record
     return records
 
 
@@ -416,19 +430,26 @@ def save_record(record):
     c = conn.cursor()
     c.execute('''
         INSERT INTO records (player1, player2, winner, moves, board,
-            time_mode, move_time, total_time, start_time, end_time)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            time_mode, move_time, total_time, start_time, end_time,
+            mode, ai_difficulty, duration, board_size, player_color, move_count)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
-        record.get('player1', ''),
-        record.get('player2', ''),
-        record.get('winner'),
-        json.dumps(record.get('moves', []), ensure_ascii=False),
+        record.get('player1', record.get('player', '')),
+        record.get('player2', record.get('opponent', '')),
+        record.get('winner', ''),
+        json.dumps(record.get('moves', record.get('moveHistory', [])), ensure_ascii=False),
         json.dumps(record.get('board', []), ensure_ascii=False),
-        record.get('timeMode', 'untimed'),
+        record.get('timeMode', record.get('mode', 'ai')),
         record.get('moveTime', 30),
         record.get('totalTime', 600),
-        record.get('startTime', time.time()),
-        record.get('endTime', time.time())
+        record.get('startTime', record.get('timestamp', time.time())),
+        record.get('endTime', record.get('timestamp', time.time())),
+        record.get('mode', 'ai'),
+        record.get('aiDifficulty', record.get('ai_difficulty', 'medium')),
+        record.get('duration', 0),
+        record.get('boardSize', record.get('board_size', 15)),
+        record.get('playerColor', record.get('player_color', 1)),
+        record.get('moveCount', len(record.get('moves', record.get('moveHistory', [])))),
     ))
     conn.commit()
 
@@ -441,7 +462,7 @@ def load_saves():
     rows = c.fetchall()
     saves = {}
     for row in rows:
-        saves[str(row['id'])] = {
+        save = {
             'id': row['id'],
             'username': row['username'],
             'matchId': row['match_id'],
@@ -453,6 +474,13 @@ def load_saves():
             'whiteTime': row['white_time'],
             'savedAt': row['saved_at'],
         }
+        if 'mode' in row.keys():
+            save['mode'] = row['mode']
+        if 'name' in row.keys():
+            save['name'] = row['name']
+        if 'timestamp' in row.keys():
+            save['timestamp'] = row['timestamp']
+        saves[str(row['id'])] = save
     return saves
 
 
@@ -462,18 +490,29 @@ def save_save(save_data):
     c = conn.cursor()
     c.execute('''
         INSERT INTO saves (username, match_id, board, moves, current_player,
-            time_mode, black_time, white_time)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            time_mode, black_time, white_time, mode, name, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
-        save_data.get('username', ''),
+        save_data.get('username', save_data.get('player', '')),
         save_data.get('matchId'),
         json.dumps(save_data.get('board', []), ensure_ascii=False),
         json.dumps(save_data.get('moves', []), ensure_ascii=False),
         save_data.get('currentPlayer', 1),
-        save_data.get('timeMode', 'untimed'),
+        save_data.get('timeMode', save_data.get('mode', 'ai')),
         save_data.get('blackTime', 600),
-        save_data.get('whiteTime', 600)
+        save_data.get('whiteTime', 600),
+        save_data.get('mode', 'ai'),
+        save_data.get('name', ''),
+        save_data.get('timestamp', time.time()),
     ))
+    conn.commit()
+
+
+def delete_save(save_id):
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('DELETE FROM saves WHERE id = ?', (save_id,))
     conn.commit()
 
 
@@ -510,13 +549,30 @@ def load_messages():
     rows = c.fetchall()
     messages = {}
     for row in rows:
+        to_val = row['to_user']
+        try:
+            to_list = json.loads(to_val)
+        except (json.JSONDecodeError, TypeError):
+            to_list = [to_val] if to_val else []
+
+        read_by_val = None
+        try:
+            if 'read_by' in row.keys():
+                read_by_val = row['read_by']
+        except Exception:
+            pass
+        try:
+            read_by_list = json.loads(read_by_val) if read_by_val else []
+        except (json.JSONDecodeError, TypeError):
+            read_by_list = []
+
         messages[str(row['id'])] = {
             'id': row['id'],
             'from': row['from_user'],
-            'to': row['to_user'],
+            'to': to_list,
             'content': row['content'],
             'timestamp': row['timestamp'],
-            'read': bool(row['read']),
+            'read_by': read_by_list,
         }
     return messages
 
@@ -525,14 +581,69 @@ def save_message(message):
     from .db import get_connection
     conn = get_connection()
     c = conn.cursor()
+    to_val = message.get('to', '')
+    if isinstance(to_val, list):
+        to_val = json.dumps(to_val, ensure_ascii=False)
+    read_by = message.get('read_by', [])
+    if isinstance(read_by, list):
+        read_by = json.dumps(read_by, ensure_ascii=False)
     c.execute('''
-        INSERT INTO messages (from_user, to_user, content, timestamp, read)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO messages (from_user, to_user, content, timestamp, read, read_by)
+        VALUES (?, ?, ?, ?, ?, ?)
     ''', (
         message.get('from', ''),
-        message.get('to', ''),
+        to_val,
         message.get('content', ''),
         message.get('timestamp', time.time()),
-        1 if message.get('read') else 0
+        1 if message.get('read') else 0,
+        read_by,
     ))
     conn.commit()
+
+
+def update_message(message_id, message):
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    to_val = message.get('to', '')
+    if isinstance(to_val, list):
+        to_val = json.dumps(to_val, ensure_ascii=False)
+    read_by = message.get('read_by', [])
+    if isinstance(read_by, list):
+        read_by = json.dumps(read_by, ensure_ascii=False)
+    c.execute('''
+        UPDATE messages SET from_user = ?, to_user = ?, content = ?, timestamp = ?,
+            read = ?, read_by = ?
+        WHERE id = ?
+    ''', (
+        message.get('from', ''),
+        to_val,
+        message.get('content', ''),
+        message.get('timestamp', time.time()),
+        1 if message.get('read') else 0,
+        read_by,
+        int(message_id),
+    ))
+    conn.commit()
+
+
+def delete_message_by_id(message_id):
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('DELETE FROM messages WHERE id = ?', (int(message_id),))
+    conn.commit()
+
+
+def get_all_users_from_db():
+    from .db import get_connection
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT * FROM users')
+    rows = c.fetchall()
+    users = {}
+    for row in rows:
+        user_data = _row_to_user(row)
+        if user_data:
+            users[row['username']] = user_data
+    return users

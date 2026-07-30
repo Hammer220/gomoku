@@ -5,7 +5,7 @@
 import re
 from flask import Blueprint, request, jsonify
 
-from ..models import load_json_with_lock, USERS_FILE
+from ..models import get_all_users_from_db
 from ..auth import require_auth
 from ..logger import logger
 
@@ -15,7 +15,7 @@ game_bp = Blueprint('game', __name__)
 @require_auth
 def leaderboard(user):
     try:
-        users = load_json_with_lock(USERS_FILE)
+        users = get_all_users_from_db()
         leaderboard_data = []
         for username, user_data in users.items():
             leaderboard_data.append({

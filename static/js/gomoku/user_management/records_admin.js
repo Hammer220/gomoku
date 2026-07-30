@@ -11,6 +11,11 @@
             const data = res.leaderboard || [];
             const tbody = document.getElementById('leaderboardTable');
 
+            if (!tbody) {
+                console.error('排行榜表格元素不存在');
+                return;
+            }
+
             if (!data || data.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-500">暂无数据</td></tr>';
                 return;
@@ -42,7 +47,11 @@
                 </tr>`;
             }).join('');
         } catch (error) {
-            document.getElementById('leaderboardTable').innerHTML = '<tr><td colspan="6" class="text-center py-8 text-red-500">加载失败: ' + error.message + '</td></tr>';
+            console.error('排行榜加载失败:', error);
+            const tbody = document.getElementById('leaderboardTable');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-red-500">加载失败: ' + (error.message || '未知错误') + '</td></tr>';
+            }
         }
     };
 
@@ -374,9 +383,6 @@
     document.addEventListener('click', function(e) {
         const target = e.target;
 
-        if (target.id === 'createAdminBtn' || target.closest('#createAdminBtn')) {
-            G.createAdminAccount();
-        }
         if (target.id === 'viewAllRecordsBtn' || target.closest('#viewAllRecordsBtn')) {
             G.viewAllRecords();
         }

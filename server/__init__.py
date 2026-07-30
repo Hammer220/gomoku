@@ -3,7 +3,7 @@
 """
 
 import os
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, request as socket_request
 import secrets
 from flask_socketio import SocketIO, emit, join_room, leave_room
 
@@ -31,7 +31,8 @@ def create_app():
     if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
         start_cleanup_task()
 
-    socketio.init_app(app, cors_allowed_origins="*", async_mode='gevent')
+    socketio.init_app(app, cors_allowed_origins="*", async_mode='gevent',
+                      ping_timeout=30, ping_interval=25)
 
     register_socket_events(socketio)
 
@@ -40,30 +41,38 @@ def create_app():
 def register_socket_events(sio):
     """注册Socket.IO事件处理器"""
 
+    sid_to_match = {}
+
     @sio.on('connect')
     def handle_connect():
-        logger.info('客户端已连接')
-        emit('connected', {'status': 'ok'})
+        logger.info(f'客户端已连接: {socket_request.sid}')
 
     @sio.on('disconnect')
     def handle_disconnect():
-        logger.info('客户端已断开')
+        sid = socket_request.sid
+        logger.info(f'客户端已断开: {sid}')
+
+        # 通知房间内其他用户该客户端已断开
+        match_id = sid_to_match.pop(sid, None)
+        if match_id:
+            logger.info(f'断线客户端所在房间: {match_id}，通知房间内其他用户')
+            emit('opponent_disconnected', {'match_id': match_id}, room=match_id)
 
     @sio.on('join')
     def handle_join(data):
         match_id = data.get('match_id')
         if match_id:
             join_room(match_id)
-            logger.info(f'客户端加入房间: {match_id}')
-            emit('joined', {'match_id': match_id})
+            sid_to_match[socket_request.sid] = match_id
+            logger.info(f'客户端加入房间: {match_id}, sid: {socket_request.sid}')
 
     @sio.on('leave')
     def handle_leave(data):
         match_id = data.get('match_id')
         if match_id:
             leave_room(match_id)
-            logger.info(f'客户端离开房间: {match_id}')
-            emit('left', {'match_id': match_id})
+            sid_to_match.pop(socket_request.sid, None)
+            logger.info(f'客户端离开房间: {match_id}, sid: {socket_request.sid}')
 
     @sio.on('match_update')
     def handle_match_update(data):

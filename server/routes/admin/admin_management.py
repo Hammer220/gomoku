@@ -7,9 +7,9 @@ import hashlib
 from flask import request, jsonify
 
 from ..admin_routes import admin_bp
-from ...models import (load_json_with_lock, save_json_with_lock, get_user,
-                       save_user, save_plain_password, USERS_FILE, RECORDS_FILE, get_admin_permissions,
-                       PERMISSION_FIELDS)
+from ...models import (get_user, save_user, save_plain_password,
+                       get_admin_permissions, PERMISSION_FIELDS,
+                       get_all_users_from_db, load_records)
 from ...auth import require_admin, require_super_admin
 from ...logger import logger
 
@@ -18,8 +18,8 @@ from ...logger import logger
 @require_admin
 def admin_get_stats(admin_user):
     try:
-        users = load_json_with_lock(USERS_FILE)
-        records = load_json_with_lock(RECORDS_FILE)
+        users = get_all_users_from_db()
+        records = load_records()
 
         total_users = len(users) if isinstance(users, dict) else 0
         total_records = len(records) if isinstance(records, (dict, list)) else 0
@@ -37,7 +37,7 @@ def admin_get_stats(admin_user):
 @require_admin
 def admin_get_records(admin_user):
     try:
-        records = load_json_with_lock(RECORDS_FILE)
+        records = load_records()
         record_list = []
         if isinstance(records, dict):
             for record_id, record in records.items():
@@ -46,7 +46,7 @@ def admin_get_records(admin_user):
         elif isinstance(records, list):
             record_list = records
 
-        record_list.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
+        record_list.sort(key=lambda x: x.get('endTime', 0), reverse=True)
         return jsonify({'records': record_list})
     except Exception as e:
         logger.error(f'获取所有记录错误: {str(e)}')

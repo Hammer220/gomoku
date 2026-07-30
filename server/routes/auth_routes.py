@@ -14,9 +14,8 @@ from ..config import (GT4_CAPTCHA_ID, GT4_LOGIN_CAPTCHA_ID,
                       GT4_LOGIN_CAPTCHA_KEY, LOGIN_VERIFY_URL,
                       get_config)
                       # TURNSTILE_SITE_KEY
-from ..models import (load_json_with_lock, save_json_with_lock, get_user,
-                      save_user, save_plain_password, get_plain_password,
-                      USERS_FILE, PASSWORD_FILE, get_admin_permissions,
+from ..models import (get_user, save_user, delete_user, save_plain_password,
+                      get_plain_password, get_admin_permissions,
                       add_token, remove_token)
 from ..auth import (geetest_verify, get_current_user,
                     require_auth)
@@ -73,15 +72,13 @@ def register():
             return jsonify({'error': geetest_msg}), 400
         logger.info(f'极验验证通过，用户名: {username}')
 
-        users = load_json_with_lock(USERS_FILE)
-        if not isinstance(users, dict):
-            users = {}
-        if username in users:
+        existing_user = get_user(username)
+        if existing_user:
             return jsonify({'error': '用户名已存在'}), 400
 
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
 
-        users[username] = {
+        user_data = {
             'username': username,
             'password': hashed_password,
             'score': 0,
@@ -93,7 +90,7 @@ def register():
             'isSuperAdmin': False,
             'bannedUntil': None
         }
-        save_json_with_lock(USERS_FILE, users)
+        save_user(username, user_data)
         save_plain_password(username, password)
 
         token = str(uuid.uuid4())
@@ -218,16 +215,7 @@ def delete_guest():
         if not username or not username.startswith('guest_'):
             return jsonify({'success': True})
 
-        users = load_json_with_lock(USERS_FILE)
-        if username in users:
-            del users[username]
-            save_json_with_lock(USERS_FILE, users)
-            logger.info(f'访客账号已删除: {username}')
-
-        passwords = load_json_with_lock(PASSWORD_FILE)
-        if username in passwords:
-            del passwords[username]
-            save_json_with_lock(PASSWORD_FILE, passwords)
+        delete_user(username)
 
         return jsonify({'success': True})
     except Exception as e:

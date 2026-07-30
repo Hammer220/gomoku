@@ -3,6 +3,8 @@
 执行落子操作、超时处理、悔棋、和棋、观战等。
 """
 
+import time
+
 from flask import Blueprint, request, jsonify
 
 from ..auth import require_auth
@@ -14,8 +16,62 @@ from ..match_manager import (create_match, join_match, make_move,
                              get_spectatable_matches, spectate_match, leave_spectate,
                              get_spectate_status)
 from ..logger import logger
+from ..match.storage import active_matches, active_matches_lock
 
 match_bp = Blueprint('match', __name__)
+
+
+def _build_match_event(match):
+    """构建用于 Socket.IO 广播的赛事数据"""
+    return {
+        'match_id': match['id'],
+        'id': match['id'],
+        'status': match['status'],
+        'board': [row[:] for row in match['board']],
+        'currentPlayer': match['currentPlayer'],
+        'moves': match['moves'][:],
+        'winner': match.get('winner'),
+        'creatorColor': match.get('creatorColor'),
+        'creator': match.get('creator'),
+        'opponent': match.get('opponent'),
+        'timeMode': match.get('timeMode', 'untimed'),
+        'blackTime': match.get('blackTime', 600),
+        'whiteTime': match.get('whiteTime', 600),
+        'moveDeadline': match.get('moveDeadline', 0),
+        'totalTime': match.get('totalTime', 600),
+        'moveTime': match.get('moveTime', 30),
+        'restartRequested': match.get('restartRequested', False),
+        'restartRequestedBy': match.get('restartRequestedBy'),
+        'restartDeclinedBy': match.get('restartDeclinedBy'),
+        'restartAccepted': match.get('restartAccepted', False),
+        'restartInitiated': match.get('restartInitiated', False),
+        'restartVersion': match.get('restartVersion', 0),
+        'undoRequested': match.get('undoRequested', False),
+        'undoRequestedBy': match.get('undoRequestedBy'),
+        'undoAccepted': match.get('undoAccepted', False),
+        'undoDeclined': match.get('undoDeclined', False),
+        'undoDeclinedBy': match.get('undoDeclinedBy'),
+        'drawRequested': match.get('drawRequested', False),
+        'drawRequestedBy': match.get('drawRequestedBy'),
+        'drawAccepted': match.get('drawAccepted', False),
+        'drawDeclined': match.get('drawDeclined', False),
+        'drawDeclinedBy': match.get('drawDeclinedBy'),
+        'spectatorCount': len(match.get('spectators', [])),
+        'timestamp': time.time(),
+    }
+
+
+def _emit_match_update(match_id):
+    """通过 Socket.IO 向房间广播赛事更新"""
+    try:
+        from .. import socketio
+        with active_matches_lock:
+            if match_id in active_matches:
+                match = active_matches[match_id]
+                event_data = _build_match_event(match)
+        socketio.emit('match_updated', event_data, room=match_id)
+    except Exception as e:
+        logger.warning(f'Socket.IO emit failed for match {match_id}: {e}')
 
 @match_bp.route('/api/match/create', methods=['POST'])
 @require_auth
@@ -42,7 +98,14 @@ def api_join_match(user):
         data = request.get_json()
         match_id = data.get('matchId', '')
         password = data.get('password') or None
-        return join_match(user, match_id, password)
+        result = join_match(user, match_id, password)
+        if isinstance(result, tuple):
+            resp, code = result
+            if code == 200:
+                _emit_match_update(match_id)
+            return resp, code
+        _emit_match_update(match_id)
+        return result
     except Exception as e:
         logger.error(f'Join match error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
@@ -55,7 +118,9 @@ def api_make_move(user):
         match_id = data.get('matchId', '')
         row = data.get('row')
         col = data.get('col')
-        return make_move(user, match_id, row, col)
+        result = make_move(user, match_id, row, col)
+        _emit_match_update(match_id)
+        return result
     except Exception as e:
         logger.error(f'Move error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
@@ -96,7 +161,9 @@ def api_leave_match(user):
     try:
         data = request.get_json()
         match_id = data.get('matchId', '')
-        return leave_match(user, match_id)
+        result = leave_match(user, match_id)
+        _emit_match_update(match_id)
+        return result
     except Exception as e:
         logger.error(f'Leave match error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
@@ -107,7 +174,9 @@ def api_close_match(user):
     try:
         data = request.get_json()
         match_id = data.get('matchId', '')
-        return close_match(user, match_id)
+        _emit_match_update(match_id)
+        result = close_match(user, match_id)
+        return result
     except Exception as e:
         logger.error(f'Close match error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
@@ -118,7 +187,9 @@ def api_restart_match(user):
     try:
         data = request.get_json()
         match_id = data.get('matchId', '')
-        return restart_match(user, match_id)
+        result = restart_match(user, match_id)
+        _emit_match_update(match_id)
+        return result
     except Exception as e:
         logger.error(f'Restart match error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
@@ -153,7 +224,9 @@ def api_decline_restart(user):
     try:
         data = request.get_json()
         match_id = data.get('matchId', '')
-        return decline_restart(user, match_id)
+        result = decline_restart(user, match_id)
+        _emit_match_update(match_id)
+        return result
     except Exception as e:
         logger.error(f'Decline restart error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
@@ -166,7 +239,9 @@ def api_request_undo(user):
     try:
         data = request.get_json()
         match_id = data.get('matchId', '')
-        return request_undo(user, match_id)
+        result = request_undo(user, match_id)
+        _emit_match_update(match_id)
+        return result
     except Exception as e:
         logger.error(f'Request undo error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
@@ -177,7 +252,9 @@ def api_accept_undo(user):
     try:
         data = request.get_json()
         match_id = data.get('matchId', '')
-        return accept_undo(user, match_id)
+        result = accept_undo(user, match_id)
+        _emit_match_update(match_id)
+        return result
     except Exception as e:
         logger.error(f'Accept undo error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
@@ -188,7 +265,9 @@ def api_decline_undo(user):
     try:
         data = request.get_json()
         match_id = data.get('matchId', '')
-        return decline_undo(user, match_id)
+        result = decline_undo(user, match_id)
+        _emit_match_update(match_id)
+        return result
     except Exception as e:
         logger.error(f'Decline undo error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
@@ -201,7 +280,9 @@ def api_request_draw(user):
     try:
         data = request.get_json()
         match_id = data.get('matchId', '')
-        return request_draw(user, match_id)
+        result = request_draw(user, match_id)
+        _emit_match_update(match_id)
+        return result
     except Exception as e:
         logger.error(f'Request draw error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
@@ -212,7 +293,9 @@ def api_accept_draw(user):
     try:
         data = request.get_json()
         match_id = data.get('matchId', '')
-        return accept_draw(user, match_id)
+        result = accept_draw(user, match_id)
+        _emit_match_update(match_id)
+        return result
     except Exception as e:
         logger.error(f'Accept draw error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
@@ -223,7 +306,9 @@ def api_decline_draw(user):
     try:
         data = request.get_json()
         match_id = data.get('matchId', '')
-        return decline_draw(user, match_id)
+        result = decline_draw(user, match_id)
+        _emit_match_update(match_id)
+        return result
     except Exception as e:
         logger.error(f'Decline draw error: {e}')
         return jsonify({'error': 'Internal server error'}), 500

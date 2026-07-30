@@ -32,8 +32,7 @@ def require_permission(permission_field):
 def _batch_operate(admin_user, usernames, operation, **kwargs):
     """批量操作用户的通用辅助函数"""
     import time
-    from ..models import (load_json_with_lock, save_json_with_lock, get_user,
-                          save_user, USERS_FILE, TOKENS_FILE)
+    from ..models import (get_user, save_user, delete_user, TOKENS_FILE)
 
     success_count = 0
     failed_count = 0
@@ -67,11 +66,7 @@ def _batch_operate(admin_user, usernames, operation, **kwargs):
                 remove_user_tokens(username)
                 success_count += 1
             elif operation == 'delete':
-                users = load_json_with_lock(USERS_FILE)
-                if username in users:
-                    del users[username]
-                save_json_with_lock(USERS_FILE, users)
-                remove_user_tokens(username)
+                delete_user(username)
                 success_count += 1
         except Exception:
             failed_count += 1

@@ -10,31 +10,31 @@
 
         if (target.id === 'adminChangePasswordBtn' || target.closest('#adminChangePasswordBtn')) {
             const username = document.getElementById('adminBanUsername').value.trim();
-            if (!username) return G.showToast('请先选择用户', true);
+            if (!username) return G.showToast(G.i18n.t('selectUserFirst'), true);
             G.showChangePasswordModal(username);
         }
 
         if (target.id === 'adminUpdateScoreBtn' || target.closest('#adminUpdateScoreBtn')) {
             const username = document.getElementById('adminBanUsername').value.trim();
-            if (!username) return G.showToast('请先选择用户', true);
+            if (!username) return G.showToast(G.i18n.t('selectUserFirst'), true);
             G.showUpdateScoreModal(username);
         }
 
         if (target.id === 'adminPasswordFreeToggle') {
             const username = document.getElementById('adminBanUsername').value.trim();
-            if (!username) return G.showToast('请先选择用户', true);
+            if (!username) return G.showToast(G.i18n.t('selectUserFirst'), true);
             const user = G.adminAllUsers.find(u => u.username === username);
-            if (!user) return G.showToast('用户不存在', true);
+            if (!user) return G.showToast(G.i18n.t('userNotFound'), true);
             const passwordFree = !(user.passwordFree === true);
             const maxAttempts = user.passwordFreeMaxAttempts || 0;
             G.apiCall('/api/admin/set_password_free', 'POST', { username, passwordFree, maxAttempts: maxAttempts })
                 .then(data => { G.showToast(data.message); G.loadAdminUsers(); G.selectAdminUser(username); })
-                .catch(err => G.showToast('操作失败: ' + err.message, true));
+                .catch(err => G.showToast(G.i18n.t('operationFailed') + ': ' + err.message, true));
         }
 
         if (target.id === 'adminPasswordFreeAttempts') {
             const username = document.getElementById('adminBanUsername').value.trim();
-            if (!username) return G.showToast('请先选择用户', true);
+            if (!username) return G.showToast(G.i18n.t('selectUserFirst'), true);
             G.showPasswordFreeAttemptsModal(username);
         }
     });
@@ -47,24 +47,24 @@
         const modalHtml = `
             <div id="passwordFreeAttemptsModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                 <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-                    <h3 class="text-xl font-bold mb-4">设置免密登录次数</h3>
+                    <h3 class="text-xl font-bold mb-4">${G.i18n.t('setPasswordFreeAttempts')}</h3>
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">${G.i18n.t('username')}</label>
                             <input type="text" id="pfAttemptsUsername" value="${username}" class="w-full px-4 py-2 border rounded-lg bg-gray-100" readonly>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">最大免密登录次数</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">${G.i18n.t('maxAttemptsLabel')}</label>
                             <input type="number" id="pfMaxAttempts" min="0" value="${currentMax}" class="w-full px-4 py-2 border rounded-lg">
-                            <p class="text-xs text-gray-500 mt-1">设置为 0 表示无次数限制</p>
+                            <p class="text-xs text-gray-500 mt-1">${G.i18n.t('setToZeroHint')}</p>
                         </div>
                         <div class="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
-                            <p>当前状态：${currentMax > 0 ? '剩余 ' + currentRemaining + '/' + currentMax + ' 次' : '无次数限制'}</p>
+                            <p>${G.i18n.t('currentStatus')}：${currentMax > 0 ? G.i18n.t('remainingStatus') + ' ' + currentRemaining + '/' + currentMax + ' ' + G.i18n.t('modelTimes') : G.i18n.t('noLimitStatus')}</p>
                         </div>
                     </div>
                     <div class="flex gap-3 mt-6">
-                        <button id="confirmPfAttemptsBtn" class="flex-1 bg-primary hover:bg-primary/90 text-white py-2 rounded-lg">确认设置</button>
-                        <button id="cancelPfAttemptsBtn" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded-lg">取消</button>
+                        <button id="confirmPfAttemptsBtn" class="flex-1 bg-primary hover:bg-primary/90 text-white py-2 rounded-lg">${G.i18n.t('confirmSet')}</button>
+                        <button id="cancelPfAttemptsBtn" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded-lg">${G.i18n.t('cancel')}</button>
                     </div>
                 </div>
             </div>
@@ -82,7 +82,7 @@
         document.getElementById('confirmPfAttemptsBtn').addEventListener('click', async () => {
             const maxAttempts = parseInt(document.getElementById('pfMaxAttempts').value);
             if (isNaN(maxAttempts) || maxAttempts < 0) {
-                G.showToast('次数必须为非负整数', true);
+                G.showToast(G.i18n.t('invalidAttempts'), true);
                 return;
             }
 
@@ -97,7 +97,7 @@
                 G.loadAdminUsers();
                 G.selectAdminUser(username);
             } catch (error) {
-                G.showToast('设置免密登录次数失败: ' + error.message, true);
+                G.showToast(G.i18n.t('passwordFreeAttemptsFailed') + ': ' + error.message, true);
             }
         });
     };
@@ -106,20 +106,20 @@
         const modalHtml = `
             <div id="updateScoreModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                 <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-                    <h3 class="text-xl font-bold mb-4">修改用户积分</h3>
+                    <h3 class="text-xl font-bold mb-4">${G.i18n.t('updateUserScore')}</h3>
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">${G.i18n.t('username')}</label>
                             <input type="text" id="updateScoreUsername" value="${username}" class="w-full px-4 py-2 border rounded-lg bg-gray-100" readonly>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">新积分</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">${G.i18n.t('newScore')}</label>
                             <input type="number" id="updateScoreValue" value="0" class="w-full px-4 py-2 border rounded-lg">
                         </div>
                     </div>
                     <div class="flex gap-3 mt-6">
-                        <button id="confirmUpdateScoreBtn" class="flex-1 bg-primary hover:bg-primary/90 text-white py-2 rounded-lg">确认修改</button>
-                        <button id="cancelUpdateScoreBtn" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded-lg">取消</button>
+                        <button id="confirmUpdateScoreBtn" class="flex-1 bg-primary hover:bg-primary/90 text-white py-2 rounded-lg">${G.i18n.t('confirmModify')}</button>
+                        <button id="cancelUpdateScoreBtn" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded-lg">${G.i18n.t('cancel')}</button>
                     </div>
                 </div>
             </div>
@@ -137,7 +137,7 @@
         document.getElementById('confirmUpdateScoreBtn').addEventListener('click', async () => {
             const newScore = parseInt(document.getElementById('updateScoreValue').value);
             if (isNaN(newScore)) {
-                G.showToast('积分必须为整数', true);
+                G.showToast(G.i18n.t('scoreMustBeInteger'), true);
                 return;
             }
 
@@ -147,7 +147,7 @@
                 document.getElementById('updateScoreModal').remove();
                 G.loadAdminUsers();
             } catch (error) {
-                G.showToast('修改积分失败: ' + error.message, true);
+                G.showToast(G.i18n.t('updateScoreFailed') + ': ' + error.message, true);
             }
         });
     };
@@ -156,20 +156,20 @@
         const modalHtml = `
             <div id="changePwdModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                 <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
-                    <h3 class="text-xl font-bold mb-4">修改用户密码</h3>
+                    <h3 class="text-xl font-bold mb-4">${G.i18n.t('updateUserPassword')}</h3>
                     <div class="space-y-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">用户名</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">${G.i18n.t('username')}</label>
                             <input type="text" id="changePwdUsername" value="${username}" class="w-full px-4 py-2 border rounded-lg bg-gray-100" readonly>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">新密码</label>
-                            <input type="password" id="changePwdNew" placeholder="请输入新密码（至少6位）" class="w-full px-4 py-2 border rounded-lg">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">${G.i18n.t('newPassword')}</label>
+                            <input type="password" id="changePwdNew" placeholder="${G.i18n.t('newPasswordPlaceholder')}" class="w-full px-4 py-2 border rounded-lg">
                         </div>
                     </div>
                     <div class="flex gap-3 mt-6">
-                        <button id="confirmChangePwdBtn" class="flex-1 bg-primary hover:bg-primary/90 text-white py-2 rounded-lg">确认修改</button>
-                        <button id="cancelChangePwdBtn" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded-lg">取消</button>
+                        <button id="confirmChangePwdBtn" class="flex-1 bg-primary hover:bg-primary/90 text-white py-2 rounded-lg">${G.i18n.t('confirmModify')}</button>
+                        <button id="cancelChangePwdBtn" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded-lg">${G.i18n.t('cancel')}</button>
                     </div>
                 </div>
             </div>
@@ -187,7 +187,7 @@
         document.getElementById('confirmChangePwdBtn').addEventListener('click', async () => {
             const newPwd = document.getElementById('changePwdNew').value;
             if (!newPwd || newPwd.length < 6) {
-                G.showToast('新密码至少需要6个字符', true);
+                G.showToast(G.i18n.t('newPasswordMinLength'), true);
                 return;
             }
 
@@ -196,12 +196,12 @@
                     username: username,
                     new_password: newPwd
                 });
-                G.showToast('密码修改成功');
+                G.showToast(G.i18n.t('passwordChanged'));
                 document.getElementById('changePwdModal').remove();
                 G.loadAdminUsers();
                 G.loadAdminList();
             } catch (error) {
-                G.showToast('修改密码失败: ' + error.message, true);
+                G.showToast(G.i18n.t('passwordChangeFailed') + ': ' + error.message, true);
             }
         });
     };

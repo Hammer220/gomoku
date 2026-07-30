@@ -31,6 +31,9 @@ var Gomoku = window.Gomoku || {};
         maxReconnectAttempts: 20,
         reconnectDelay: 3000,
 
+        // 当前加入的房间ID
+        currentRoomId: null,
+
         // 事件回调
         eventHandlers: {},
 
@@ -71,6 +74,12 @@ var Gomoku = window.Gomoku || {};
                     self.stopPolling();
                     self.reconnectAttempts = 0;
                     self.emit('connected', {});
+
+                    // 重连后自动重新加入之前的房间
+                    if (self.currentRoomId) {
+                        console.log('重连后自动加入房间:', self.currentRoomId);
+                        self.joinRoom(self.currentRoomId);
+                    }
                 });
 
                 this.socket.on('disconnect', function() {
@@ -130,6 +139,10 @@ var Gomoku = window.Gomoku || {};
 
                 this.socket.on('left', function(data) {
                     self.emit('left', data);
+                });
+
+                this.socket.on('opponent_disconnected', function(data) {
+                    self.emit('opponent_disconnected', data);
                 });
 
                 this.connecting = false;
@@ -202,6 +215,7 @@ var Gomoku = window.Gomoku || {};
 
         // 加入房间
         joinRoom: function(matchId) {
+            this.currentRoomId = matchId;
             if (this.usingWebSocket && this.socket) {
                 this.socket.emit('join', {match_id: matchId});
             } else {
@@ -211,6 +225,9 @@ var Gomoku = window.Gomoku || {};
 
         // 离开房间
         leaveRoom: function(matchId) {
+            if (this.currentRoomId === matchId) {
+                this.currentRoomId = null;
+            }
             if (this.usingWebSocket && this.socket) {
                 this.socket.emit('leave', {match_id: matchId});
             } else {

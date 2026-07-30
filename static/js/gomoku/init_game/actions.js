@@ -55,7 +55,7 @@
     // 离开联机房间
     var onlineLeaveBtn = $('onlineLeaveBtn');
     if (onlineLeaveBtn) {
-        onlineLeaveBtn.addEventListener('click', G.onlineLeaveMatch);
+        onlineLeaveBtn.addEventListener('click', G.leaveOnlineRoom);
         onlineLeaveBtn.classList.add('hidden');
     }
 

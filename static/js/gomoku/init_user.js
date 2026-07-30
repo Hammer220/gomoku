@@ -23,8 +23,7 @@ var Gomoku = window.Gomoku || {};
             'profileTab': 'profileContent',
             'historyTab': 'historyContent',
             'statsTab': 'statsContent',
-            'leaderboardTab': 'leaderboardContent',
-            'boardColorTab': 'boardColorContent'
+            'leaderboardTab': 'leaderboardContent'
         };
 
         Object.keys(tabMappings).forEach(function(tabId) {

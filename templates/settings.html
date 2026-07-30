@@ -54,9 +54,6 @@
             <button class="tab-active px-6 py-3 font-medium whitespace-nowrap" data-tab="general">
                 <i class="fa-solid fa-gear mr-2"></i><span data-i18n="generalSettings">通用设置</span>
             </button>
-            <button class="px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap" data-tab="game">
-                <i class="fa-solid fa-gamepad mr-2"></i><span data-i18n="gameSettings">游戏设置</span>
-            </button>
             <button class="px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap" data-tab="display">
                 <i class="fa-solid fa-palette mr-2"></i><span data-i18n="displaySettings">显示设置</span>
             </button>
@@ -117,54 +114,6 @@
                 </div>
             </div>
 
-            <div id="gameTab" class="tab-content hidden">
-                <div class="space-y-6">
-                    <div class="bg-gray-50 rounded-xl p-5">
-                        <h3 class="text-lg font-bold text-primary mb-4">
-                            <i class="fa-solid fa-robot mr-2"></i><span data-i18n="aiDifficulty">AI难度</span>
-                        </h3>
-                        <div class="grid grid-cols-3 gap-3">
-                            <button id="aiEasyBtn" class="ai-difficulty p-4 border-2 rounded-xl text-center transition-all hover:border-primary" data-difficulty="easy">
-                                <div class="text-2xl mb-1">😊</div>
-                                <div class="font-medium" data-i18n="easy">简单</div>
-                            </button>
-                            <button id="aiMediumBtn" class="ai-difficulty p-4 border-2 border-primary bg-primary/10 rounded-xl text-center transition-all" data-difficulty="medium">
-                                <div class="text-2xl mb-1">🤔</div>
-                                <div class="font-medium" data-i18n="medium">中等</div>
-                            </button>
-                            <button id="aiHardBtn" class="ai-difficulty p-4 border-2 rounded-xl text-center transition-all hover:border-primary" data-difficulty="hard">
-                                <div class="text-2xl mb-1">😈</div>
-                                <div class="font-medium" data-i18n="hard">困难</div>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="bg-gray-50 rounded-xl p-5">
-                        <h3 class="text-lg font-bold text-primary mb-4">
-                            <i class="fa-solid fa-ban mr-2"></i><span data-i18n="forbiddenRule">启用禁手规则</span>
-                        </h3>
-                        <label class="flex items-center cursor-pointer">
-                            <div class="relative">
-                                <input type="checkbox" id="forbiddenRuleToggle" class="sr-only" checked>
-                                <div class="block bg-gray-300 w-14 h-8 rounded-full toggle-bg"></div>
-                                <div class="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform"></div>
-                            </div>
-                            <span class="ml-3 text-gray-700" data-i18n="enabled">启用</span>
-                        </label>
-                    </div>
-
-                    <div class="bg-gray-50 rounded-xl p-5">
-                        <h3 class="text-lg font-bold text-primary mb-4">
-                            <i class="fa-solid fa-clock mr-2"></i><span data-i18n="timeLimit">单步时间限制</span>
-                        </h3>
-                        <div class="flex items-center gap-4">
-                            <input type="range" id="timeLimitSlider" min="0" max="60" step="5" value="0" class="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-                            <span id="timeLimitDisplay" class="text-gray-700 font-medium min-w-[80px] text-right" data-i18n="noLimit">无限制</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <div id="displayTab" class="tab-content hidden">
                 <div class="space-y-6">
                     <div class="bg-gray-50 rounded-xl p-5">
@@ -187,24 +136,38 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="flex gap-3 mt-4">
-                            <button id="saveBoardColorBtn" class="flex-1 bg-primary hover:bg-primary/90 text-white py-2 rounded-lg transition-colors">
-                                <i class="fa-solid fa-save mr-2"></i><span data-i18n="saveSettings">保存设置</span>
-                            </button>
-                            <button id="resetBoardColorBtn" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
-                                <i class="fa-solid fa-rotate-left mr-2"></i><span data-i18n="reset">重置</span>
-                            </button>
-                        </div>
                     </div>
 
                     <div class="bg-gray-50 rounded-xl p-5">
                         <h3 class="text-lg font-bold text-primary mb-4">
                             <i class="fa-solid fa-image mr-2"></i><span data-i18n="backgroundImage">背景图片</span>
                         </h3>
-                        <div id="backgroundGrid" class="grid grid-cols-4 gap-3 mb-4">
+                        <div id="backgroundImageGrid" class="grid grid-cols-4 gap-3 mb-4 max-h-72 overflow-y-auto p-2 bg-gray-50 rounded-lg">
                         </div>
-                        <button id="loadBackgroundsBtn" class="w-full bg-gray-200 hover:bg-gray-300 py-2 rounded-lg transition-colors">
-                            <i class="fa-solid fa-refresh mr-2"></i><span data-i18n="loadSettings">加载背景</span>
+                        <div class="flex gap-2 mt-2 items-center flex-wrap">
+                            <label class="text-sm text-blue-600 hover:text-blue-700 cursor-pointer">
+                                <i class="fa-solid fa-upload mr-1"></i><span data-i18n="uploadImage">上传图片</span>
+                                <input type="file" id="uploadBackgroundInput" accept="image/*" class="hidden" onchange="handleBackgroundUpload(this)">
+                            </label>
+                            <label class="flex items-center text-sm">
+                                <input type="checkbox" id="saveUploadToServer" class="mr-1 rounded">
+                                <span class="text-gray-600" data-i18n="saveToServer">保存到服务器</span>
+                            </label>
+                        </div>
+                        <div id="uploadProgress" class="hidden mt-2 text-sm text-primary">
+                            <i class="fa-solid fa-spinner fa-spin mr-1"></i><span data-i18n="uploading">上传中...</span>
+                        </div>
+                        <button id="loadBackgroundsBtn" class="w-full bg-gray-200 hover:bg-gray-300 py-2 rounded-lg transition-colors mt-3">
+                            <i class="fa-solid fa-refresh mr-2"></i><span data-i18n="loadSettings">刷新列表</span>
+                        </button>
+                    </div>
+
+                    <div class="flex gap-3">
+                        <button id="saveBoardColorBtn" class="flex-1 bg-primary hover:bg-primary/90 text-white py-2 rounded-lg transition-colors">
+                            <i class="fa-solid fa-save mr-2"></i><span data-i18n="saveSettings">保存设置</span>
+                        </button>
+                        <button id="resetBoardColorBtn" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
+                            <i class="fa-solid fa-rotate-left mr-2"></i><span data-i18n="reset">重置</span>
                         </button>
                     </div>
                 </div>
@@ -221,6 +184,7 @@
     <script src="/static/js/gomoku/core.js"></script>
     <script src="/static/js/gomoku/i18n.js"></script>
     <script src="/static/js/gomoku/utils.js"></script>
+    <script src="/static/js/gomoku/board_render.js"></script>
     <script src="/static/js/gomoku/background_settings.js"></script>
     <script src="/static/js/gomoku/init/auth.js"></script>
     <script>
@@ -237,27 +201,6 @@
                     btn.classList.add('border-gray-200');
                 }
             });
-        }
-
-        function updateAiDifficultySelection() {
-            document.querySelectorAll('.ai-difficulty').forEach(function(btn) {
-                btn.classList.remove('border-primary', 'bg-primary/10');
-                btn.classList.add('border-gray-200');
-                if (btn.dataset.difficulty === (G.aiDifficulty || 'medium')) {
-                    btn.classList.add('border-primary', 'bg-primary/10');
-                    btn.classList.remove('border-gray-200');
-                }
-            });
-        }
-
-        function updateTimeLimitDisplay() {
-            var value = parseInt(document.getElementById('timeLimitSlider').value);
-            var display = document.getElementById('timeLimitDisplay');
-            if (value === 0) {
-                display.textContent = i18n.t('noLimit');
-            } else {
-                display.textContent = value + ' ' + i18n.t('seconds');
-            }
         }
 
         function showToast(message, type) {
@@ -290,7 +233,7 @@
             });
         });
 
-        var settingsHashValidTabs = ['general', 'game', 'display'];
+        var settingsHashValidTabs = ['general', 'display'];
 
         window.handleSettingsHashChange = function() {
             var hash = window.location.hash.replace('#', '');
@@ -325,31 +268,6 @@
             btn.addEventListener('click', function() {
                 showSettingsTab(this.dataset.tab);
             });
-        });
-
-        document.querySelectorAll('.ai-difficulty').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                G.aiDifficulty = this.dataset.difficulty;
-                localStorage.setItem('aiDifficulty', G.aiDifficulty);
-                updateAiDifficultySelection();
-                showToast(i18n.t('settingsSaved'), 'success');
-            });
-        });
-
-        document.getElementById('forbiddenRuleToggle').addEventListener('change', function() {
-            G.aiForbidden = this.checked;
-            localStorage.setItem('aiForbidden', G.aiForbidden ? 'true' : 'false');
-            showToast(i18n.t('settingsSaved'), 'success');
-        });
-
-        var timeLimitSlider = document.getElementById('timeLimitSlider');
-        timeLimitSlider.addEventListener('input', function() {
-            updateTimeLimitDisplay();
-        });
-        timeLimitSlider.addEventListener('change', function() {
-            G.pvpTimeLimit = parseInt(this.value);
-            localStorage.setItem('pvpTimeLimit', G.pvpTimeLimit);
-            showToast(i18n.t('settingsSaved'), 'success');
         });
 
         var lineColorInput = document.getElementById('boardLineColor');
@@ -445,25 +363,6 @@
             lineColorText.value = G.boardLineColor || '#8B5A2B';
             dotColorInput.value = G.boardDotColor || '#8B5A2B';
             dotColorText.value = G.boardDotColor || '#8B5A2B';
-
-            var savedDifficulty = localStorage.getItem('aiDifficulty');
-            if (savedDifficulty) {
-                G.aiDifficulty = savedDifficulty;
-            }
-            updateAiDifficultySelection();
-
-            var savedForbidden = localStorage.getItem('aiForbidden');
-            if (savedForbidden !== null) {
-                G.aiForbidden = savedForbidden === 'true';
-            }
-            document.getElementById('forbiddenRuleToggle').checked = G.aiForbidden;
-
-            var savedTimeLimit = localStorage.getItem('pvpTimeLimit');
-            if (savedTimeLimit !== null) {
-                G.pvpTimeLimit = parseInt(savedTimeLimit);
-                timeLimitSlider.value = G.pvpTimeLimit;
-            }
-            updateTimeLimitDisplay();
 
             updateLanguageSelection();
 

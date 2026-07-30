@@ -30,6 +30,11 @@ var Gomoku = window.Gomoku || {};
             G.reconnectAttempts = 0;
             G.currentPollingInterval = G.basePollingInterval;
 
+            // 恢复WebSocket房间连接
+            if (G.WebSocketManager) {
+                G.WebSocketManager.joinRoom(match.id);
+            }
+
             var matchIdDisplay = $('onlineMatchIdDisplay');
             var roomInfo = $('roomInfo');
             var onlineCreateBtn = $('onlineCreateBtn');
@@ -121,6 +126,11 @@ var Gomoku = window.Gomoku || {};
             G.currentPollingInterval = G.basePollingInterval;
             G.stopMatchListRefresh();
 
+            // 加入WebSocket房间，接收实时更新
+            if (G.WebSocketManager) {
+                G.WebSocketManager.joinRoom(res.matchId);
+            }
+
             var matchIdDisplay = $('onlineMatchIdDisplay');
             var roomInfo = $('roomInfo');
             var roomActions = $('roomActions');
@@ -182,6 +192,11 @@ var Gomoku = window.Gomoku || {};
             G.reconnectAttempts = 0;
             G.currentPollingInterval = G.basePollingInterval;
             G.stopMatchListRefresh();
+
+            // 加入WebSocket房间，接收实时更新
+            if (G.WebSocketManager) {
+                G.WebSocketManager.joinRoom(matchId);
+            }
 
             var matchIdDisplay = $('onlineMatchIdDisplay');
             var roomInfo = $('roomInfo');
@@ -316,6 +331,11 @@ var Gomoku = window.Gomoku || {};
             G.stopOnlineTimer();
             G.stopTimedCountdown();
 
+            // 离开WebSocket房间
+            if (G.WebSocketManager) {
+                G.WebSocketManager.leaveRoom(G.onlineMatchId);
+            }
+
             var matchIdDisplay = $('onlineMatchIdDisplay');
             var roomInfo = $('roomInfo');
             var roomActions = $('roomActions');
@@ -351,6 +371,11 @@ var Gomoku = window.Gomoku || {};
             G.stopHeartbeat();
             G.stopOnlineTimer();
             G.stopTimedCountdown();
+
+            // 离开WebSocket房间
+            if (G.WebSocketManager) {
+                G.WebSocketManager.leaveRoom(G.onlineMatchId);
+            }
 
             var matchIdDisplay = $('onlineMatchIdDisplay');
             var roomInfo = $('roomInfo');

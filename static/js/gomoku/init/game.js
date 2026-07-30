@@ -22,7 +22,7 @@
 
     document.getElementById('onlineCreateBtn').addEventListener('click', G.onlineCreateMatch);
     document.getElementById('onlineJoinBtn').addEventListener('click', G.onlineJoinMatch);
-    document.getElementById('onlineLeaveBtn').addEventListener('click', G.onlineLeaveMatch);
+    document.getElementById('onlineLeaveBtn').addEventListener('click', G.leaveOnlineRoom);
     document.getElementById('onlineLeaveBtn').classList.add('hidden');
 
     G.attachCloseRoomHandler();

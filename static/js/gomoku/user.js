@@ -333,7 +333,7 @@ var Gomoku = window.Gomoku || {};
     };
 
     // 访客登录
-    G.loginAsGuest = function() {
+    G.loginAsGuest = async function() {
         if (G.guestRemainingGames <= 0) {
             G.showToast('访客次数已用完，请注册账号', true);
             return;
@@ -345,6 +345,13 @@ var Gomoku = window.Gomoku || {};
         G.currentUser = { username: guestUsername, isGuest: true };
         localStorage.setItem('isGuest', 'true');
         localStorage.setItem('guestRemainingGames', G.guestRemainingGames.toString());
+
+        try {
+            await G.apiCall('/api/guest/register', 'POST', { username: guestUsername }, true);
+        } catch (e) {
+            console.log('注册访客账号到服务器失败:', e);
+        }
+
         G.showToast('欢迎来到五子棋！访客模式剩余 ' + G.guestRemainingGames + ' 次游戏机会');
         window.location.href = '/game';
     };

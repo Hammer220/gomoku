@@ -245,15 +245,7 @@ var Gomoku = window.Gomoku || {};
         G.ctx.strokeStyle = player === 1 ? '#333' : '#ccc';
         G.ctx.lineWidth = 1;
         G.ctx.stroke();
-        if (moveNum > 0) {
-            var fontSize = Math.max(8, G.PIECE_SIZE * 0.4);
-            G.ctx.font = 'bold ' + fontSize + 'px Arial';
-            G.ctx.textAlign = 'center';
-            G.ctx.textBaseline = 'middle';
-            G.ctx.fillStyle = player === 1 ? '#fff' : '#000';
-            G.ctx.fillText(moveNum.toString(), x, y);
-        }
-    };
+        };
 
     // 绘制联机棋盘（网格线 + 星位点 + 棋子）
     G.drawOnlineBoard = function() {
@@ -369,15 +361,7 @@ var Gomoku = window.Gomoku || {};
         G.onlineCtx.strokeStyle = player === 1 ? '#333' : '#ccc';
         G.onlineCtx.lineWidth = 1;
         G.onlineCtx.stroke();
-        if (moveNum > 0) {
-            var fontSize = Math.max(8, pieceSize * 0.4);
-            G.onlineCtx.font = 'bold ' + fontSize + 'px Arial';
-            G.onlineCtx.textAlign = 'center';
-            G.onlineCtx.textBaseline = 'middle';
-            G.onlineCtx.fillStyle = player === 1 ? '#fff' : '#000';
-            G.onlineCtx.fillText(moveNum.toString(), x, y);
-        }
-    };
+        };
 
     // 管理员监控棋盘绘制（支持高 DPI 显示）
     G.drawMonitorBoard = function() {

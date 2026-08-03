@@ -30,6 +30,11 @@ def register_routes(app):
     def login_page():
         return render_template('login.html')
 
+    # 注册页面（复用登录页面模板，前端通过 URL 判断显示注册弹窗）
+    @app.route('/register')
+    def register_page():
+        return render_template('login.html')
+
     # 游戏大厅页面
     @app.route('/game')
     def game_page():

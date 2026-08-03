@@ -194,6 +194,44 @@ def logout(user):
         logger.error(f'退出错误: {str(e)}')
         return jsonify({'success': True})
 
+@auth_bp.route('/api/guest/register', methods=['POST'])
+def register_guest():
+    """注册访客账号：在数据库中创建访客用户记录"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+
+        username = data.get('username', '').strip()
+        if not username or not username.startswith('guest_'):
+            return jsonify({'error': '无效的访客用户名'}), 400
+
+        existing_user = get_user(username)
+        if existing_user:
+            logger.info(f'访客账号已存在: {username}')
+            return jsonify({'success': True, 'message': '访客账号已存在'})
+
+        user_data = {
+            'username': username,
+            'password': '',
+            'score': 1000,
+            'wins': 0,
+            'games': 0,
+            'joinDate': datetime.now().strftime('%Y-%m-%d'),
+            'lastLogin': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'isAdmin': False,
+            'isSuperAdmin': False,
+            'bannedUntil': None
+        }
+        save_user(username, user_data)
+
+        logger.info(f'访客账号注册成功: {username}')
+        return jsonify({'success': True, 'message': '访客账号注册成功'})
+    except Exception as e:
+        logger.error(f'注册访客账号错误: {str(e)}')
+        return jsonify({'error': '注册访客账号失败'}), 500
+
+
 @auth_bp.route('/api/guest/delete', methods=['POST'])
 def delete_guest():
     """删除访客账号"""

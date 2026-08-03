@@ -53,6 +53,10 @@ def init_db():
             can_set_password_free INTEGER DEFAULT 0,
             can_monitor_matches INTEGER DEFAULT 0,
             can_manage_matches INTEGER DEFAULT 0,
+            password_free INTEGER DEFAULT 0,
+            password_free_max_attempts INTEGER DEFAULT 0,
+            password_free_remaining_attempts INTEGER DEFAULT 0,
+            use_captcha INTEGER DEFAULT 1,
             created_at REAL DEFAULT (strftime('%s', 'now')),
             updated_at REAL DEFAULT (strftime('%s', 'now'))
         )
@@ -223,6 +227,27 @@ def init_db():
 
     try:
         c.execute("ALTER TABLE messages ADD COLUMN read_by TEXT DEFAULT '[]'")
+    except sqlite3.OperationalError as e:
+        if 'duplicate column' in str(e).lower():
+            pass
+
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN password_free INTEGER DEFAULT 0")
+    except sqlite3.OperationalError as e:
+        if 'duplicate column' in str(e).lower():
+            pass
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN password_free_max_attempts INTEGER DEFAULT 0")
+    except sqlite3.OperationalError as e:
+        if 'duplicate column' in str(e).lower():
+            pass
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN password_free_remaining_attempts INTEGER DEFAULT 0")
+    except sqlite3.OperationalError as e:
+        if 'duplicate column' in str(e).lower():
+            pass
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN use_captcha INTEGER DEFAULT 1")
     except sqlite3.OperationalError as e:
         if 'duplicate column' in str(e).lower():
             pass

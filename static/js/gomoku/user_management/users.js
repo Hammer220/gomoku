@@ -60,7 +60,9 @@
             const isChecked = checkedUsers.has(u.username) ? 'checked' : '';
 
             let roleTag = '';
-            if (u.isSuperAdmin) {
+            if (u.isGuest) {
+                roleTag = '<span class="text-xs px-2 py-1 rounded bg-gray-100 text-gray-600">访客</span>';
+            } else if (u.isSuperAdmin) {
                 roleTag = '<span class="text-xs px-2 py-1 rounded bg-red-100 text-red-800">超级</span>';
             } else if (u.isAdmin) {
                 const canManage = u.canManage !== false;
@@ -168,7 +170,8 @@
         var canOperate = !isTargetSuperAdmin;
 
         var info = '当前用户：' + user.username;
-        if (user.isSuperAdmin) info += ' | 超级管理员';
+        if (user.isGuest) info += ' | 访客';
+        else if (user.isSuperAdmin) info += ' | 超级管理员';
         else if (user.isAdmin) info += ' | 管理员';
         info += ' | 积分：' + user.score + ' | 胜场：' + user.wins + ' | 对局：' + user.games;
         infoEl.textContent = info;

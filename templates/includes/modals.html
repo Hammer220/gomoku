@@ -9,7 +9,7 @@
 -->
 
 <!-- 登录/注册模态框 -->
-<div id="loginModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+<div id="loginModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden modal-overlay">
     <div class="modal-content bg-white rounded-xl p-8 max-w-md w-full mx-4">
         <h2 class="text-2xl font-bold mb-6 text-center text-primary">登录五子棋</h2>
         <form id="loginForm" class="space-y-4">
@@ -25,7 +25,7 @@
     </div>
 </div>
 
-<div id="registerModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+<div id="registerModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden modal-overlay">
     <div class="modal-content bg-white rounded-xl p-8 max-w-md w-full mx-4">
         <h2 class="text-2xl font-bold mb-6 text-center text-primary">注册新账号</h2>
         <form id="registerForm" class="space-y-4">
@@ -40,7 +40,7 @@
 </div>
 
 <!-- 免密登录页面 -->
-<div id="passwordFreeLoginPage" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+<div id="passwordFreeLoginPage" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden modal-overlay">
     <div class="modal-content bg-white rounded-xl p-8 max-w-md w-full mx-4">
         <h2 class="text-2xl font-bold mb-2 text-center text-primary">免密登录</h2>
         <p class="text-center text-gray-400 text-xs mb-6">需管理员开启免密权限后方可使用</p>
@@ -60,7 +60,7 @@
     </div>
 </div>
 
-<div id="onlineModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+<div id="onlineModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden modal-overlay">
     <div class="modal-content bg-white rounded-xl p-6 max-w-lg w-full mx-4">
         <h2 class="text-2xl font-bold mb-6 text-center text-primary">联机对战</h2>
         <div class="space-y-4">
@@ -84,7 +84,7 @@
 </div>
 
 <!-- 所有游戏记录弹窗 -->
-<div id="allRecordsModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+<div id="allRecordsModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden modal-overlay">
     <div class="bg-white rounded-xl p-6 max-w-3xl w-full mx-4 max-h-[80vh] flex flex-col">
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-xl font-bold text-primary">所有游戏记录</h2>
@@ -106,7 +106,7 @@
 </div>
 
 <!-- 棋局复盘弹窗 -->
-<div id="replayModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+<div id="replayModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden modal-overlay">
     <div class="bg-white rounded-xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col">
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-xl font-bold text-primary">棋局复盘</h2>

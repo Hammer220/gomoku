@@ -27,8 +27,8 @@
     if (G.canvas) {
         G.canvas.addEventListener('click', function(e) {
             if (!G.gameActive) return;
+            if (G.gameMode === 'online') return;
             if (G.gameMode === 'ai' && G.currentPlayer !== G.playerColor) return;
-            if (G.gameMode === 'online' && G.currentPlayer !== G.onlineMyColor) return;
             var rect = G.canvas.getBoundingClientRect();
             var scaleX = G.canvas.width / rect.width;
             var scaleY = G.canvas.height / rect.height;
@@ -39,7 +39,6 @@
             var row = Math.round((y - margin) / G.CELL_SIZE);
             if (row >= 0 && row < G.BOARD_SIZE && col >= 0 && col < G.BOARD_SIZE && G.gameBoard[row][col] === 0) {
                 G.placePiece(row, col, G.currentPlayer);
-                if (G.gameMode === 'online') G.makeOnlineMove(row, col);
             }
         });
     }

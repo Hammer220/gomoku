@@ -1,6 +1,6 @@
 """联机匹配路由模块
 处理联机对战相关请求：创建/加入/离开房间、获取房间列表、
-执行落子操作、超时处理、悔棋、和棋、观战等。
+执行落子操作、超时处理、悔棋、和棋、认输、观战等。
 """
 
 import time
@@ -12,11 +12,11 @@ from ..match_manager import (create_match, join_match, make_move,
                              get_match_status, leave_match, close_match,
                              restart_match, decline_restart, get_my_match, list_available_matches,
                              heartbeat, request_undo, accept_undo, decline_undo,
-                             request_draw, accept_draw, decline_draw,
+                             request_draw, accept_draw, decline_draw, resign,
                              get_spectatable_matches, spectate_match, leave_spectate,
                              get_spectate_status)
 from ..logger import logger
-from ..match.storage import active_matches, active_matches_lock
+from ..match.storage import active_matches, active_matches_lock, get_room_chat_messages
 
 match_bp = Blueprint('match', __name__)
 
@@ -313,6 +313,21 @@ def api_decline_draw(user):
         logger.error(f'Decline draw error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
+# ==================== 认输 ====================
+
+@match_bp.route('/api/match/resign', methods=['POST'])
+@require_auth
+def api_resign(user):
+    try:
+        data = request.get_json()
+        match_id = data.get('matchId', '')
+        result = resign(user, match_id)
+        _emit_match_update(match_id)
+        return result
+    except Exception as e:
+        logger.error(f'Resign error: {e}')
+        return jsonify({'error': 'Internal server error'}), 500
+
 # ==================== 观战 ====================
 
 @match_bp.route('/api/match/spectate/list', methods=['GET'])
@@ -355,4 +370,28 @@ def api_spectate_status(user):
         return get_spectate_status(user, match_id)
     except Exception as e:
         logger.error(f'Spectate status error: {e}')
+        return jsonify({'error': 'Internal server error'}), 500
+
+# ==================== 房间聊天 ====================
+
+@match_bp.route('/api/match/chat/<match_id>', methods=['GET'])
+@require_auth
+def api_get_room_chat(user, match_id):
+    """获取房间聊天历史"""
+    try:
+        with active_matches_lock:
+            if match_id not in active_matches:
+                return jsonify({'error': '房间不存在'}), 404
+
+            match = active_matches[match_id]
+            username = user['username']
+
+            if match['creator'] != username and match.get('opponent') != username:
+                if username not in match.get('spectators', []):
+                    return jsonify({'error': '您不在这个房间中'}), 403
+
+        messages = get_room_chat_messages(match_id, limit=50)
+        return jsonify({'success': True, 'messages': messages})
+    except Exception as e:
+        logger.error(f'Get room chat error: {e}')
         return jsonify({'error': 'Internal server error'}), 500

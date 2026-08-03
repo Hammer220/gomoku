@@ -129,10 +129,11 @@
     if (pvpForbidden) {
         pvpForbidden.addEventListener('change', function(e) {
             G.pvpForbidden = e.target.checked;
-            G.showToast(G.pvpForbidden ? '已启用禁手规则' : '已禁用禁手规则');
             if (G.gameMode === 'pvp' && G.gameActive && G.moveHistory.length > 0) {
                 G.resetGame();
-                G.showToast('设置已更改，游戏重新开始');
+                G.showToast('禁手规则已更改，游戏重新开始');
+            } else {
+                G.showToast(G.pvpForbidden ? '已启用禁手规则' : '已禁用禁手规则');
             }
         });
     }
@@ -161,7 +162,7 @@
                 if (display) display.classList.add('hidden');
             }
             G.showToast('时间限制: ' + timeLabels[index]);
-            if (G.gameMode === 'pvp' && G.gameActive) {
+            if (G.gameMode === 'pvp' && G.gameActive && G.moveHistory.length > 0) {
                 G.stopPvpTurnTimer();
                 G.resetGame();
             }

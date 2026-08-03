@@ -196,6 +196,46 @@ def decline_draw(user, match_id):
         return {'success': True, 'drawDeclined': True, 'message': '已拒绝和棋请求'}, 200
 
 
+# ==================== 认输功能 ====================
+
+def resign(user, match_id):
+    """认输 - 直接判负"""
+    with active_matches_lock:
+        if not match_id or match_id not in active_matches:
+            return {'error': '房间不存在'}, 404
+
+        match = active_matches[match_id]
+        username = user['username']
+
+        if match['creator'] != username and match.get('opponent') != username:
+            return {'error': '您不在这个房间中'}, 403
+        if match['status'] != 'playing':
+            return {'error': '游戏未在进行中'}, 400
+
+        my_color = None
+        if match['creator'] == username:
+            my_color = match['creatorColor']
+        else:
+            my_color = 2 if match['creatorColor'] == 1 else 1
+
+        winner_color = 2 if my_color == 1 else 1
+        match['winner'] = winner_color
+        match['status'] = 'finished'
+        match['winReason'] = 'resign'
+        match['loser'] = username
+        match['lastActivity'] = time.time()
+
+        save_matches()
+
+        return {
+            'success': True,
+            'resigned': True,
+            'winner': winner_color,
+            'winReason': 'resign',
+            'message': '你已认输'
+        }, 200
+
+
 # ==================== 观战功能 ====================
 
 def get_spectatable_matches():

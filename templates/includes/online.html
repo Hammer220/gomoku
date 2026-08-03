@@ -39,18 +39,42 @@
                 </div>
             </div>
             <div class="w-full lg:w-96 xl:w-[420px] space-y-4">
+                <!-- 房间聊天面板 -->
+                <div id="roomChatPanel" class="bg-white rounded-lg shadow-md p-4 hidden">
+                    <h3 class="font-semibold mb-3 flex items-center justify-between">
+                        <span><i class="fa-solid fa-comments mr-2"></i>房间聊天</span>
+                        <button onclick="G.toggleRoomChat()" class="text-xs text-gray-500 hover:text-gray-700">
+                            <i class="fa-solid fa-times"></i>
+                        </button>
+                    </h3>
+                    <div id="roomChatMessages" class="h-48 overflow-y-auto border rounded-lg p-2 mb-2 bg-gray-50"></div>
+                    <div class="flex gap-2">
+                        <input type="text" id="roomChatInput" placeholder="输入消息..." class="flex-1 px-3 py-2 border rounded-lg text-sm" onkeypress="if(event.key==='Enter')G.sendRoomChatMessage()">
+                        <button onclick="G.sendRoomChatMessage()" class="px-4 bg-primary hover:bg-primary/90 text-white py-2 rounded-lg text-sm">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="bg-white rounded-lg shadow-md p-4">
                     <h3 class="font-semibold mb-3">房间信息</h3>
                     <div id="roomInfo" class="space-y-2 text-sm">
                         <p class="text-gray-500">未加入房间</p>
                     </div>
                     <div id="roomActions" class="mt-3 space-y-2 hidden">
-                        <!-- 悔棋/和棋按钮 -->
-                        <div id="undoDrawActions" class="hidden flex gap-2">
-                            <button id="requestUndoBtn" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2 rounded-lg text-sm transition-all">悔棋</button>
-                            <button id="requestDrawBtn" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg text-sm transition-all">和棋</button>
+                        <!-- 聊天切换按钮 -->
+                        <button id="roomChatToggle" onclick="G.toggleRoomChat()" class="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg text-sm mb-2">
+                            <i class="fa-solid fa-comments"></i> 显示聊天
+                        </button>
+                        <!-- 悔棋/和棋/认输按钮 -->
+                        <div id="undoDrawActions" class="hidden space-y-2">
+                            <div class="flex gap-2">
+                                <button id="requestUndoBtn" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2 rounded-lg text-sm transition-all">悔棋</button>
+                                <button id="requestDrawBtn" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg text-sm transition-all">求和</button>
+                            </div>
+                            <button id="resignBtn" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm transition-all">认输</button>
                         </div>
-                        <button id="closeRoomBtn" class="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm mt-2">关闭房间</button>
+                        <button id="closeRoomBtn" class="w-full bg-gray-500 hover:bg-gray-600 text-white py-2 rounded-lg text-sm mt-2">关闭房间</button>
                     </div>
                 </div>
                 <div class="bg-white rounded-lg shadow-md p-4">

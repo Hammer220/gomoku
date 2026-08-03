@@ -202,15 +202,15 @@ var Gomoku = window.Gomoku || {};
 
     // 密码登录
     G.login = async function(username, password, captchaToken) {
-        var parts = JSON.parse(captchaToken);
-        var res = await G.apiCall('/api/login', 'POST', {
-            username: username,
-            password: password,
-            geetestLot: parts[0],
-            geetestCaptchaOutput: parts[1],
-            geetestPassToken: parts[2],
-            geetestGenTime: parts[3]
-        }, true);
+        var payload = { username: username, password: password };
+        if (captchaToken && captchaToken !== 'disabled') {
+            var parts = JSON.parse(captchaToken);
+            payload.geetestLot = parts[0];
+            payload.geetestCaptchaOutput = parts[1];
+            payload.geetestPassToken = parts[2];
+            payload.geetestGenTime = parts[3];
+        }
+        var res = await G.apiCall('/api/login', 'POST', payload, true);
         G.token = res.token;
         localStorage.setItem('token', G.token);
         G.currentUser = res.user;
@@ -271,15 +271,15 @@ var Gomoku = window.Gomoku || {};
 
     // 用户注册
     G.register = async function(username, password, captchaToken) {
-        var parts = JSON.parse(captchaToken);
-        await G.apiCall('/api/register', 'POST', {
-            username: username,
-            password: password,
-            geetestLot: parts[0],
-            geetestCaptchaOutput: parts[1],
-            geetestPassToken: parts[2],
-            geetestGenTime: parts[3]
-        }, true);
+        var payload = { username: username, password: password };
+        if (captchaToken && captchaToken !== 'disabled') {
+            var parts = JSON.parse(captchaToken);
+            payload.geetestLot = parts[0];
+            payload.geetestCaptchaOutput = parts[1];
+            payload.geetestPassToken = parts[2];
+            payload.geetestGenTime = parts[3];
+        }
+        await G.apiCall('/api/register', 'POST', payload, true);
         await G.resetGuestData();
         G.showToast('注册成功，请登录');
         var registerModal = document.getElementById('registerModal');

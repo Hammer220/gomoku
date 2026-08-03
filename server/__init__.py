@@ -42,6 +42,7 @@ def register_socket_events(sio):
     """注册Socket.IO事件处理器"""
 
     sid_to_match = {}
+    sid_to_user = {}
 
     @sio.on('connect')
     def handle_connect():
@@ -52,27 +53,37 @@ def register_socket_events(sio):
         sid = socket_request.sid
         logger.info(f'客户端已断开: {sid}')
 
-        # 通知房间内其他用户该客户端已断开
         match_id = sid_to_match.pop(sid, None)
-        if match_id:
-            logger.info(f'断线客户端所在房间: {match_id}，通知房间内其他用户')
-            emit('opponent_disconnected', {'match_id': match_id}, room=match_id)
+        username = sid_to_user.pop(sid, None)
+
+        if match_id and username:
+            logger.info(f'断线客户端所在房间: {match_id}，用户: {username}，通知房间内其他用户')
+            emit('opponent_disconnected', {
+                'match_id': match_id,
+                'username': username,
+                'message': f'{username} 已断开连接'
+            }, room=match_id)
 
     @sio.on('join')
     def handle_join(data):
         match_id = data.get('match_id')
+        username = data.get('username')
         if match_id:
             join_room(match_id)
             sid_to_match[socket_request.sid] = match_id
-            logger.info(f'客户端加入房间: {match_id}, sid: {socket_request.sid}')
+            if username:
+                sid_to_user[socket_request.sid] = username
+            logger.info(f'客户端加入房间: {match_id}, sid: {socket_request.sid}, username: {username}')
 
     @sio.on('leave')
     def handle_leave(data):
         match_id = data.get('match_id')
+        username = data.get('username')
         if match_id:
             leave_room(match_id)
             sid_to_match.pop(socket_request.sid, None)
-            logger.info(f'客户端离开房间: {match_id}, sid: {socket_request.sid}')
+            sid_to_user.pop(socket_request.sid, None)
+            logger.info(f'客户端离开房间: {match_id}, sid: {socket_request.sid}, username: {username}')
 
     @sio.on('match_update')
     def handle_match_update(data):
@@ -101,3 +112,19 @@ def register_socket_events(sio):
     @sio.on('heartbeat')
     def handle_heartbeat(data):
         emit('heartbeat_ack', data)
+
+    @sio.on('room_chat')
+    def handle_room_chat(data):
+        """处理房间聊天消息"""
+        from .match.storage import add_room_chat_message
+
+        match_id = data.get('match_id')
+        username = data.get('username')
+        message = data.get('message', '').strip()
+
+        if not match_id or not username or not message:
+            return
+
+        chat_msg = add_room_chat_message(match_id, username, message)
+        if chat_msg:
+            emit('room_chat_message', chat_msg, room=match_id)

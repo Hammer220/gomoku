@@ -14,6 +14,28 @@ var Gomoku = window.Gomoku || {};
         return document.getElementById(id);
     };
 
+    // 初始化按钮事件监听
+    G.initOnlineActionButtons = function() {
+        var requestUndoBtn = $('requestUndoBtn');
+        var requestDrawBtn = $('requestDrawBtn');
+        var resignBtn = $('resignBtn');
+
+        if (requestUndoBtn && !requestUndoBtn.hasAttribute('data-initialized')) {
+            requestUndoBtn.addEventListener('click', G.requestOnlineUndo);
+            requestUndoBtn.setAttribute('data-initialized', 'true');
+        }
+
+        if (requestDrawBtn && !requestDrawBtn.hasAttribute('data-initialized')) {
+            requestDrawBtn.addEventListener('click', G.requestOnlineDraw);
+            requestDrawBtn.setAttribute('data-initialized', 'true');
+        }
+
+        if (resignBtn && !resignBtn.hasAttribute('data-initialized')) {
+            resignBtn.addEventListener('click', G.resignOnline);
+            resignBtn.setAttribute('data-initialized', 'true');
+        }
+    };
+
     G.recoverOnlineMatch = async function() {
         try {
             var res = await G.apiCall('/api/match/my', 'GET');
@@ -31,8 +53,8 @@ var Gomoku = window.Gomoku || {};
             G.currentPollingInterval = G.basePollingInterval;
 
             // 恢复WebSocket房间连接
-            if (G.WebSocketManager) {
-                G.WebSocketManager.joinRoom(match.id);
+            if (G.WebSocketManager && G.currentUser) {
+                G.WebSocketManager.joinRoom(match.id, G.currentUser.username);
             }
 
             var matchIdDisplay = $('onlineMatchIdDisplay');
@@ -54,6 +76,10 @@ var Gomoku = window.Gomoku || {};
             if (G.drawOnlineBoard) G.drawOnlineBoard();
             G.updateOnlineUI();
             G.startOnlinePolling();
+
+            if (G.loadRoomChatHistory) {
+                G.loadRoomChatHistory();
+            }
 
             if (match.status === 'waiting') {
                 G.showToast('已恢复到之前的房间，等待对手...');
@@ -127,8 +153,8 @@ var Gomoku = window.Gomoku || {};
             G.stopMatchListRefresh();
 
             // 加入WebSocket房间，接收实时更新
-            if (G.WebSocketManager) {
-                G.WebSocketManager.joinRoom(res.matchId);
+            if (G.WebSocketManager && G.currentUser) {
+                G.WebSocketManager.joinRoom(res.matchId, G.currentUser.username);
             }
 
             var matchIdDisplay = $('onlineMatchIdDisplay');
@@ -159,6 +185,14 @@ var Gomoku = window.Gomoku || {};
             G.startOnlineTimer();
             G.startTimedCountdown();
             G.startHeartbeat();
+
+            if (G.loadRoomChatHistory) {
+                G.loadRoomChatHistory();
+            }
+
+            if (G.initOnlineActionButtons) {
+                G.initOnlineActionButtons();
+            }
         } catch (err) {
             G.showToast(err.message, true);
         }
@@ -194,8 +228,8 @@ var Gomoku = window.Gomoku || {};
             G.stopMatchListRefresh();
 
             // 加入WebSocket房间，接收实时更新
-            if (G.WebSocketManager) {
-                G.WebSocketManager.joinRoom(matchId);
+            if (G.WebSocketManager && G.currentUser) {
+                G.WebSocketManager.joinRoom(matchId, G.currentUser.username);
             }
 
             var matchIdDisplay = $('onlineMatchIdDisplay');
@@ -211,7 +245,7 @@ var Gomoku = window.Gomoku || {};
                     '<p>你的棋子: <span class="font-bold">' + (res.yourColor === 1 ? '黑棋' : '白棋') + '</span></p>' +
                     '<p>对手: <span class="font-bold">' + res.opponent + '</span></p>';
             }
-            if (roomActions) roomActions.classList.add('hidden');
+            if (roomActions) roomActions.classList.remove('hidden');
             if (onlineLeaveBtn) onlineLeaveBtn.classList.remove('hidden');
             if (onlineCreateBtn) onlineCreateBtn.classList.add('hidden');
             if (onlineJoinBtn) onlineJoinBtn.parentElement.classList.add('hidden');
@@ -223,6 +257,14 @@ var Gomoku = window.Gomoku || {};
             G.startOnlineTimer();
             G.startTimedCountdown();
             G.startHeartbeat();
+
+            if (G.loadRoomChatHistory) {
+                G.loadRoomChatHistory();
+            }
+
+            if (G.initOnlineActionButtons) {
+                G.initOnlineActionButtons();
+            }
         } catch (err) {
             G.showToast(err.message, true);
         }
@@ -366,15 +408,15 @@ var Gomoku = window.Gomoku || {};
     G.leaveOnlineRoom = async function() {
         if (!G.onlineMatchId) return;
         try {
-            await G.apiCall('/api/match/leave', 'POST', { matchId: G.onlineMatchId });
+            var res = await G.apiCall('/api/match/leave', 'POST', { matchId: G.onlineMatchId });
             G.stopOnlinePolling();
             G.stopHeartbeat();
             G.stopOnlineTimer();
             G.stopTimedCountdown();
 
             // 离开WebSocket房间
-            if (G.WebSocketManager) {
-                G.WebSocketManager.leaveRoom(G.onlineMatchId);
+            if (G.WebSocketManager && G.currentUser) {
+                G.WebSocketManager.leaveRoom(G.onlineMatchId, G.currentUser.username);
             }
 
             var matchIdDisplay = $('onlineMatchIdDisplay');
@@ -393,12 +435,25 @@ var Gomoku = window.Gomoku || {};
             G.onlineMatchId = null;
             G.onlineMyColor = null;
             G.onlineOpponent = null;
+            G.onlineGameActive = false;
             G.gameMode = 'ai';
             G.initOnlineBoard();
+            G.onlineHoverRow = -1;
+            G.onlineHoverCol = -1;
+            G.onlineHoverEnabled = true;
             if (G.drawOnlineBoard) G.drawOnlineBoard();
             G.updateOnlineUI();
             G.startMatchListRefresh();
-            G.showToast('已离开房间');
+
+            if (G.clearRoomChatUI) {
+                G.clearRoomChatUI();
+            }
+
+            if (res.action === 'forfeit') {
+                G.showToast('你已离开房间，对手获胜', true);
+            } else {
+                G.showToast('已离开房间');
+            }
         } catch (err) {
             G.showToast(err.message, true);
         }

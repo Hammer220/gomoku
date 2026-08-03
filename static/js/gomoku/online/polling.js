@@ -171,23 +171,19 @@ var Gomoku = window.Gomoku || {};
             G.stopOnlineTimer();
             G.stopTimedCountdown();
             var myWin = res.winner === G.onlineMyColor;
-            var statusText = $('onlineStatusText');
-            if (statusText) {
-                statusText.textContent = myWin ? '你赢了！' : '你输了';
-                statusText.className = myWin
-                    ? 'text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 animate-pulse'
-                    : 'text-xl font-semibold text-gray-400';
-            }
-            G.showRestartRequestUI();
-            if (G.onlineTimeMode && G.onlineTimeMode !== 'untimed') {
-                if (res.timeout && res.winner !== G.onlineMyColor) {
-                    G.showToast('超时认输，对手获胜', true);
-                } else {
-                    G.showToast(myWin ? '你赢了！' : '你输了');
-                }
+
+            var message = '';
+            if (res.winReason === 'opponent_left') {
+                message = '对手已离开';
+            } else if (res.winReason === 'resign') {
+                message = myWin ? '对手认输' : '你已认输';
+            } else if (res.timeout) {
+                message = myWin ? '对手超时' : '你超时了';
             } else {
-                G.showToast(myWin ? '你赢了！' : '你输了');
+                message = myWin ? '五子连珠！' : '对手五子连珠';
             }
+
+            G.showGameEndDialog(myWin, message);
             return;
         }
 

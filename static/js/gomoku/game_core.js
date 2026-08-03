@@ -77,7 +77,7 @@ var Gomoku = window.Gomoku || {};
     G.handleGameOver = function(winner) {
         G.gameActive = false;
         G.stopTimer();
-        if (G.stopOnlinePolling) G.stopOnlinePolling();
+        if (G.gameMode === 'online' && G.stopOnlinePolling) G.stopOnlinePolling();
         if (G.gameMode === 'online' && G.onlineMatchId) {
             G.apiCall('/api/match/leave', 'POST', { matchId: G.onlineMatchId }).catch(function() {});
             G.onlineMatchId = null;
@@ -105,7 +105,12 @@ var Gomoku = window.Gomoku || {};
                     G.saveGameRecord(result, 'ai');
                 }
             } else if (G.gameMode === 'pvp') {
-                G.saveGameRecord(winner === 0 ? 'draw' : (winner === 1 ? 'win' : 'lose'), 'pvp');
+                if (winner === 0) {
+                    G.saveGameRecord('draw', 'pvp');
+                } else {
+                    var pvpResult = winner === G.playerColor ? 'win' : 'lose';
+                    G.saveGameRecord(pvpResult, 'pvp');
+                }
             }
         }
 
@@ -154,6 +159,9 @@ var Gomoku = window.Gomoku || {};
         G.gameTime = 0;
         G.undoCount = 0;
         G.winningCells = [];
+        G.hoverRow = -1;
+        G.hoverCol = -1;
+        G.hoverEnabled = true;
         G.drawBoard();
         G.updateUI();
         var winModal = $('winModal');

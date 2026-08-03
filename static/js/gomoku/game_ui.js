@@ -159,7 +159,12 @@ var Gomoku = window.Gomoku || {};
             G.onlineCtx = G.onlineCanvas ? G.onlineCanvas.getContext('2d') : null;
             if (G.onlineCanvas) {
                 G.onlineCanvas.onclick = null;
+                G.onlineCanvas.removeEventListener('click', G.handleOnlineClick);
+                G.onlineCanvas.removeEventListener('mousemove', G.handleOnlineHover);
+                G.onlineCanvas.removeEventListener('mouseleave', G.handleOnlineHoverLeave);
                 G.onlineCanvas.addEventListener('click', G.handleOnlineClick);
+                G.onlineCanvas.addEventListener('mousemove', G.handleOnlineHover);
+                G.onlineCanvas.addEventListener('mouseleave', G.handleOnlineHoverLeave);
             }
             if (G.calcOnlineCanvasSize) G.calcOnlineCanvasSize();
             if (!G.onlineBoard || !G.onlineBoard[0]) G.initOnlineBoard();
@@ -199,5 +204,50 @@ var Gomoku = window.Gomoku || {};
         if (row >= 0 && row < G.BOARD_SIZE && col >= 0 && col < G.BOARD_SIZE && G.onlineBoard[row][col] === 0) {
             G.makeOnlineMove(row, col);
         }
+    };
+
+    G.handleOnlineHover = function(e) {
+        if (!G.onlineGameActive || !G.onlineMatchId) return;
+        if (G.onlineMyColor === null || G.onlineMyColor === undefined) return;
+        var currentPlayer = Number(G.onlineCurrentPlayer);
+        var myColor = Number(G.onlineMyColor);
+        if (currentPlayer !== myColor) {
+            G.onlineHoverEnabled = false;
+            G.onlineHoverRow = -1;
+            G.onlineHoverCol = -1;
+            G.drawOnlineBoard();
+            return;
+        }
+
+        var rect = G.onlineCanvas.getBoundingClientRect();
+        var scaleX = G.onlineCanvas.width / rect.width;
+        var scaleY = G.onlineCanvas.height / rect.height;
+        var x = (e.clientX - rect.left) * scaleX;
+        var y = (e.clientY - rect.top) * scaleY;
+        var pieceSize = G.onlineCellSizeGlobal * G.PIECE_SIZE_RATIO;
+        var margin = pieceSize / 2 + 4;
+        var col = Math.round((x - margin) / G.onlineCellSizeGlobal);
+        var row = Math.round((y - margin) / G.onlineCellSizeGlobal);
+        if (row >= 0 && row < G.BOARD_SIZE && col >= 0 && col < G.BOARD_SIZE) {
+            if (G.onlineHoverRow !== row || G.onlineHoverCol !== col) {
+                G.onlineHoverRow = row;
+                G.onlineHoverCol = col;
+                G.onlineHoverEnabled = true;
+                G.drawOnlineBoard();
+            }
+        } else {
+            if (G.onlineHoverRow !== -1 || G.onlineHoverCol !== -1) {
+                G.onlineHoverRow = -1;
+                G.onlineHoverCol = -1;
+                G.drawOnlineBoard();
+            }
+        }
+    };
+
+    G.handleOnlineHoverLeave = function() {
+        G.onlineHoverEnabled = false;
+        G.onlineHoverRow = -1;
+        G.onlineHoverCol = -1;
+        G.drawOnlineBoard();
     };
 })();

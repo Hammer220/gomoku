@@ -39,8 +39,12 @@ def get_admin_permissions(user):
     if not user.get('isAdmin'):
         return {}
     perms = {}
+    has_any_perm = any(field in user for field in PERMISSION_FIELDS)
     for field in PERMISSION_FIELDS:
-        perms[field] = user.get(field, False)
+        if has_any_perm:
+            perms[field] = user.get(field, False)
+        else:
+            perms[field] = True
     return perms
 
 

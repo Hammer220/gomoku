@@ -46,12 +46,28 @@ var Gomoku = window.Gomoku || {};
         }
         G.updateGuestRemainingDisplay();
 
+        // 获取前端配置
+        var config = await G.apiCall('/api/config', 'GET');
+        G.captchaEnabled = config.captchaEnabled !== false;
+
+        // 如果验证码已禁用，隐藏验证码容器
+        if (!G.captchaEnabled) {
+            var loginCaptcha = document.getElementById('geetestLoginWidget');
+            var regCaptcha = document.getElementById('geetestRegisterWidget');
+            if (loginCaptcha) loginCaptcha.classList.add('hidden');
+            if (regCaptcha) regCaptcha.classList.add('hidden');
+        }
+
         // 初始化极验登录验证码
-        await new Promise(function(resolve) {
-            G.initGeetestWidget('geetestLoginWidget', function() {
-                resolve();
+        if (G.captchaEnabled) {
+            await new Promise(function(resolve) {
+                G.initGeetestWidget('geetestLoginWidget', function() {
+                    resolve();
+                });
             });
-        });
+        } else {
+            G.loginGeetestToken = 'disabled';
+        }
 
         // ==================== 显示注册弹窗 ====================
 
@@ -61,15 +77,19 @@ var Gomoku = window.Gomoku || {};
             document.getElementById('loginModal').classList.add('hidden');
             document.getElementById('registerModal').classList.remove('hidden');
             // 延迟初始化注册验证码，确保容器可见后再渲染
-            setTimeout(function() {
-                var regContainer = document.getElementById('geetestRegisterWidget');
-                if (regContainer && !regContainer.hasAttribute('data-initialized')) {
-                    regContainer.setAttribute('data-initialized', 'true');
-                    G.initGeetestWidget('geetestRegisterWidget', function() {
-                        // 注册验证码初始化完成
-                    });
-                }
-            }, 300);
+            if (G.captchaEnabled) {
+                setTimeout(function() {
+                    var regContainer = document.getElementById('geetestRegisterWidget');
+                    if (regContainer && !regContainer.hasAttribute('data-initialized')) {
+                        regContainer.setAttribute('data-initialized', 'true');
+                        G.initGeetestWidget('geetestRegisterWidget', function() {
+                            // 注册验证码初始化完成
+                        });
+                    }
+                }, 300);
+            } else {
+                G.registerGeetestToken = 'disabled';
+            }
         });
 
         // 点击"立即登录"从注册页切换回登录页
@@ -125,7 +145,7 @@ var Gomoku = window.Gomoku || {};
             e.preventDefault();
             var u = document.getElementById('username').value;
             var p = document.getElementById('password').value;
-            if (!G.loginGeetestToken) {
+            if (G.captchaEnabled && !G.loginGeetestToken) {
                 G.showToast('请完成验证码验证', true);
                 return;
             }
@@ -134,7 +154,9 @@ var Gomoku = window.Gomoku || {};
                 await G.login(u, p, G.loginGeetestToken);
             } catch (err) {
                 G.showToast(err.message, true);
-                G.refreshGeetestCaptcha(true);
+                if (G.captchaEnabled) {
+                    G.refreshGeetestCaptcha(true);
+                }
             }
         });
 
@@ -159,13 +181,15 @@ var Gomoku = window.Gomoku || {};
             if (!/^[a-zA-Z0-9_]+$/.test(u)) { G.showToast('用户名只能包含英文、数字和下划线', true); return; }
             if (p !== cp) { G.showToast('密码不一致', true); return; }
             if (p.length < 6) { G.showToast('密码至少6位', true); return; }
-            if (!G.registerGeetestToken) { G.showToast('请完成验证码验证', true); return; }
+            if (G.captchaEnabled && !G.registerGeetestToken) { G.showToast('请完成验证码验证', true); return; }
             sessionStorage.removeItem('registerFormInteracted');
             try {
                 await G.register(u, p, G.registerGeetestToken);
             } catch (err) {
                 G.showToast(err.message, true);
-                G.refreshGeetestCaptcha(false);
+                if (G.captchaEnabled) {
+                    G.refreshGeetestCaptcha(false);
+                }
             }
         });
 

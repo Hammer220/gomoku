@@ -82,7 +82,15 @@ def admin_create_admin(admin_user):
             'isSuperAdmin': False,
             'joinDate': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'lastLogin': '',
-            'bannedUntil': None
+            'bannedUntil': None,
+            'canBanUser': True,
+            'canKickUser': True,
+            'canDeleteUser': True,
+            'canChangePassword': True,
+            'canModifyScore': True,
+            'canSetPasswordFree': True,
+            'canMonitorMatches': True,
+            'canManageMatches': True
         }
         save_user(username, new_user)
         save_plain_password(username, password)

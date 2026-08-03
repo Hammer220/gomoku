@@ -114,19 +114,21 @@
 
     document.getElementById('aiForbidden').addEventListener('change', function(e) {
         G.aiForbidden = e.target.checked;
-        G.showToast(G.aiForbidden ? '已启用禁手规则' : '已禁用禁手规则');
-        if (G.gameMode === 'ai') {
+        if (G.gameMode === 'ai' && G.gameActive && G.moveHistory.length > 0) {
             G.resetGame();
-            G.showToast('设置已更改，游戏重新开始');
+            G.showToast('禁手规则已更改，游戏重新开始');
+        } else {
+            G.showToast(G.aiForbidden ? '已启用禁手规则' : '已禁用禁手规则');
         }
     });
 
     document.getElementById('pvpForbidden').addEventListener('change', function(e) {
         G.pvpForbidden = e.target.checked;
-        G.showToast(G.pvpForbidden ? '已启用禁手规则' : '已禁用禁手规则');
-        if (G.gameMode === 'pvp') {
+        if (G.gameMode === 'pvp' && G.gameActive && G.moveHistory.length > 0) {
             G.resetGame();
-            G.showToast('设置已更改，游戏重新开始');
+            G.showToast('禁手规则已更改，游戏重新开始');
+        } else {
+            G.showToast(G.pvpForbidden ? '已启用禁手规则' : '已禁用禁手规则');
         }
     });
 
@@ -184,5 +186,49 @@
             G.placePiece(row, col, G.currentPlayer);
         }
     });
+
+    document.getElementById('gameCanvas').addEventListener('mousemove', function(e) {
+        if (!G.gameActive) return;
+        if (G.gameMode === 'ai' && G.currentPlayer !== G.playerColor) {
+            G.hoverEnabled = false;
+            G.hoverRow = -1;
+            G.hoverCol = -1;
+            G.drawBoard();
+            return;
+        }
+        var rect = G.canvas.getBoundingClientRect();
+        var displayWidth = rect.width;
+        var displayHeight = rect.height;
+        var x = e.clientX - rect.left;
+        var y = e.clientY - rect.top;
+        var cellSize = displayWidth / (G.BOARD_SIZE - 1);
+        var col = Math.round(x / cellSize);
+        var row = Math.round(y / cellSize);
+        if (row >= 0 && row < G.BOARD_SIZE && col >= 0 && col < G.BOARD_SIZE) {
+            if (G.hoverRow !== row || G.hoverCol !== col) {
+                G.hoverRow = row;
+                G.hoverCol = col;
+                G.hoverEnabled = true;
+                G.drawBoard();
+            }
+        } else {
+            if (G.hoverRow !== -1 || G.hoverCol !== -1) {
+                G.hoverRow = -1;
+                G.hoverCol = -1;
+                G.drawBoard();
+            }
+        }
+    });
+
+    document.getElementById('gameCanvas').addEventListener('mouseleave', function() {
+        G.hoverEnabled = false;
+        G.hoverRow = -1;
+        G.hoverCol = -1;
+        G.drawBoard();
+    });
+
+    if (G.initRoomChat) {
+        G.initRoomChat();
+    }
 
 })();

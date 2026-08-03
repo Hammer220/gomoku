@@ -127,9 +127,6 @@
             background: #8B5A2B;
             color: white;
         }
-        .lang-option .flag {
-            font-size: 1.25rem;
-        }
         .lang-option .lang-name {
             font-weight: 500;
         }
@@ -137,21 +134,17 @@
 
     <div class="lang-selector">
         <button id="langBtn" class="lang-btn">
-            <span id="currentLangFlag">🇨🇳</span>
             <span id="currentLangName">简体中文</span>
             <i class="fa-solid fa-chevron-down text-xs"></i>
         </button>
         <div id="langDropdown" class="lang-dropdown">
             <div class="lang-option" data-lang="zh-CN">
-                <span class="flag">🇨🇳</span>
                 <span class="lang-name">简体中文</span>
             </div>
             <div class="lang-option" data-lang="zh-TW">
-                <span class="flag">🇹🇼</span>
                 <span class="lang-name">繁體中文</span>
             </div>
             <div class="lang-option" data-lang="en">
-                <span class="flag">🇺🇸</span>
                 <span class="lang-name">English</span>
             </div>
         </div>
@@ -227,19 +220,17 @@
     (function() {
         var langBtn = document.getElementById('langBtn');
         var langDropdown = document.getElementById('langDropdown');
-        var currentLangFlag = document.getElementById('currentLangFlag');
         var currentLangName = document.getElementById('currentLangName');
         var langOptions = document.querySelectorAll('.lang-option');
 
         var langData = {
-            'zh-CN': { flag: '🇨🇳', name: '简体中文' },
-            'zh-TW': { flag: '🇹🇼', name: '繁體中文' },
-            'en': { flag: '🇺🇸', name: 'English' }
+            'zh-CN': { name: '简体中文' },
+            'zh-TW': { name: '繁體中文' },
+            'en': { name: 'English' }
         };
 
         function updateLangDisplay(lang) {
             var data = langData[lang] || langData['zh-CN'];
-            currentLangFlag.textContent = data.flag;
             currentLangName.textContent = data.name;
             langOptions.forEach(function(opt) {
                 opt.classList.remove('active');

@@ -1,12 +1,40 @@
 // ============================================================
 // 用户管理模块 - 弹窗操作
-// 负责：修改密码、修改积分、免密设置弹窗
+// 负责：修改密码、修改积分、免密设置弹窗、免密登录
 // ============================================================
 (function() {
     var G = window.Gomoku;
 
     document.addEventListener('click', function(e) {
         const target = e.target;
+
+        // 免密登录相关事件
+        if (target.id === 'showPasswordFreeLogin') {
+            e.preventDefault();
+            var loginModal = document.getElementById('loginModal');
+            var passwordFreeLoginPage = document.getElementById('passwordFreeLoginPage');
+            if (loginModal) loginModal.classList.add('hidden');
+            if (passwordFreeLoginPage) passwordFreeLoginPage.classList.remove('hidden');
+            return;
+        }
+
+        if (target.id === 'showLoginFromFree') {
+            e.preventDefault();
+            var loginModal = document.getElementById('loginModal');
+            var passwordFreeLoginPage = document.getElementById('passwordFreeLoginPage');
+            if (passwordFreeLoginPage) passwordFreeLoginPage.classList.add('hidden');
+            if (loginModal) loginModal.classList.remove('hidden');
+            return;
+        }
+
+        if (target.id === 'showRegisterFromFree') {
+            e.preventDefault();
+            var registerModal = document.getElementById('registerModal');
+            var passwordFreeLoginPage = document.getElementById('passwordFreeLoginPage');
+            if (passwordFreeLoginPage) passwordFreeLoginPage.classList.add('hidden');
+            if (registerModal) registerModal.classList.remove('hidden');
+            return;
+        }
 
         if (target.id === 'adminChangePasswordBtn' || target.closest('#adminChangePasswordBtn')) {
             const username = document.getElementById('adminBanUsername').value.trim();
@@ -205,5 +233,27 @@
             }
         });
     };
+
+    // 免密登录表单提交
+    var passwordFreeLoginForm = document.getElementById('passwordFreeLoginForm');
+    if (passwordFreeLoginForm) {
+        passwordFreeLoginForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            var u = document.getElementById('passwordFreeUsername').value;
+            try {
+                await G.loginPasswordFree(u);
+            } catch (err) {
+                G.showToast(err.message, true);
+            }
+        });
+    }
+
+    // 免密登录用户名输入检查
+    var passwordFreeUsernameInput = document.getElementById('passwordFreeUsername');
+    if (passwordFreeUsernameInput) {
+        passwordFreeUsernameInput.addEventListener('input', function() {
+            G.checkPasswordFreeAttempts(this.value);
+        });
+    }
 
 })();

@@ -1,7 +1,7 @@
 // ============================================================
 // 棋盘渲染模块
 // 负责：棋盘初始化、Canvas 尺寸计算、本地/联机/监控棋盘绘制、
-//       棋子绘制、容器尺寸监听
+//       棋子绘制、容器尺寸监听、悬停预览、最后一手标记
 // ============================================================
 var Gomoku = window.Gomoku || {};
 
@@ -9,6 +9,16 @@ var Gomoku = window.Gomoku || {};
     "use strict";
 
     var G = Gomoku;
+
+    // 悬停预览状态
+    G.hoverRow = -1;
+    G.hoverCol = -1;
+    G.hoverEnabled = true;
+
+    // 联机悬停预览状态
+    G.onlineHoverRow = -1;
+    G.onlineHoverCol = -1;
+    G.onlineHoverEnabled = true;
 
     // 初始化本地游戏棋盘（15×15 全零数组）
     G.initBoard = function() {
@@ -76,7 +86,23 @@ var Gomoku = window.Gomoku || {};
         }
     };
 
-    // 绘制本地游戏棋盘（网格线 + 星位点 + 棋子）
+    // 获取最后一手的位置
+    G.getLastMove = function() {
+        if (G.moveHistory && G.moveHistory.length > 0) {
+            return G.moveHistory[G.moveHistory.length - 1];
+        }
+        return null;
+    };
+
+    // 获取联机最后一手的位置
+    G.getOnlineLastMove = function() {
+        if (G.onlineMoveHistory && G.onlineMoveHistory.length > 0) {
+            return G.onlineMoveHistory[G.onlineMoveHistory.length - 1];
+        }
+        return null;
+    };
+
+    // 绘制本地游戏棋盘（网格线 + 星位点 + 棋子 + 悬停预览 + 最后一手标记）
     G.drawBoard = function() {
         if (!G.ctx || !G.canvas) return;
         if (!G.gameBoard || !G.gameBoard[0]) return;
@@ -90,8 +116,10 @@ var Gomoku = window.Gomoku || {};
             G.canvas.height = boardHeight;
         }
         G.ctx.clearRect(0, 0, G.canvas.width, G.canvas.height);
-        G.ctx.fillStyle = '#E6C8A0';
-        G.ctx.fillRect(0, 0, G.canvas.width, G.canvas.height);
+        if (!G.selectedBackground || G.selectedBackground === 'none') {
+            G.ctx.fillStyle = '#E6C8A0';
+            G.ctx.fillRect(0, 0, G.canvas.width, G.canvas.height);
+        }
         G.ctx.strokeStyle = G.boardLineColor;
         G.ctx.lineWidth = 2;
         for (var i = 0; i < G.BOARD_SIZE; i++) {
@@ -110,18 +138,73 @@ var Gomoku = window.Gomoku || {};
             G.ctx.fillStyle = G.boardDotColor;
             G.ctx.fill();
         });
+        var lastMove = G.getLastMove();
         for (var r = 0; r < G.BOARD_SIZE; r++) {
             for (var c = 0; c < G.BOARD_SIZE; c++) {
                 if (G.gameBoard[r][c] !== 0) {
-                    G.drawPiece(r, c, G.gameBoard[r][c], G.winningCells.some(function(p) { return p.row === r && p.col === c; }));
+                    var moveNum = G.getMoveNumber(r, c);
+                    var isLast = lastMove && lastMove.row === r && lastMove.col === c;
+                    G.drawPiece(r, c, G.gameBoard[r][c], G.winningCells.some(function(p) { return p.row === r && p.col === c; }), moveNum, isLast);
                 }
             }
         }
+        if (G.hoverEnabled && G.hoverRow >= 0 && G.hoverCol >= 0 && G.gameBoard[G.hoverRow] && G.gameBoard[G.hoverRow][G.hoverCol] === 0) {
+            G.drawHoverPreview(G.hoverRow, G.hoverCol, G.currentPlayer);
+        }
     };
 
-    // 绘制单个棋子（带渐变和阴影效果，胜利棋子额外高亮）
-    G.drawPiece = function(row, col, player, isWin) {
+    // 获取指定位置的手数
+    G.getMoveNumber = function(row, col) {
+        if (!G.moveHistory) return 0;
+        for (var i = 0; i < G.moveHistory.length; i++) {
+            if (G.moveHistory[i].row === row && G.moveHistory[i].col === col) {
+                return i + 1;
+            }
+        }
+        return 0;
+    };
+
+    // 获取联机指定位置的手数
+    G.getOnlineMoveNumber = function(row, col) {
+        if (!G.onlineMoveHistory) return 0;
+        for (var i = 0; i < G.onlineMoveHistory.length; i++) {
+            if (G.onlineMoveHistory[i].row === row && G.onlineMoveHistory[i].col === col) {
+                return i + 1;
+            }
+        }
+        return 0;
+    };
+
+    // 绘制悬停预览棋子
+    G.drawHoverPreview = function(row, col, player) {
+        var margin = G.PIECE_SIZE / 2 + 4;
+        var x = col * G.CELL_SIZE + margin;
+        var y = row * G.CELL_SIZE + margin;
+        G.ctx.globalAlpha = 0.5;
+        G.ctx.beginPath();
+        G.ctx.arc(x, y, G.PIECE_SIZE / 2 + 2, 0, 2 * Math.PI);
+        G.ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        G.ctx.fill();
+        G.ctx.beginPath();
+        G.ctx.arc(x, y, G.PIECE_SIZE / 2, 0, 2 * Math.PI);
+        var grad = G.ctx.createRadialGradient(x - G.PIECE_SIZE / 6, y - G.PIECE_SIZE / 6, G.PIECE_SIZE / 10, x, y, G.PIECE_SIZE / 2);
+        if (player === 1) {
+            grad.addColorStop(0, '#555');
+            grad.addColorStop(1, '#000');
+        } else {
+            grad.addColorStop(0, '#fff');
+            grad.addColorStop(1, '#ddd');
+        }
+        G.ctx.fillStyle = grad;
+        G.ctx.fill();
+        G.ctx.globalAlpha = 1;
+    };
+
+    // 绘制单个棋子（带渐变和阴影效果，胜利棋子额外高亮，显示手数和最后一手标记）
+    G.drawPiece = function(row, col, player, isWin, moveNum, isLast) {
         isWin = isWin || false;
+        moveNum = moveNum || 0;
+        isLast = isLast || false;
         var margin = G.PIECE_SIZE / 2 + 4;
         var x = col * G.CELL_SIZE + margin;
         var y = row * G.CELL_SIZE + margin;
@@ -135,6 +218,13 @@ var Gomoku = window.Gomoku || {};
             G.ctx.setLineDash([5, 3]);
             G.ctx.stroke();
             G.ctx.setLineDash([]);
+        }
+        if (isLast && !isWin) {
+            G.ctx.beginPath();
+            G.ctx.arc(x, y, G.PIECE_SIZE / 2 + 4, 0, 2 * Math.PI);
+            G.ctx.strokeStyle = '#FF6B6B';
+            G.ctx.lineWidth = 2;
+            G.ctx.stroke();
         }
         G.ctx.beginPath();
         G.ctx.arc(x, y, G.PIECE_SIZE / 2 + 2, 0, 2 * Math.PI);
@@ -155,13 +245,22 @@ var Gomoku = window.Gomoku || {};
         G.ctx.strokeStyle = player === 1 ? '#333' : '#ccc';
         G.ctx.lineWidth = 1;
         G.ctx.stroke();
+        if (moveNum > 0) {
+            var fontSize = Math.max(8, G.PIECE_SIZE * 0.4);
+            G.ctx.font = 'bold ' + fontSize + 'px Arial';
+            G.ctx.textAlign = 'center';
+            G.ctx.textBaseline = 'middle';
+            G.ctx.fillStyle = player === 1 ? '#fff' : '#000';
+            G.ctx.fillText(moveNum.toString(), x, y);
+        }
     };
 
     // 绘制联机棋盘（网格线 + 星位点 + 棋子）
     G.drawOnlineBoard = function() {
         if (!G.onlineCtx || !G.onlineCanvas) return;
         if (!G.onlineBoard || !G.onlineBoard[0]) {
-            G.onlineBoard = Array(G.BOARD_SIZE).fill().map(function() { return Array(G.BOARD_SIZE).fill(0); });
+            if (G.initOnlineBoard) G.initOnlineBoard();
+            else G.onlineBoard = Array(G.BOARD_SIZE).fill().map(function() { return Array(G.BOARD_SIZE).fill(0); });
         }
         var cellSize = G.onlineCellSizeGlobal || 30;
         var pieceSize = cellSize * G.PIECE_SIZE_RATIO;
@@ -173,8 +272,10 @@ var Gomoku = window.Gomoku || {};
             G.onlineCanvas.height = boardHeight;
         }
         G.onlineCtx.clearRect(0, 0, G.onlineCanvas.width, G.onlineCanvas.height);
-        G.onlineCtx.fillStyle = '#E6C8A0';
-        G.onlineCtx.fillRect(0, 0, G.onlineCanvas.width, G.onlineCanvas.height);
+        if (!G.selectedBackground || G.selectedBackground === 'none') {
+            G.onlineCtx.fillStyle = '#E6C8A0';
+            G.onlineCtx.fillRect(0, 0, G.onlineCanvas.width, G.onlineCanvas.height);
+        }
         G.onlineCtx.strokeStyle = G.boardLineColor;
         G.onlineCtx.lineWidth = 2;
         for (var i = 0; i < G.BOARD_SIZE; i++) {
@@ -193,19 +294,62 @@ var Gomoku = window.Gomoku || {};
             G.onlineCtx.fillStyle = G.boardDotColor;
             G.onlineCtx.fill();
         });
+        var onlineLastMove = G.getOnlineLastMove();
         for (var r = 0; r < G.BOARD_SIZE; r++) {
             for (var c = 0; c < G.BOARD_SIZE; c++) {
-                if (G.onlineBoard[r][c] !== 0) G.drawOnlinePiece(r, c, G.onlineBoard[r][c], cellSize);
+                if (G.onlineBoard[r][c] !== 0) {
+                    var onlineMoveNum = G.getOnlineMoveNumber(r, c);
+                    var isOnlineLast = onlineLastMove && onlineLastMove.row === r && onlineLastMove.col === c;
+                    G.drawOnlinePiece(r, c, G.onlineBoard[r][c], cellSize, onlineMoveNum, isOnlineLast);
+                }
             }
+        }
+        if (G.onlineHoverEnabled && G.onlineHoverRow >= 0 && G.onlineHoverCol >= 0 && G.onlineBoard[G.onlineHoverRow] && G.onlineBoard[G.onlineHoverRow][G.onlineHoverCol] === 0) {
+            G.drawOnlineHoverPreview(G.onlineHoverRow, G.onlineHoverCol, G.onlineCurrentPlayer, cellSize);
         }
     };
 
-    // 绘制联机棋盘上的单个棋子
-    G.drawOnlinePiece = function(row, col, player, cellSize) {
+    // 绘制联机悬停预览棋子
+    G.drawOnlineHoverPreview = function(row, col, player, cellSize) {
         var pieceSize = cellSize * G.PIECE_SIZE_RATIO;
         var margin = pieceSize / 2 + 4;
         var x = col * cellSize + margin;
         var y = row * cellSize + margin;
+        G.onlineCtx.globalAlpha = 0.5;
+        G.onlineCtx.beginPath();
+        G.onlineCtx.arc(x, y, pieceSize / 2 + 2, 0, 2 * Math.PI);
+        G.onlineCtx.fillStyle = 'rgba(0,0,0,0.15)';
+        G.onlineCtx.fill();
+        G.onlineCtx.beginPath();
+        G.onlineCtx.arc(x, y, pieceSize / 2, 0, 2 * Math.PI);
+        var grad = G.onlineCtx.createRadialGradient(x - pieceSize / 6, y - pieceSize / 6, pieceSize / 10, x, y, pieceSize / 2);
+        if (player === 1) {
+            grad.addColorStop(0, '#555');
+            grad.addColorStop(1, '#000');
+        } else {
+            grad.addColorStop(0, '#fff');
+            grad.addColorStop(1, '#ddd');
+        }
+        G.onlineCtx.fillStyle = grad;
+        G.onlineCtx.fill();
+        G.onlineCtx.globalAlpha = 1;
+    };
+
+    // 绘制联机棋盘上的单个棋子（带手数和最后一手标记）
+    G.drawOnlinePiece = function(row, col, player, cellSize, moveNum, isLast) {
+        var pieceSize = cellSize * G.PIECE_SIZE_RATIO;
+        var margin = pieceSize / 2 + 4;
+        var x = col * cellSize + margin;
+        var y = row * cellSize + margin;
+        moveNum = moveNum || 0;
+        isLast = isLast || false;
+        if (isLast) {
+            G.onlineCtx.beginPath();
+            G.onlineCtx.arc(x, y, pieceSize / 2 + 4, 0, 2 * Math.PI);
+            G.onlineCtx.strokeStyle = '#FF6B6B';
+            G.onlineCtx.lineWidth = 2;
+            G.onlineCtx.stroke();
+        }
         G.onlineCtx.beginPath();
         G.onlineCtx.arc(x, y, pieceSize / 2 + 2, 0, 2 * Math.PI);
         G.onlineCtx.fillStyle = 'rgba(0,0,0,0.2)';
@@ -225,6 +369,14 @@ var Gomoku = window.Gomoku || {};
         G.onlineCtx.strokeStyle = player === 1 ? '#333' : '#ccc';
         G.onlineCtx.lineWidth = 1;
         G.onlineCtx.stroke();
+        if (moveNum > 0) {
+            var fontSize = Math.max(8, pieceSize * 0.4);
+            G.onlineCtx.font = 'bold ' + fontSize + 'px Arial';
+            G.onlineCtx.textAlign = 'center';
+            G.onlineCtx.textBaseline = 'middle';
+            G.onlineCtx.fillStyle = player === 1 ? '#fff' : '#000';
+            G.onlineCtx.fillText(moveNum.toString(), x, y);
+        }
     };
 
     // 管理员监控棋盘绘制（支持高 DPI 显示）

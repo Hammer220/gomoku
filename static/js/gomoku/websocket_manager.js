@@ -145,6 +145,10 @@ var Gomoku = window.Gomoku || {};
                     self.emit('opponent_disconnected', data);
                 });
 
+                this.socket.on('room_chat_message', function(data) {
+                    self.emit('room_chat_message', data);
+                });
+
                 this.connecting = false;
 
             } catch (error) {
@@ -214,22 +218,22 @@ var Gomoku = window.Gomoku || {};
         },
 
         // 加入房间
-        joinRoom: function(matchId) {
+        joinRoom: function(matchId, username) {
             this.currentRoomId = matchId;
             if (this.usingWebSocket && this.socket) {
-                this.socket.emit('join', {match_id: matchId});
+                this.socket.emit('join', {match_id: matchId, username: username});
             } else {
                 console.log('轮询模式：标记加入房间', matchId);
             }
         },
 
         // 离开房间
-        leaveRoom: function(matchId) {
+        leaveRoom: function(matchId, username) {
             if (this.currentRoomId === matchId) {
                 this.currentRoomId = null;
             }
             if (this.usingWebSocket && this.socket) {
-                this.socket.emit('leave', {match_id: matchId});
+                this.socket.emit('leave', {match_id: matchId, username: username});
             } else {
                 console.log('轮询模式：标记离开房间', matchId);
             }
@@ -291,6 +295,19 @@ var Gomoku = window.Gomoku || {};
                 G.apiCall('/api/match/heartbeat', 'POST', {}).catch(function(err) {
                     console.error('心跳发送失败:', err);
                 });
+            }
+        },
+
+        // 发送房间聊天消息
+        sendRoomChat: function(matchId, username, message) {
+            if (this.usingWebSocket && this.socket) {
+                this.socket.emit('room_chat', {
+                    match_id: matchId,
+                    username: username,
+                    message: message
+                });
+            } else {
+                console.log('轮询模式：房间聊天消息暂不支持');
             }
         },
 

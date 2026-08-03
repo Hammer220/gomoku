@@ -18,6 +18,9 @@ user_connections = {}
 user_connections_lock = threading.Lock()
 CONNECT_TIMEOUT = 120
 
+room_chats = {}
+room_chats_lock = threading.Lock()
+
 
 def init_matches():
     from ..db import get_connection
@@ -189,3 +192,51 @@ def get_active_matches_lock():
 
 def get_active_matches():
     return active_matches
+
+
+def add_room_chat_message(match_id, username, message):
+    """添加房间聊天消息"""
+    try:
+        with room_chats_lock:
+            if match_id not in room_chats:
+                room_chats[match_id] = []
+
+            chat_msg = {
+                'id': len(room_chats[match_id]) + 1,
+                'username': username,
+                'message': message,
+                'timestamp': int(time.time())
+            }
+            room_chats[match_id].append(chat_msg)
+
+            if len(room_chats[match_id]) > 100:
+                room_chats[match_id] = room_chats[match_id][-100:]
+
+        return chat_msg
+    except Exception as e:
+        logger.error(f'Error adding room chat message: {e}')
+        return None
+
+
+def get_room_chat_messages(match_id, limit=50):
+    """获取房间聊天消息"""
+    try:
+        with room_chats_lock:
+            if match_id not in room_chats:
+                return []
+
+            messages = room_chats[match_id][-limit:]
+            return messages[:]
+    except Exception as e:
+        logger.error(f'Error getting room chat messages: {e}')
+        return []
+
+
+def clear_room_chat(match_id):
+    """清除房间聊天记录"""
+    try:
+        with room_chats_lock:
+            if match_id in room_chats:
+                del room_chats[match_id]
+    except Exception as e:
+        logger.error(f'Error clearing room chat: {e}')

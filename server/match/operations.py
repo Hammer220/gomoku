@@ -278,6 +278,7 @@ def leave_match(user, match_id):
     处理逻辑：
     - 等待中的房间：创建者离开则直接删除房间
     - 进行中的房间：离开方判负，对手获胜，游戏结束
+    - 等待重连的房间：标记离开，如果双方都离开则删除房间
     - 已结束的房间：直接关闭
     """
     from .storage import clear_room_chat
@@ -322,6 +323,27 @@ def leave_match(user, match_id):
                 'winReason': 'opponent_left',
                 'message': '对手已离开，您获得胜利'
             }, 200
+
+        if match['status'] == 'waiting_for_reconnect':
+            if match['creator'] == username:
+                match['creator_left'] = True
+            else:
+                match['opponent_left'] = True
+
+            creator_left = match.get('creator_left', False)
+            opponent_left = match.get('opponent_left', False)
+            creator_disconnected = match.get('creator_disconnected', False)
+            opponent_disconnected = match.get('opponent_disconnected', False)
+
+            if (creator_left or creator_disconnected) and (opponent_left or opponent_disconnected):
+                del active_matches[match_id]
+                save_matches()
+                logger.info(f'房间 {match_id} 双方都已离开，房间已删除')
+                return {'success': True, 'action': 'deleted'}, 200
+            else:
+                match['lastActivity'] = time.time()
+                save_matches()
+                return {'success': True, 'action': 'left_waiting_reconnect'}, 200
 
         if match['status'] in ['finished', 'closed']:
             match['status'] = 'closed'

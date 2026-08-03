@@ -216,7 +216,13 @@ var Gomoku = window.Gomoku || {};
                 G.currentUser = await G.apiCall('/api/current_user', 'GET', null, true);
                 G.isLoggedIn = true;
                 // 登录页面没有游戏 UI，直接跳转到游戏大厅
-                window.location.href = '/game';
+                var pendingMatchId = sessionStorage.getItem('pendingMatchId');
+                if (pendingMatchId) {
+                    sessionStorage.removeItem('pendingMatchId');
+                    window.location.href = '/game/' + pendingMatchId;
+                } else {
+                    window.location.href = '/game';
+                }
             } catch (e) {
                 // token 无效，清除并停留在登录页
                 G.token = '';

@@ -212,6 +212,9 @@
         if (G.showGameUI) G.showGameUI();
         G.calcCanvasSize();
         G.resetGame();
+        if (window.INITIAL_MATCH_ID) {
+            G.autoJoinMatchById(window.INITIAL_MATCH_ID);
+        }
     } else if (G.token) {
         (async function() {
             try {
@@ -225,9 +228,15 @@
                 if (G.startStatusCheck) G.startStatusCheck();
                 if (G.updateUnreadBadge) G.updateUnreadBadge();
                 if (G.recoverOnlineMatch) await G.recoverOnlineMatch();
+                if (window.INITIAL_MATCH_ID) {
+                    G.autoJoinMatchById(window.INITIAL_MATCH_ID);
+                }
             } catch (e) {
                 G.token = '';
                 localStorage.removeItem('token');
+                if (window.INITIAL_MATCH_ID) {
+                    sessionStorage.setItem('pendingMatchId', window.INITIAL_MATCH_ID);
+                }
                 window.location.href = '/login';
                 return;
             }

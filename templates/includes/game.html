@@ -1,20 +1,31 @@
 <!-- 主游戏容器 -->
-<div id="gameContainer" class="max-w-7xl w-full bg-white rounded-2xl shadow-xl overflow-hidden hidden relative">
+<div id="gameContainer" class="max-w-7xl w-full bg-white rounded-2xl shadow-xl overflow-hidden hidden relative main-container">
     <div class="header-bar">
-        <div><h1 class="text-2xl md:text-3xl font-bold">五子棋</h1><p class="text-sm opacity-80">经典对弈 · 双人/人机</p></div>
-        <div class="flex items-center space-x-3 md:space-x-6">
-            <div class="flex items-center"><i class="fa-solid fa-user-circle text-2xl mr-2"></i><div><p id="userNameDisplay" class="font-semibold"></p><p class="text-xs">积分: <span id="userScoreDisplay">0</span> · 胜: <span id="userWinsDisplay">0</span></p></div></div>
-            <button id="logoutBtn" class="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg"><i class="fa-solid fa-right-from-bracket"></i> 退出</button>
+        <div>
+            <h1 class="text-2xl font-bold">五子棋</h1>
+            <p class="text-sm opacity-80">经典对弈 · 双人/人机</p>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="flex items-center">
+                <i class="fa-solid fa-user-circle text-2xl mr-2"></i>
+                <div>
+                    <p id="userNameDisplay" class="font-semibold"></p>
+                    <p class="text-xs">积分: <span id="userScoreDisplay">0</span> · 胜: <span id="userWinsDisplay">0</span></p>
+                </div>
+            </div>
+            <button id="logoutBtn" class="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg text-sm">
+                <i class="fa-solid fa-right-from-bracket mr-1"></i>退出
+            </button>
         </div>
     </div>
 
-    <div class="bg-gray-50 border-b flex overflow-x-auto">
-        <button id="gameTab" class="tab-active px-4 md:px-6 py-3 font-medium whitespace-nowrap">游戏</button>
-        <button id="onlineTab" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">联机对战</button>
-        <button id="profileTab" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">个人资料</button>
-        <button id="historyTab" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">游戏记录</button>
-        <button id="statsTab" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">数据统计</button>
-        <button id="leaderboardTab" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">积分排行榜</button>
+    <div class="nav-tabs">
+        <button id="gameTab" class="nav-tab active">游戏</button>
+        <button id="onlineTab" class="nav-tab">联机对战</button>
+        <button id="profileTab" class="nav-tab">个人资料</button>
+        <button id="historyTab" class="nav-tab">游戏记录</button>
+        <button id="statsTab" class="nav-tab">数据统计</button>
+        <button id="leaderboardTab" class="nav-tab">积分排行榜</button>
     </div>
 
     {% include 'includes/game_content.html' %}
@@ -33,17 +44,17 @@
 
     <!-- 服务器断开连接遮罩层 -->
     <div id="disconnectOverlay" class="absolute inset-0 bg-black/60 flex items-center justify-center z-40 hidden modal-overlay">
-        <div class="bg-white rounded-2xl p-8 max-w-sm w-full mx-4 text-center shadow-2xl">
-            <div class="text-5xl mb-4 text-red-500">
+        <div class="modal-card">
+            <div class="modal-icon text-red-500">
                 <i class="fa-solid fa-exclamation-triangle"></i>
             </div>
-            <h3 class="text-xl font-bold text-gray-800 mb-2">服务器连接已断开</h3>
-            <p class="text-gray-500 mb-6">服务器已关闭，请稍后刷新页面重试</p>
-            <button onclick="location.reload()" class="bg-primary text-white px-6 py-3 rounded-lg font-medium hover:bg-primary-dark transition-colors">
+            <h3 class="modal-title">服务器连接已断开</h3>
+            <p class="modal-desc">服务器已关闭，请稍后刷新页面重试</p>
+            <button onclick="location.reload()" class="btn-primary w-full">
                 <i class="fa-solid fa-rotate mr-2"></i>刷新页面
             </button>
         </div>
     </div>
 
-    <div class="bg-gray-50 p-3 text-center text-sm text-gray-500 border-t">© 2026 五子棋 · 实时状态同步版</div>
+    <div class="footer-bar">© 2026 五子棋 · 实时状态同步版</div>
 </div>

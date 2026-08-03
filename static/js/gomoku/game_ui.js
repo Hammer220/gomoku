@@ -168,7 +168,11 @@ var Gomoku = window.Gomoku || {};
             }
             if (G.calcOnlineCanvasSize) G.calcOnlineCanvasSize();
             if (!G.onlineBoard || !G.onlineBoard[0]) G.initOnlineBoard();
-            if (G.drawOnlineBoard) G.drawOnlineBoard();
+            if (G.onlineMatchId) {
+                var boardContainer = $('onlineBoardContainer');
+                if (boardContainer) boardContainer.classList.remove('hidden');
+                if (G.drawOnlineBoard) G.drawOnlineBoard();
+            }
             if (G.isGuest) {
                 var guestOverlay = $('guestOnlineOverlay');
                 if (guestOverlay) guestOverlay.classList.remove('hidden');

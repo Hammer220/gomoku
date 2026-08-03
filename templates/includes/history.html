@@ -1,57 +1,59 @@
-<div id="historyContent" class="p-6 md:p-8 hidden">
-    <h2 class="text-2xl font-bold mb-6 text-primary">游戏记录</h2>
-    <div class="bg-white rounded-lg shadow-md p-6">
-        <div class="flex flex-wrap gap-3 mb-4 items-end">
-            <div>
-                <label class="block text-xs text-gray-500 mb-1">游戏模式</label>
-                <select id="historyModeFilter" class="border rounded-lg px-3 py-2 text-sm">
+<div id="historyContent" class="content-panel hidden">
+    <h2 class="section-title"><i class="fa-solid fa-clock-rotate-left"></i> 游戏记录</h2>
+    <div class="section-block">
+        <div class="filter-bar">
+            <div class="filter-group">
+                <label class="filter-label">游戏模式</label>
+                <select id="historyModeFilter" class="form-select">
                     <option value="all">全部模式</option>
                     <option value="ai">人机对战</option>
                     <option value="pvp">双人对战</option>
                     <option value="online">联机对战</option>
                 </select>
             </div>
-            <div>
-                <label class="block text-xs text-gray-500 mb-1">用户</label>
-                <select id="historyUserFilter" class="border rounded-lg px-3 py-2 text-sm">
+            <div class="filter-group">
+                <label class="filter-label">用户</label>
+                <select id="historyUserFilter" class="form-select">
                     <option value="self">自己</option>
                     <option value="all">所有人</option>
                 </select>
             </div>
-            <div>
-                <label class="block text-xs text-gray-500 mb-1">结果</label>
-                <select id="historyResultFilter" class="border rounded-lg px-3 py-2 text-sm">
+            <div class="filter-group">
+                <label class="filter-label">结果</label>
+                <select id="historyResultFilter" class="form-select">
                     <option value="all">全部结果</option>
                     <option value="win">胜利</option>
                     <option value="lose">失败</option>
                     <option value="draw">平局</option>
                 </select>
             </div>
-            <button id="refreshHistoryBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm"><i class="fa-solid fa-refresh mr-1"></i>刷新</button>
+            <button id="refreshHistoryBtn" class="btn-info btn-sm">
+                <i class="fa-solid fa-refresh mr-1"></i>刷新
+            </button>
         </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full border">
-                <thead class="bg-gray-50">
+        <div class="table-responsive">
+            <table class="data-table data-table-striped min-w-full">
+                <thead>
                     <tr>
-                        <th class="border px-4 py-3 text-sm">日期</th>
-                        <th class="border px-4 py-3 text-sm">模式</th>
-                        <th class="border px-4 py-3 text-sm">对手</th>
-                        <th class="border px-4 py-3 text-sm">结果</th>
-                        <th class="border px-4 py-3 text-sm">积分变化</th>
-                        <th class="border px-4 py-3 text-sm">操作</th>
+                        <th>日期</th>
+                        <th>模式</th>
+                        <th>对手</th>
+                        <th>结果</th>
+                        <th>积分变化</th>
+                        <th>操作</th>
                     </tr>
                 </thead>
                 <tbody id="historyTableBody"></tbody>
             </table>
-            <div id="historyEmpty" class="text-center py-8 text-gray-500 hidden">
-                <i class="fa-solid fa-inbox text-4xl mb-2 block"></i>
+            <div id="historyEmpty" class="empty-state hidden">
+                <i class="fa-solid fa-inbox"></i>
                 <p>暂无游戏记录</p>
             </div>
         </div>
         <div id="historyPagination" class="flex justify-between items-center mt-4 hidden">
-            <button id="historyPrevPage" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg text-sm">上一页</button>
+            <button id="historyPrevPage" class="pagination-btn">上一页</button>
             <span id="historyPageInfo" class="text-sm text-gray-600"></span>
-            <button id="historyNextPage" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg text-sm">下一页</button>
+            <button id="historyNextPage" class="pagination-btn">下一页</button>
         </div>
     </div>
 </div>

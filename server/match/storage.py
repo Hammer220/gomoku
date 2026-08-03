@@ -168,7 +168,68 @@ def cleanup_inactive_connections():
     except Exception as e:
         logger.error(f'Error in cleanup_inactive_connections: {e}')
 
+    for username in inactive_users:
+        handle_player_disconnect_from_match(username)
+
     return inactive_users
+
+
+def handle_player_disconnect_from_match(username):
+    """处理玩家断开连接时的房间状态
+    如果玩家在等待中或进行中的房间，断开连接后房间进入等待重连状态
+    如果双方都已断开或离开，删除房间
+    """
+    try:
+        with active_matches_lock:
+            for match_id, match in list(active_matches.items()):
+                if match.get('status') in ['waiting', 'playing', 'waiting_for_reconnect']:
+                    is_creator = match['creator'] == username
+                    is_opponent = match.get('opponent') == username
+
+                    if not is_creator and not is_opponent:
+                        continue
+
+                    if match.get('status') == 'waiting':
+                        if is_creator:
+                            del active_matches[match_id]
+                            save_matches()
+                            logger.info(f'房间 {match_id} 创建者断开连接，房间已删除')
+                            from .storage import clear_room_chat
+                            clear_room_chat(match_id)
+                        continue
+
+                    if match.get('status') == 'playing':
+                        match['status'] = 'waiting_for_reconnect'
+                        if is_creator:
+                            match['creator_disconnected'] = True
+                        else:
+                            match['opponent_disconnected'] = True
+                        match['lastActivity'] = time.time()
+                        save_matches()
+                        logger.info(f'玩家 {username} 断开连接，房间 {match_id} 进入等待重连状态')
+                        continue
+
+                    if match.get('status') == 'waiting_for_reconnect':
+                        if is_creator:
+                            match['creator_disconnected'] = True
+                        else:
+                            match['opponent_disconnected'] = True
+                        creator_disconnected = match.get('creator_disconnected', False)
+                        opponent_disconnected = match.get('opponent_disconnected', False)
+                        creator_left = match.get('creator_left', False)
+                        opponent_left = match.get('opponent_left', False)
+                        if (creator_disconnected or creator_left) and (opponent_disconnected or opponent_left):
+                            del active_matches[match_id]
+                            save_matches()
+                            logger.info(f'房间 {match_id} 双方都已离开或断开，房间已删除')
+                            from .storage import clear_room_chat
+                            clear_room_chat(match_id)
+                        else:
+                            match['lastActivity'] = time.time()
+                            save_matches()
+                        continue
+    except Exception as e:
+        logger.error(f'Error handling player disconnect from match: {e}')
 
 
 def start_cleanup_task():

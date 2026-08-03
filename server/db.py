@@ -53,6 +53,7 @@ def init_db():
             can_set_password_free INTEGER DEFAULT 0,
             can_monitor_matches INTEGER DEFAULT 0,
             can_manage_matches INTEGER DEFAULT 0,
+            can_manage INTEGER DEFAULT 1,
             password_free INTEGER DEFAULT 0,
             password_free_max_attempts INTEGER DEFAULT 0,
             password_free_remaining_attempts INTEGER DEFAULT 0,
@@ -251,6 +252,11 @@ def init_db():
     except sqlite3.OperationalError as e:
         if 'duplicate column' in str(e).lower():
             pass
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN can_manage INTEGER DEFAULT 1")
+    except sqlite3.OperationalError as e:
+        if 'duplicate column' in str(e).lower():
+            pass
 
     connection.commit()
     logger.info('SQLite 数据库初始化完成')
@@ -275,8 +281,10 @@ def migrate_from_json():
                     is_admin, is_super_admin, banned_until, can_ban_user,
                     can_kick_user, can_delete_user, can_change_password,
                     can_modify_score, can_set_password_free, can_monitor_matches,
-                    can_manage_matches
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    can_manage_matches, can_manage, language, password_free,
+                    password_free_max_attempts, password_free_remaining_attempts,
+                    use_captcha
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 username,
                 user.get('password', ''),
@@ -295,7 +303,13 @@ def migrate_from_json():
                 1 if user.get('canModifyScore') else 0,
                 1 if user.get('canSetPasswordFree') else 0,
                 1 if user.get('canMonitorMatches') else 0,
-                1 if user.get('canManageMatches') else 0
+                1 if user.get('canManageMatches') else 0,
+                1 if user.get('canManage', True) else 0,
+                user.get('language', 'zh-CN'),
+                1 if user.get('passwordFree') else 0,
+                user.get('passwordFreeMaxAttempts', 0),
+                user.get('passwordFreeRemainingAttempts', 0),
+                1 if user.get('useCaptcha', True) else 0
             ))
         if users:
             logger.info(f'迁移 {len(users)} 个用户到数据库')

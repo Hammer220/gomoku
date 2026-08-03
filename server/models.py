@@ -160,6 +160,7 @@ def _row_to_user(row):
         'canSetPasswordFree': bool(row['can_set_password_free']),
         'canMonitorMatches': bool(row['can_monitor_matches']),
         'canManageMatches': bool(row['can_manage_matches']),
+        'canManage': bool(row['can_manage']) if 'can_manage' in row.keys() else True,
         'language': row['language'] if 'language' in row.keys() else 'zh-CN',
         'passwordFree': bool(row['password_free']) if 'password_free' in row.keys() else False,
         'passwordFreeMaxAttempts': row['password_free_max_attempts'] if 'password_free_max_attempts' in row.keys() else 0,
@@ -212,10 +213,10 @@ def save_user(username, data):
             is_admin, is_super_admin, banned_until, can_ban_user,
             can_kick_user, can_delete_user, can_change_password,
             can_modify_score, can_set_password_free, can_monitor_matches,
-            can_manage_matches, language, password_free,
+            can_manage_matches, can_manage, language, password_free,
             password_free_max_attempts, password_free_remaining_attempts,
             use_captcha, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         username,
         data.get('password', ''),
@@ -235,6 +236,7 @@ def save_user(username, data):
         1 if data.get('canSetPasswordFree') else 0,
         1 if data.get('canMonitorMatches') else 0,
         1 if data.get('canManageMatches') else 0,
+        1 if data.get('canManage', True) else 0,
         data.get('language', 'zh-CN'),
         1 if data.get('passwordFree') else 0,
         data.get('passwordFreeMaxAttempts', 0),

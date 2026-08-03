@@ -40,6 +40,11 @@ def register_routes(app):
     def game_page():
         return render_template('game.html')
 
+    # 游戏大厅页面（带房间号，直接访问链接进入房间）
+    @app.route('/game/<match_id>')
+    def game_page_with_match(match_id):
+        return render_template('game.html', match_id=match_id)
+
     # 个人中心页面
     @app.route('/user')
     def user_page():

@@ -211,4 +211,6 @@ var Gomoku = window.Gomoku || {};
         }
     };
 
+    G.loadOnlineAvailableMatches = G.loadAvailableMatches;
+
 })();

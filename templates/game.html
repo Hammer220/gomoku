@@ -65,6 +65,9 @@
 
     <div id="toastContainer" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50"></div>
 
+    {% if match_id %}
+    <script>window.INITIAL_MATCH_ID = "{{ match_id }}";</script>
+    {% endif %}
     <script src="/static/js/socket.io.min.js"></script>
     <script src="/static/js/gomoku/core.js"></script>
     <script src="/static/js/gomoku/i18n.js"></script>

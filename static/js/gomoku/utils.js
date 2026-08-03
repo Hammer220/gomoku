@@ -130,4 +130,40 @@ var Gomoku = window.Gomoku || {};
         return div.innerHTML;
     };
 
+    /**
+     * 复制分享链接到剪贴板
+     * @param {string} link - 要复制的链接
+     */
+    G.copyShareLink = function(link) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(link).then(function() {
+                G.showToast('链接已复制到剪贴板！');
+            }).catch(function() {
+                G.fallbackCopyShareLink(link);
+            });
+        } else {
+            G.fallbackCopyShareLink(link);
+        }
+    };
+
+    /**
+     * 降级复制方案（兼容旧浏览器）
+     * @param {string} link - 要复制的链接
+     */
+    G.fallbackCopyShareLink = function(link) {
+        var textarea = document.createElement('textarea');
+        textarea.value = link;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            G.showToast('链接已复制到剪贴板！');
+        } catch (e) {
+            G.showToast('复制失败，请手动复制链接', true);
+        }
+        document.body.removeChild(textarea);
+    };
+
 })();

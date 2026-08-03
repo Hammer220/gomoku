@@ -1,25 +1,26 @@
-<div id="adminContent" class="p-6 md:p-8 hidden">
+<div id="adminContent" class="content-panel hidden">
     <h2 class="text-2xl font-bold mb-6 text-primary" data-i18n="adminConsole">管理员控制台</h2>
-    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h3 class="text-xl font-semibold mb-4" data-i18n="userManagement">用户管理</h3>
-        <div class="flex flex-wrap gap-2 mb-4">
-            <button id="batchBanBtn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-lg text-sm"><i class="fa-solid fa-ban mr-1"></i><span data-i18n="batchBan">批量封禁</span></button>
-            <button id="batchUnbanBtn" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-lg text-sm"><i class="fa-solid fa-unlock mr-1"></i><span data-i18n="batchUnban">批量解封</span></button>
-            <button id="batchKickBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-sm"><i class="fa-solid fa-sign-out-alt mr-1"></i><span data-i18n="batchKick">批量强制登出</span></button>
-            <button id="batchDeleteBtn" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg text-sm"><i class="fa-solid fa-trash mr-1"></i><span data-i18n="batchDelete">批量注销</span></button>
+
+    <div class="section-block">
+        <div class="section-block-header"><i class="fa-solid fa-users"></i> <span data-i18n="userManagement">用户管理</span></div>
+        <div class="action-bar">
+            <button id="batchBanBtn" class="btn-warning btn-sm"><i class="fa-solid fa-ban mr-1"></i><span data-i18n="batchBan">批量封禁</span></button>
+            <button id="batchUnbanBtn" class="btn-success btn-sm"><i class="fa-solid fa-unlock mr-1"></i><span data-i18n="batchUnban">批量解封</span></button>
+            <button id="batchKickBtn" class="btn-info btn-sm"><i class="fa-solid fa-sign-out-alt mr-1"></i><span data-i18n="batchKick">批量强制登出</span></button>
+            <button id="batchDeleteBtn" class="btn-danger btn-sm"><i class="fa-solid fa-trash mr-1"></i><span data-i18n="batchDelete">批量注销</span></button>
             <span id="selectedCount" class="text-sm text-gray-500 ml-2 self-center"><span data-i18n="selected">已选择</span>: 0</span>
         </div>
         <div class="flex flex-wrap items-center gap-3 mb-4">
-            <div class="relative flex-1 min-w-[200px] max-w-md">
-                <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                <input type="text" id="adminUserSearch" data-i18n-placeholder="searchUsername" placeholder="搜索用户名..." class="w-full border rounded-lg pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <div class="search-input-wrapper">
+                <i class="fa-solid fa-search"></i>
+                <input type="text" id="adminUserSearch" data-i18n-placeholder="searchUsername" placeholder="搜索用户名..." class="search-input">
             </div>
             <span id="adminUserCount" class="text-sm text-gray-500"></span>
         </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full border">
-                <thead class="bg-gray-50">
-                    <tr><th class="border px-2 py-2"><input type="checkbox" id="selectAllUsers" class="w-4 h-4"></th><th class="border px-4 py-2" data-i18n="username">用户名</th><th class="border px-4 py-2" data-i18n="points">积分</th><th class="border px-4 py-2" data-i18n="wins">胜场</th><th class="border px-4 py-2" data-i18n="gamesCount">对局数</th><th class="border px-4 py-2" data-i18n="banStatus">封禁状态</th><th class="border px-4 py-2" data-i18n="onlineStatus">在线状态</th><th class="border px-2 py-2" data-i18n="passwordFreeLogin">免密登录</th></tr>
+        <div class="table-responsive">
+            <table class="data-table data-table-striped min-w-full">
+                <thead>
+                    <tr><th class="w-10"><input type="checkbox" id="selectAllUsers" class="w-4 h-4"></th><th data-i18n="username">用户名</th><th data-i18n="points">积分</th><th data-i18n="wins">胜场</th><th data-i18n="gamesCount">对局数</th><th data-i18n="banStatus">封禁状态</th><th data-i18n="onlineStatus">在线状态</th><th data-i18n="passwordFreeLogin">免密登录</th></tr>
                 </thead>
                 <tbody id="adminUserTable"></tbody>
             </table>
@@ -27,9 +28,9 @@
         <div id="adminPagination" class="flex flex-wrap items-center justify-between gap-3 mt-4 hidden">
             <div class="text-sm text-gray-500" id="paginationInfo"></div>
             <div class="flex items-center gap-2">
-                <button id="pagePrev" class="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-left"></i></button>
+                <button id="pagePrev" class="pagination-btn"><i class="fa-solid fa-chevron-left"></i></button>
                 <div id="pageNumbers" class="flex items-center gap-1"></div>
-                <button id="pageNext" class="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"><i class="fa-solid fa-chevron-right"></i></button>
+                <button id="pageNext" class="pagination-btn"><i class="fa-solid fa-chevron-right"></i></button>
                 <select id="pageSizeSelect" class="text-sm border rounded-lg px-2 py-1.5 ml-2">
                     <option value="5" selected data-i18n="recordsPerPage5">5条/页</option>
                     <option value="15" data-i18n="recordsPerPage15">15条/页</option>
@@ -39,78 +40,80 @@
             </div>
         </div>
     </div>
-    <div class="bg-white rounded-lg shadow-md p-6">
-        <h3 class="text-xl font-semibold mb-4" data-i18n="userManagement">用户管理</h3>
+
+    <div class="section-block">
+        <div class="section-block-header"><i class="fa-solid fa-user-gear"></i> <span data-i18n="userManagement">用户管理</span></div>
         <div class="space-y-4">
             <div class="flex flex-wrap gap-4 items-end">
                 <div>
-                    <label class="block text-sm mb-1" data-i18n="username">用户名</label>
-                    <input type="text" id="adminBanUsername" class="border rounded-lg px-3 py-2" data-i18n-placeholder="clickTableUsername" placeholder="点击表格用户名或手动输入">
+                    <label class="block text-sm font-medium text-gray-600 mb-1" data-i18n="username">用户名</label>
+                    <input type="text" id="adminBanUsername" class="border rounded-lg px-3 py-2 focus:outline-none" data-i18n-placeholder="clickTableUsername" placeholder="点击表格用户名或手动输入">
                 </div>
                 <span id="selectedUserInfo" class="text-sm text-gray-500 self-center"></span>
             </div>
             <div class="flex flex-wrap gap-4 items-end">
                 <div>
-                    <label class="block text-sm mb-1" data-i18n="banDuration">封禁时长(分钟)</label>
-                    <input type="number" id="adminBanMinutes" min="1" value="10" class="border rounded-lg px-3 py-2 w-24">
+                    <label class="block text-sm font-medium text-gray-600 mb-1" data-i18n="banDuration">封禁时长(分钟)</label>
+                    <input type="number" id="adminBanMinutes" min="1" value="10" class="border rounded-lg px-3 py-2 w-24 focus:outline-none">
                 </div>
-                <button id="adminBanBtn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-ban mr-1"></i><span data-i18n="ban">封禁</span></button>
-                <button id="adminUnbanBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-unlock mr-1"></i><span data-i18n="unban">解封</span></button>
-                <button id="adminKickBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-sign-out-alt mr-1"></i><span data-i18n="forceKick">强制登出</span></button>
-                <button id="adminDeleteBtn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-trash mr-1"></i><span data-i18n="delete">注销</span></button>
+                <button id="adminBanBtn" class="btn-warning"><i class="fa-solid fa-ban mr-1"></i><span data-i18n="ban">封禁</span></button>
+                <button id="adminUnbanBtn" class="btn-success"><i class="fa-solid fa-unlock mr-1"></i><span data-i18n="unban">解封</span></button>
+                <button id="adminKickBtn" class="btn-info"><i class="fa-solid fa-sign-out-alt mr-1"></i><span data-i18n="forceKick">强制登出</span></button>
+                <button id="adminDeleteBtn" class="btn-danger"><i class="fa-solid fa-trash mr-1"></i><span data-i18n="delete">注销</span></button>
             </div>
-            <div class="flex flex-wrap gap-3 items-center pt-3 border-t border-gray-200">
+            <hr class="divider">
+            <div class="flex flex-wrap gap-3 items-center">
                 <span class="text-sm font-medium text-gray-700" data-i18n="accountActions">账号操作：</span>
-                <button id="adminChangePasswordBtn" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-sm"><i class="fa-solid fa-key mr-1"></i><span data-i18n="changePassword">改密码</span></button>
-                <button id="adminUpdateScoreBtn" class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-1.5 rounded-lg text-sm"><i class="fa-solid fa-star mr-1"></i><span data-i18n="changeScore">改积分</span></button>
-                <span class="text-gray-300 mx-1">|</span>
+                <button id="adminChangePasswordBtn" class="btn-success btn-sm"><i class="fa-solid fa-key mr-1"></i><span data-i18n="changePassword">改密码</span></button>
+                <button id="adminUpdateScoreBtn" class="btn-warning btn-sm"><i class="fa-solid fa-star mr-1"></i><span data-i18n="changeScore">改积分</span></button>
+                <span class="action-bar-separator"></span>
                 <span class="text-sm text-gray-600" data-i18n="passwordFreeLogin">免密登录：</span>
-                <button id="adminPasswordFreeToggle" class="px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-100 text-gray-400" data-i18n="selectUser">请选择用户</button>
-                <button id="adminPasswordFreeAttempts" class="text-xs px-2 py-1 border rounded-lg hover:bg-gray-100" data-i18n="setAttempts">设置次数</button>
+                <button id="adminPasswordFreeToggle" class="btn-outline btn-sm text-gray-400" data-i18n="selectUser">请选择用户</button>
+                <button id="adminPasswordFreeAttempts" class="btn-secondary btn-xs" data-i18n="setAttempts">设置次数</button>
             </div>
         </div>
     </div>
-    
-    <div id="adminAccountManagement" class="bg-white rounded-lg shadow-md p-6">
-        <h3 class="text-xl font-semibold mb-4" data-i18n="adminAccountManagement">管理员账号管理</h3>
+
+    <div id="adminAccountManagement" class="section-block">
+        <div class="section-block-header"><i class="fa-solid fa-shield-halved"></i> <span data-i18n="adminAccountManagement">管理员账号管理</span></div>
         <div class="space-y-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm mb-1" data-i18n="username">用户名</label>
-                    <input type="text" id="newAdminUsername" data-i18n-placeholder="newAdminUsernamePlaceholder" placeholder="请输入新管理员用户名" class="w-full border rounded-lg px-3 py-2">
+                    <label class="block text-sm font-medium text-gray-600 mb-1" data-i18n="username">用户名</label>
+                    <input type="text" id="newAdminUsername" data-i18n-placeholder="newAdminUsernamePlaceholder" placeholder="请输入新管理员用户名" class="w-full border rounded-lg px-3 py-2 focus:outline-none">
                 </div>
                 <div>
-                    <label class="block text-sm mb-1" data-i18n="password">密码</label>
-                    <input type="password" id="newAdminPassword" data-i18n-placeholder="newAdminPasswordPlaceholder" placeholder="请输入密码（至少6位）" class="w-full border rounded-lg px-3 py-2">
+                    <label class="block text-sm font-medium text-gray-600 mb-1" data-i18n="password">密码</label>
+                    <input type="password" id="newAdminPassword" data-i18n-placeholder="newAdminPasswordPlaceholder" placeholder="请输入密码（至少6位）" class="w-full border rounded-lg px-3 py-2 focus:outline-none">
                 </div>
             </div>
             <div class="flex gap-3">
-                <button id="createAdminBtn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-user-plus mr-1"></i><span data-i18n="createAdmin">创建管理员</span></button>
-                <button id="refreshAdminsBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-refresh mr-1"></i><span data-i18n="refreshList">刷新列表</span></button>
-                <button id="viewAllRecordsBtn" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg"><i class="fa-solid fa-file-text mr-1"></i><span data-i18n="viewAllRecords">查看所有游戏记录</span></button>
+                <button id="createAdminBtn" class="btn-success"><i class="fa-solid fa-user-plus mr-1"></i><span data-i18n="createAdmin">创建管理员</span></button>
+                <button id="refreshAdminsBtn" class="btn-info"><i class="fa-solid fa-refresh mr-1"></i><span data-i18n="refreshList">刷新列表</span></button>
+                <button id="viewAllRecordsBtn" class="btn-secondary"><i class="fa-solid fa-file-text mr-1"></i><span data-i18n="viewAllRecords">查看所有游戏记录</span></button>
             </div>
-            <div class="bg-gray-50 p-3 rounded-lg">
-                <h4 class="font-semibold mb-2" data-i18n="adminList">管理员列表</h4>
+            <div class="form-section">
+                <div class="form-section-title"><i class="fa-solid fa-list"></i> <span data-i18n="adminList">管理员列表</span></div>
                 <div id="adminList" class="space-y-2 max-h-40 overflow-y-auto">
                     <div class="text-gray-500 text-sm" data-i18n="loading">加载中...</div>
                 </div>
             </div>
-            <div id="adminPermissionsTable" class="bg-gray-50 p-3 rounded-lg hidden">
-                <h4 class="font-semibold mb-2" data-i18n="adminPermissions">管理员权限设置</h4>
+            <div id="adminPermissionsTable" class="form-section hidden">
+                <div class="form-section-title"><i class="fa-solid fa-lock"></i> <span data-i18n="adminPermissions">管理员权限设置</span></div>
                 <p class="text-xs text-gray-500 mb-3" data-i18n="permissionToggleHint">点击权限标签切换启用/禁用状态</p>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full border text-sm">
-                        <thead class="bg-gray-100">
+                <div class="table-responsive">
+                    <table class="data-table data-table-compact min-w-full">
+                        <thead>
                             <tr>
-                                <th class="border px-3 py-2 text-left" data-i18n="admin">管理员</th>
-                                <th class="border px-3 py-2 text-center" data-i18n="banUser">封禁用户</th>
-                                <th class="border px-3 py-2 text-center" data-i18n="forceLogout">强制登出</th>
-                                <th class="border px-3 py-2 text-center" data-i18n="deleteUser">注销用户</th>
-                                <th class="border px-3 py-2 text-center" data-i18n="modifyPassword">修改密码</th>
-                                <th class="border px-3 py-2 text-center" data-i18n="modifyScore">修改积分</th>
-                                <th class="border px-3 py-2 text-center" data-i18n="passwordFreeLogin">免密登录</th>
-                                <th class="border px-3 py-2 text-center" data-i18n="matchMonitor">对局监控</th>
-                                <th class="border px-3 py-2 text-center" data-i18n="matchManagement">对局管理</th>
+                                <th class="text-left" data-i18n="admin">管理员</th>
+                                <th class="text-center" data-i18n="banUser">封禁用户</th>
+                                <th class="text-center" data-i18n="forceLogout">强制登出</th>
+                                <th class="text-center" data-i18n="deleteUser">注销用户</th>
+                                <th class="text-center" data-i18n="modifyPassword">修改密码</th>
+                                <th class="text-center" data-i18n="modifyScore">修改积分</th>
+                                <th class="text-center" data-i18n="passwordFreeLogin">免密登录</th>
+                                <th class="text-center" data-i18n="matchMonitor">对局监控</th>
+                                <th class="text-center" data-i18n="matchManagement">对局管理</th>
                             </tr>
                         </thead>
                         <tbody id="adminPermissionsBody"></tbody>
@@ -120,31 +123,31 @@
                     <select id="selectAdminForBatchPerm" class="text-sm border rounded px-2 py-1">
                         <option value="" data-i18n="selectAdmin">选择管理员...</option>
                     </select>
-                    <button id="enableAllPermsBtn" class="text-sm bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-lg" data-i18n="enableAllPermissions">一键启用所有权限</button>
-                    <button id="disableAllPermsBtn" class="text-sm bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg" data-i18n="disableAllPermissions">一键关闭所有权限</button>
+                    <button id="enableAllPermsBtn" class="btn-success btn-sm" data-i18n="enableAllPermissions">一键启用所有权限</button>
+                    <button id="disableAllPermsBtn" class="btn-danger btn-sm" data-i18n="disableAllPermissions">一键关闭所有权限</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="onlineMatchMonitor" class="bg-white rounded-lg shadow-md p-6 mt-6 hidden">
-        <h3 class="text-xl font-semibold mb-4" data-i18n="onlineMatchMonitor">联机对局监控</h3>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div id="onlineMatchMonitor" class="section-block mt-6 hidden">
+        <div class="section-block-header"><i class="fa-solid fa-eye"></i> <span data-i18n="onlineMatchMonitor">联机对局监控</span></div>
+        <div class="two-column">
             <div>
                 <div class="flex justify-between items-center mb-3">
-                    <h4 class="font-medium" data-i18n="roomList">房间列表</h4>
+                    <h4 class="font-semibold text-gray-700" data-i18n="roomList">房间列表</h4>
                     <div class="flex gap-2">
-                        <button id="forceCloseAllRoomsBtn" class="text-sm bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg" data-i18n="closeAllRooms">一键关闭所有</button>
-                        <button id="refreshMatchListBtn" class="text-sm bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg"><i class="fa-solid fa-refresh mr-1"></i><span data-i18n="refresh">刷新</span></button>
+                        <button id="forceCloseAllRoomsBtn" class="btn-danger btn-sm" data-i18n="closeAllRooms">一键关闭所有</button>
+                        <button id="refreshMatchListBtn" class="btn-info btn-sm"><i class="fa-solid fa-refresh mr-1"></i><span data-i18n="refresh">刷新</span></button>
                     </div>
                 </div>
                 <div id="matchListContainer" class="max-h-96 overflow-y-auto space-y-2">
-                    <div class="text-gray-500 text-center py-4" data-i18n="loading">加载中...</div>
+                    <div class="empty-state"><i class="fa-solid fa-spinner animate-spin-custom"></i><p data-i18n="loading">加载中...</p></div>
                 </div>
             </div>
             <div>
                 <div class="flex justify-between items-center mb-3">
-                    <h4 class="font-medium" data-i18n="boardMonitor">棋盘监控</h4>
+                    <h4 class="font-semibold text-gray-700" data-i18n="boardMonitor">棋盘监控</h4>
                     <span id="monitorMatchId" class="text-sm text-gray-500" data-i18n="noRoomSelected">未选择房间</span>
                 </div>
                 <div class="aspect-square bg-board rounded-lg shadow-lg board-grid relative mb-3">
@@ -152,15 +155,15 @@
                 </div>
                 <div id="monitorControls" class="space-y-2 hidden">
                     <div class="flex gap-2 items-center">
-                        <label class="text-sm" data-i18n="placePiece">落子:</label>
-                        <select id="monitorPlayerSelect" class="border rounded px-2 py-1">
+                        <label class="text-sm font-medium text-gray-600" data-i18n="placePiece">落子:</label>
+                        <select id="monitorPlayerSelect" class="border rounded px-2 py-1 text-sm">
                             <option value="1" data-i18n="black">黑棋</option>
                             <option value="2" data-i18n="white">白棋</option>
                         </select>
                     </div>
                     <div class="flex gap-2">
-                        <button id="forceRestartMatchBtn" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-sm" data-i18n="forceRestart">强制重新开始</button>
-                        <button id="forceCloseMatchBtn" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg text-sm" data-i18n="forceCloseRoom">强制关闭房间</button>
+                        <button id="forceRestartMatchBtn" class="flex-1 btn-success btn-sm" data-i18n="forceRestart">强制重新开始</button>
+                        <button id="forceCloseMatchBtn" class="flex-1 btn-danger btn-sm" data-i18n="forceCloseRoom">强制关闭房间</button>
                     </div>
                 </div>
             </div>

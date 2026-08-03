@@ -217,7 +217,13 @@ var Gomoku = window.Gomoku || {};
         G.isLoggedIn = true;
         await G.resetGuestData();
         G.showToast('欢迎回来，' + G.currentUser.username + '！');
-        window.location.href = '/game';
+        var pendingMatchId = sessionStorage.getItem('pendingMatchId');
+        if (pendingMatchId) {
+            sessionStorage.removeItem('pendingMatchId');
+            window.location.href = '/game/' + pendingMatchId;
+        } else {
+            window.location.href = '/game';
+        }
     };
 
     // 免密登录
@@ -229,7 +235,13 @@ var Gomoku = window.Gomoku || {};
         G.isLoggedIn = true;
         await G.resetGuestData();
         G.showToast('欢迎回来，' + G.currentUser.username + '！');
-        window.location.href = '/game';
+        var pendingMatchId = sessionStorage.getItem('pendingMatchId');
+        if (pendingMatchId) {
+            sessionStorage.removeItem('pendingMatchId');
+            window.location.href = '/game/' + pendingMatchId;
+        } else {
+            window.location.href = '/game';
+        }
     };
 
     // 检查免密登录剩余次数

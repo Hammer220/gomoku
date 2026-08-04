@@ -1,53 +1,53 @@
 <!-- 个人资料页面 -->
 <div id="profileContent" class="content-panel hidden">
-    <h2 class="section-title" data-i18n="personalProfile">个人资料</h2>
+    <h2 class="section-title" data-i18n="personalProfile"><i class="fa-solid fa-user"></i> 个人资料</h2>
 
-    <div class="section-block">
+    <div class="section-block card-diagonal">
         <div class="section-block-header"><i class="fa-solid fa-circle-info"></i> <span data-i18n="basicInfo">基本信息</span></div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="info-card">
+            <div class="info-card hover-lift">
                 <div class="info-card-label"><i class="fa-solid fa-user info-card-icon mr-2"></i><span data-i18n="username">用户名</span></div>
                 <div class="info-card-value" id="profileUsername">-</div>
             </div>
-            <div class="info-card">
+            <div class="info-card hover-lift">
                 <div class="info-card-label"><i class="fa-solid fa-star info-card-icon mr-2"></i><span data-i18n="points">积分</span></div>
-                <div class="info-card-value" id="profileScore">-</div>
+                <div class="info-card-value text-gradient font-bold" id="profileScore">-</div>
             </div>
-            <div class="info-card">
+            <div class="info-card hover-lift">
                 <div class="info-card-label"><i class="fa-solid fa-trophy info-card-icon mr-2"></i><span data-i18n="wins">胜场</span></div>
-                <div class="info-card-value" id="profileWins">-</div>
+                <div class="info-card-value text-green-600 font-semibold" id="profileWins">-</div>
             </div>
-            <div class="info-card">
+            <div class="info-card hover-lift">
                 <div class="info-card-label"><i class="fa-solid fa-gamepad info-card-icon mr-2"></i><span data-i18n="gamesCount">对局数</span></div>
                 <div class="info-card-value" id="profileGames">-</div>
             </div>
-            <div class="info-card">
+            <div class="info-card hover-lift">
                 <div class="info-card-label"><i class="fa-solid fa-calendar info-card-icon mr-2"></i><span data-i18n="registrationDate">注册日期</span></div>
                 <div class="info-card-value" id="profileJoinDate">-</div>
             </div>
-            <div class="info-card">
+            <div class="info-card hover-lift">
                 <div class="info-card-label"><i class="fa-solid fa-clock info-card-icon mr-2"></i><span data-i18n="lastLogin">最后登录</span></div>
                 <div class="info-card-value" id="profileLastLogin">-</div>
             </div>
         </div>
     </div>
 
-    <div class="section-block">
+    <div class="section-block card-diagonal">
         <div class="section-block-header"><i class="fa-solid fa-key"></i> <span data-i18n="changePassword">修改密码</span></div>
         <div class="space-y-4 max-w-md">
-            <div>
-                <label class="block text-sm font-medium text-gray-600 mb-1" data-i18n="oldPassword">旧密码</label>
-                <input type="password" id="changeOldPassword" data-i18n-placeholder="enterOldPassword" placeholder="请输入旧密码" class="w-full px-4 py-2 border rounded-lg focus:outline-none">
+            <div class="float-label-input">
+                <input type="password" id="changeOldPassword" data-i18n-placeholder="enterOldPassword" placeholder=" " class="form-input input-focus-animate">
+                <label>旧密码</label>
             </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-600 mb-1" data-i18n="newPassword">新密码</label>
-                <input type="password" id="changeNewPassword" data-i18n-placeholder="enterNewPassword" placeholder="请输入新密码（至少6位）" class="w-full px-4 py-2 border rounded-lg focus:outline-none">
+            <div class="float-label-input">
+                <input type="password" id="changeNewPassword" data-i18n-placeholder="enterNewPassword" placeholder=" " class="form-input input-focus-animate">
+                <label>新密码（至少6位）</label>
             </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-600 mb-1" data-i18n="confirmNewPassword">确认新密码</label>
-                <input type="password" id="changeConfirmPassword" data-i18n-placeholder="reenterNewPassword" placeholder="请再次输入新密码" class="w-full px-4 py-2 border rounded-lg focus:outline-none">
+            <div class="float-label-input">
+                <input type="password" id="changeConfirmPassword" data-i18n-placeholder="reenterNewPassword" placeholder=" " class="form-input input-focus-animate">
+                <label>确认新密码</label>
             </div>
-            <button id="changePasswordBtn" class="btn-primary">
+            <button id="changePasswordBtn" class="btn-primary btn-ripple">
                 <i class="fa-solid fa-key mr-2"></i><span data-i18n="changePassword">修改密码</span>
             </button>
         </div>

@@ -150,6 +150,13 @@ var Gomoku = window.Gomoku || {};
         setText('profileJoinDate', G.currentUser.joinDate || '未知');
         setText('profileLastLogin', G.currentUser.lastLogin || '从未登录');
 
+        // 登录后将五子棋标题改为纯白
+        var gameTitle = document.getElementById('gameTitle');
+        if (gameTitle) {
+            gameTitle.classList.remove('text-gradient');
+            gameTitle.style.color = '#ffffff';
+        }
+
         // 显示/隐藏管理员导航链接
         var adminNavLink = document.getElementById('adminNavLink');
         if (adminNavLink) {

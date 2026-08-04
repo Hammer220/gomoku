@@ -9,87 +9,87 @@
     <link href="/static/css/style.css" rel="stylesheet">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%23C4955A'/%3E%3Cstop offset='100%25' stop-color='%238B5A2B'/%3E%3C/linearGradient%3E%3CradialGradient id='bs' cx='38%25' cy='35%25'%3E%3Cstop offset='0%25' stop-color='%23666'/%3E%3Cstop offset='40%25' stop-color='%23333'/%3E%3Cstop offset='100%25' stop-color='%23111'/%3E%3C/radialGradient%3E%3CradialGradient id='ws' cx='38%25' cy='35%25'%3E%3Cstop offset='0%25' stop-color='%23fff'/%3E%3Cstop offset='50%25' stop-color='%23eee'/%3E%3Cstop offset='100%25' stop-color='%23ccc'/%3E%3C/radialGradient%3E%3Cfilter id='sh'%3E%3CfeDropShadow dx='1' dy='1.5' stdDeviation='1.5' flood-opacity='.35'/%3E%3C/filter%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='url(%23bg)'/%3E%3Cg stroke='%23A0724A' stroke-width='.5' opacity='.4'%3E%3Cline x1='14' y1='24' x2='50' y2='24'/%3E%3Cline x1='14' y1='32' x2='50' y2='32'/%3E%3Cline x1='14' y1='40' x2='50' y2='40'/%3E%3Cline x1='24' y1='14' x2='24' y2='50'/%3E%3Cline x1='32' y1='14' x2='32' y2='50'/%3E%3Cline x1='40' y1='14' x2='40' y2='50'/%3E%3C/g%3E%3Ccircle cx='32' cy='32' r='1.5' fill='%23A0724A' opacity='.5'/%3E%3Ccircle cx='24' cy='24' r='9' fill='url(%23bs)' filter='url(%23sh)'/%3E%3Cellipse cx='21' cy='21' rx='3.5' ry='2.5' fill='%23fff' opacity='.12'/%3E%3Ccircle cx='40' cy='40' r='9' fill='url(%23ws)' filter='url(%23sh)'/%3E%3Cellipse cx='37' cy='37' rx='3' ry='2' fill='%23fff' opacity='.5'/%3E%3C/svg%3E">
     <style>
-        .lang-option { transition: all 0.2s ease; }
+        .lang-option { transition: all 0.3s ease; }
         .lang-option:hover { transform: translateX(5px); }
-        .lang-option.selected { background-color: #8B5A2B; color: white; }
+        .lang-option.selected { background-color: var(--color-primary); color: white; }
+        html { scroll-behavior: smooth; }
+        #settingsContainer { scroll-behavior: smooth; }
+        .section-block:target {
+            animation: highlight-section 1s ease-out;
+        }
+        @keyframes highlight-section {
+            0% { background-color: rgba(59, 130, 246, 0.2); }
+            100% { background-color: transparent; }
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4 font-sans bg-gradient-to-br from-[#f8f0e3] via-[#e8d3b8] to-[#d4b88e] bg-fixed relative">
 
-    <div id="settingsContainer" class="max-w-2xl w-full bg-white rounded-2xl shadow-xl overflow-hidden">
+    <div id="settingsContainer" class="max-w-2xl w-full bg-white rounded-2xl shadow-xl overflow-hidden card-3d-hover">
         <div class="header-bar">
             <div>
-                <h1 class="text-2xl font-bold" data-i18n="settings">设置</h1>
+                <h1 class="text-2xl font-bold text-gradient" data-i18n="settings">设置</h1>
                 <p class="text-sm opacity-80" data-i18n="settingsPage">设置页面</p>
-            </div>
-            <div class="flex items-center space-x-4">
-                <a href="/game" id="backToGame" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors">
-                    <i class="fa-solid fa-arrow-left mr-2"></i><span data-i18n="back">返回</span>
-                </a>
-                <button id="logoutBtn" class="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors">
-                    <i class="fa-solid fa-right-from-bracket mr-2"></i><span data-i18n="logout">退出</span>
-                </button>
             </div>
         </div>
 
-        <div class="bg-gray-50 border-b flex overflow-x-auto">
-            <button class="tab-active px-6 py-3 font-medium whitespace-nowrap" data-tab="general">
-                <i class="fa-solid fa-gear mr-2"></i><span data-i18n="generalSettings">通用设置</span>
-            </button>
-            <button class="px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap" data-tab="display">
-                <i class="fa-solid fa-palette mr-2"></i><span data-i18n="displaySettings">显示设置</span>
-            </button>
+        <div class="bg-gray-50 border-b flex overflow-x-auto p-2">
+            <div class="tab-group">
+                <a href="/game" class="tab-btn"><i class="fa-solid fa-chess-board mr-1"></i>游戏大厅</a>
+                <a href="/user" id="userCenterLink" class="tab-btn"><i class="fa-solid fa-user mr-1"></i>个人中心</a>
+                <a href="/messages" id="messagesLink" class="tab-btn"><i class="fa-solid fa-envelope mr-1"></i>消息中心 <span id="unreadBadge" class="bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 ml-1 hidden animate-pulse">0</span></a>
+                <span class="tab-btn tab-active"><i class="fa-solid fa-gear mr-1"></i>设置</span>
+                <a href="/admin" id="adminNavLink" class="tab-btn text-red-600 hidden"><i class="fa-solid fa-crown mr-1"></i>管理后台</a>
+            </div>
+        </div>
+
+        <div class="bg-gray-50 border-b flex overflow-x-auto p-2">
+            <div class="tab-group">
+                <button class="tab-btn active" data-tab="general"><i class="fa-solid fa-gear mr-2"></i><span data-i18n="generalSettings">通用设置</span></button>
+                <button class="tab-btn" data-tab="display"><i class="fa-solid fa-palette mr-2"></i><span data-i18n="displaySettings">显示设置</span></button>
+            </div>
         </div>
 
         <div class="p-6">
             <div id="generalTab" class="tab-content">
                 <div class="space-y-6">
-                    <div class="bg-gray-50 rounded-xl p-5">
-                        <h3 class="text-lg font-bold text-primary mb-4">
+                    <div id="language-section" class="section-block card-diagonal">
+                        <h3 class="section-block-header">
                             <i class="fa-solid fa-language mr-2"></i><span data-i18n="languageSettings">语言设置</span>
                         </h3>
                         <p class="text-gray-600 mb-4" data-i18n="selectLanguage">选择语言</p>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="languageOptions">
-                            <button class="lang-option p-4 border-2 rounded-xl text-center" data-lang="zh-CN">
+                            <button class="lang-option p-4 border-2 rounded-xl text-center hover-lift card-diagonal" data-lang="zh-CN">
                                 <div class="text-2xl mb-1">🇨🇳</div>
                                 <div class="font-medium" data-i18n="simplifiedChinese">简体中文</div>
                             </button>
-                            <button class="lang-option p-4 border-2 rounded-xl text-center" data-lang="zh-TW">
+                            <button class="lang-option p-4 border-2 rounded-xl text-center hover-lift card-diagonal" data-lang="zh-TW">
                                 <div class="text-2xl mb-1">🇹🇼</div>
                                 <div class="font-medium" data-i18n="traditionalChinese">繁體中文</div>
                             </button>
-                            <button class="lang-option p-4 border-2 rounded-xl text-center" data-lang="en">
+                            <button class="lang-option p-4 border-2 rounded-xl text-center hover-lift card-diagonal" data-lang="en">
                                 <div class="text-2xl mb-1">🇺🇸</div>
                                 <div class="font-medium" data-i18n="english">English</div>
                             </button>
                         </div>
                     </div>
 
-                    <div class="bg-gray-50 rounded-xl p-5">
-                        <h3 class="text-lg font-bold text-primary mb-4">
+                    <div id="account-section" class="section-block card-diagonal">
+                        <h3 class="section-block-header">
                             <i class="fa-solid fa-user mr-2"></i><span data-i18n="accountSettings">账号设置</span>
                         </h3>
-                        <div class="space-y-4">
-                            <div class="flex items-center justify-between p-3 bg-white rounded-lg">
-                                <div>
-                                    <div class="font-medium" data-i18n="username">用户名</div>
-                                    <div id="usernameDisplay" class="text-gray-500 text-sm">-</div>
-                                </div>
-                                <i class="fa-solid fa-check text-green-500"></i>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div class="info-card hover-lift">
+                                <div class="info-card-label"><i class="fa-solid fa-user info-card-icon mr-2"></i><span data-i18n="username">用户名</span></div>
+                                <div id="usernameDisplay" class="info-card-value">-</div>
                             </div>
-                            <div class="flex items-center justify-between p-3 bg-white rounded-lg">
-                                <div>
-                                    <div class="font-medium" data-i18n="points">积分</div>
-                                    <div id="pointsDisplay" class="text-gray-500 text-sm">-</div>
-                                </div>
-                                <i class="fa-solid fa-star text-yellow-500"></i>
+                            <div class="info-card hover-lift">
+                                <div class="info-card-label"><i class="fa-solid fa-star info-card-icon mr-2 text-yellow-500"></i><span data-i18n="points">积分</span></div>
+                                <div id="pointsDisplay" class="info-card-value text-gradient font-bold">-</div>
                             </div>
-                            <div class="flex items-center justify-between p-3 bg-white rounded-lg">
-                                <div>
-                                    <div class="font-medium" data-i18n="wins">胜</div>
-                                    <div id="winsDisplay" class="text-gray-500 text-sm">-</div>
-                                </div>
-                                <i class="fa-solid fa-trophy text-amber-500"></i>
+                            <div class="info-card hover-lift">
+                                <div class="info-card-label"><i class="fa-solid fa-trophy info-card-icon mr-2 text-amber-500"></i><span data-i18n="wins">胜</span></div>
+                                <div id="winsDisplay" class="info-card-value">-</div>
                             </div>
                         </div>
                     </div>
@@ -98,36 +98,44 @@
 
             <div id="displayTab" class="tab-content hidden">
                 <div class="space-y-6">
-                    <div class="bg-gray-50 rounded-xl p-5">
-                        <h3 class="text-lg font-bold text-primary mb-4">
+                    <div id="board-color-section" class="section-block card-diagonal">
+                        <h3 class="section-block-header">
                             <i class="fa-solid fa-palette mr-2"></i><span data-i18n="boardColorSettings">棋盘颜色设置</span>
                         </h3>
                         <div class="space-y-4">
-                            <div class="flex items-center justify-between">
-                                <label class="text-gray-700" data-i18n="lineColor">线条颜色</label>
-                                <div class="flex items-center gap-2">
-                                    <input type="color" id="boardLineColor" value="#8B5A2B" class="w-10 h-10 rounded cursor-pointer border-0">
-                                    <input type="text" id="boardLineColorText" value="#8B5A2B" class="w-24 px-2 py-1 border rounded text-sm">
+                            <div class="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm hover-lift card-3d-hover transition-all duration-300">
+                                <label class="text-gray-700 font-medium" data-i18n="lineColor">
+                                    <i class="fa-solid fa-lines-leaning mr-2 text-primary"></i>线条颜色
+                                </label>
+                                <div class="flex items-center gap-3">
+                                    <div class="relative">
+                                        <input type="color" id="boardLineColor" value="#8B5A2B" class="w-12 h-12 rounded-xl cursor-pointer border-2 border-gray-200 shadow-sm hover:border-primary transition-colors duration-200">
+                                    </div>
+                                    <input type="text" id="boardLineColorText" value="#8B5A2B" class="w-28 px-3 py-2 border-2 border-gray-200 rounded-xl text-sm input-focus-animate font-mono">
                                 </div>
                             </div>
-                            <div class="flex items-center justify-between">
-                                <label class="text-gray-700" data-i18n="dotColor">星位颜色</label>
-                                <div class="flex items-center gap-2">
-                                    <input type="color" id="boardDotColor" value="#8B5A2B" class="w-10 h-10 rounded cursor-pointer border-0">
-                                    <input type="text" id="boardDotColorText" value="#8B5A2B" class="w-24 px-2 py-1 border rounded text-sm">
+                            <div class="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm hover-lift card-3d-hover transition-all duration-300">
+                                <label class="text-gray-700 font-medium" data-i18n="dotColor">
+                                    <i class="fa-solid fa-circle-dot mr-2 text-primary"></i>星位颜色
+                                </label>
+                                <div class="flex items-center gap-3">
+                                    <div class="relative">
+                                        <input type="color" id="boardDotColor" value="#8B5A2B" class="w-12 h-12 rounded-xl cursor-pointer border-2 border-gray-200 shadow-sm hover:border-primary transition-colors duration-200">
+                                    </div>
+                                    <input type="text" id="boardDotColorText" value="#8B5A2B" class="w-28 px-3 py-2 border-2 border-gray-200 rounded-xl text-sm input-focus-animate font-mono">
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="bg-gray-50 rounded-xl p-5">
-                        <h3 class="text-lg font-bold text-primary mb-4">
+                    <div id="background-section" class="section-block card-diagonal">
+                        <h3 class="section-block-header">
                             <i class="fa-solid fa-image mr-2"></i><span data-i18n="backgroundImage">背景图片</span>
                         </h3>
-                        <div id="backgroundImageGrid" class="grid grid-cols-4 gap-3 mb-4 max-h-72 overflow-y-auto p-2 bg-gray-50 rounded-lg">
+                        <div id="backgroundImageGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-4 max-h-72 overflow-y-auto p-3 bg-gray-50 rounded-xl">
                         </div>
                         <div class="flex gap-2 mt-2 items-center flex-wrap">
-                            <label class="text-sm text-blue-600 hover:text-blue-700 cursor-pointer">
+                            <label class="btn-secondary btn-sm cursor-pointer">
                                 <i class="fa-solid fa-upload mr-1"></i><span data-i18n="uploadImage">上传图片</span>
                                 <input type="file" id="uploadBackgroundInput" accept="image/*" class="hidden" onchange="handleBackgroundUpload(this)">
                             </label>
@@ -139,16 +147,16 @@
                         <div id="uploadProgress" class="hidden mt-2 text-sm text-primary">
                             <i class="fa-solid fa-spinner fa-spin mr-1"></i><span data-i18n="uploading">上传中...</span>
                         </div>
-                        <button id="loadBackgroundsBtn" class="w-full bg-gray-200 hover:bg-gray-300 py-2 rounded-lg transition-colors mt-3">
+                        <button id="loadBackgroundsBtn" class="btn-secondary btn-ripple w-full mt-3">
                             <i class="fa-solid fa-refresh mr-2"></i><span data-i18n="loadSettings">刷新列表</span>
                         </button>
                     </div>
 
                     <div class="flex gap-3">
-                        <button id="saveBoardColorBtn" class="flex-1 bg-primary hover:bg-primary/90 text-white py-2 rounded-lg transition-colors">
+                        <button id="saveBoardColorBtn" class="flex-1 btn-primary btn-ripple">
                             <i class="fa-solid fa-save mr-2"></i><span data-i18n="saveSettings">保存设置</span>
                         </button>
-                        <button id="resetBoardColorBtn" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
+                        <button id="resetBoardColorBtn" class="btn-secondary btn-ripple">
                             <i class="fa-solid fa-rotate-left mr-2"></i><span data-i18n="reset">重置</span>
                         </button>
                     </div>
@@ -217,27 +225,58 @@
 
         var settingsHashValidTabs = ['general', 'display'];
 
+        function parseHash(hash) {
+            var parts = hash.split('/');
+            return {
+                tab: parts[0] || 'general',
+                section: parts[1] || null
+            };
+        }
+
+        function scrollToSection(sectionId) {
+            if (!sectionId) return;
+            var section = document.getElementById(sectionId);
+            if (section) {
+                var container = document.getElementById('settingsContainer');
+                var sectionTop = section.offsetTop - 20;
+                container.scrollTo({
+                    top: sectionTop,
+                    behavior: 'smooth'
+                });
+            }
+        }
+
         window.handleSettingsHashChange = function() {
             var hash = window.location.hash.replace('#', '');
-            if (settingsHashValidTabs.indexOf(hash) !== -1) {
-                showSettingsTab(hash);
+            var parsed = parseHash(hash);
+            if (settingsHashValidTabs.indexOf(parsed.tab) !== -1) {
+                showSettingsTab(parsed.tab, parsed.section);
             } else {
-                showSettingsTab('general');
+                showSettingsTab('general', null);
             }
         };
 
-        function showSettingsTab(tabId) {
-            document.querySelectorAll('[data-tab]').forEach(function(b) {
-                b.classList.remove('tab-active');
-                b.classList.add('text-gray-600');
+        function showSettingsTab(tabId, sectionId) {
+            document.querySelectorAll('.tab-group .tab-btn').forEach(function(b) {
+                b.classList.remove('active');
             });
-            document.querySelector('[data-tab="' + tabId + '"]').classList.add('tab-active');
-            document.querySelector('[data-tab="' + tabId + '"]').classList.remove('text-gray-600');
+            document.querySelector('.tab-group [data-tab="' + tabId + '"]').classList.add('active');
             document.querySelectorAll('.tab-content').forEach(function(content) {
                 content.classList.add('hidden');
             });
             document.getElementById(tabId + 'Tab').classList.remove('hidden');
-            history.replaceState(null, '', '#' + tabId);
+
+            var newHash = tabId;
+            if (sectionId) {
+                newHash = tabId + '/' + sectionId;
+            }
+            history.replaceState(null, '', '#' + newHash);
+
+            if (sectionId) {
+                setTimeout(function() {
+                    scrollToSection(sectionId);
+                }, 100);
+            }
         }
 
         window.addEventListener('hashchange', handleSettingsHashChange);
@@ -246,7 +285,7 @@
             handleSettingsHashChange();
         }
 
-        document.querySelectorAll('[data-tab]').forEach(function(btn) {
+        document.querySelectorAll('.tab-group [data-tab]').forEach(function(btn) {
             btn.addEventListener('click', function() {
                 showSettingsTab(this.dataset.tab);
             });

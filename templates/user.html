@@ -11,28 +11,45 @@
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4 font-sans bg-gradient-to-br from-[#f8f0e3] via-[#e8d3b8] to-[#d4b88e] bg-fixed relative">
 
-    <div id="gameContainer" class="max-w-7xl w-full bg-white rounded-2xl shadow-xl overflow-hidden relative">
+    <div id="gameContainer" class="max-w-7xl w-full bg-white rounded-2xl shadow-xl overflow-hidden relative card-3d-hover">
         <div class="header-bar">
-            <div><h1 class="text-2xl md:text-3xl font-bold">五子棋</h1><p class="text-sm opacity-80">个人中心</p></div>
+            <div>
+                <h1 id="gameTitle" class="text-2xl md:text-3xl font-bold text-gradient">五子棋</h1>
+                <p class="text-sm opacity-80">个人中心</p>
+            </div>
             <div class="flex items-center space-x-3 md:space-x-6">
-                <div class="flex items-center"><i class="fa-solid fa-user-circle text-2xl mr-2"></i><div><p id="userNameDisplay" class="font-semibold"></p><p class="text-xs">积分: <span id="userScoreDisplay">0</span> · 胜: <span id="userWinsDisplay">0</span></p></div></div>
-                <button id="logoutBtn" class="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg"><i class="fa-solid fa-right-from-bracket"></i> 退出</button>
+                <div class="flex items-center">
+                    <div class="avatar-circle mr-2">
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                    <div>
+                        <p id="userNameDisplay" class="font-semibold"></p>
+                        <p class="text-xs">积分: <span id="userScoreDisplay">0</span> · 胜: <span id="userWinsDisplay">0</span></p>
+                    </div>
+                </div>
+                <button id="logoutBtn" class="btn-secondary btn-sm btn-ripple">
+                    <i class="fa-solid fa-right-from-bracket"></i> <span class="hidden sm:inline">退出</span>
+                </button>
             </div>
         </div>
 
-        <div class="bg-gray-50 border-b flex overflow-x-auto">
-            <a href="/game" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">游戏大厅</a>
-            <span class="tab-active px-4 md:px-6 py-3 font-medium whitespace-nowrap">个人中心</span>
-            <a href="/messages" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">消息中心 <span id="unreadBadge" class="bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 ml-1 hidden">0</span></a>
-            <a href="/settings" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap"><i class="fa-solid fa-gear mr-1"></i>设置</a>
-            <a href="/admin" id="adminNavLink" class="px-4 md:px-6 py-3 font-medium text-red-600 hover:text-red-800 whitespace-nowrap hidden">管理后台</a>
+        <div class="bg-gray-50 border-b flex overflow-x-auto p-2">
+            <div class="tab-group">
+                <a href="/game" class="tab-btn"><i class="fa-solid fa-chess-board mr-1"></i>游戏大厅</a>
+                <span class="tab-btn tab-active"><i class="fa-solid fa-user mr-1"></i>个人中心</span>
+                <a href="/messages" class="tab-btn"><i class="fa-solid fa-envelope mr-1"></i>消息中心 <span id="unreadBadge" class="bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 ml-1 hidden animate-pulse">0</span></a>
+                <a href="/settings" class="tab-btn"><i class="fa-solid fa-gear mr-1"></i>设置</a>
+                <a href="/admin" id="adminNavLink" class="tab-btn text-red-600 hidden"><i class="fa-solid fa-crown mr-1"></i>管理后台</a>
+            </div>
         </div>
 
-        <div class="bg-gray-50 border-b flex overflow-x-auto">
-            <button id="profileTab" class="tab-active px-4 md:px-6 py-3 font-medium whitespace-nowrap">个人资料</button>
-            <button id="historyTab" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">游戏记录</button>
-            <button id="statsTab" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">数据统计</button>
-            <button id="leaderboardTab" class="px-4 md:px-6 py-3 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap">积分排行榜</button>
+        <div class="bg-gray-50 border-b flex overflow-x-auto p-2">
+            <div class="tab-group">
+                <button id="profileTab" class="tab-btn tab-active"><i class="fa-solid fa-user mr-1"></i>个人资料</button>
+                <button id="historyTab" class="tab-btn"><i class="fa-solid fa-clock-rotate-left mr-1"></i>游戏记录</button>
+                <button id="statsTab" class="tab-btn"><i class="fa-solid fa-chart-pie mr-1"></i>数据统计</button>
+                <button id="leaderboardTab" class="tab-btn"><i class="fa-solid fa-trophy mr-1"></i>积分排行榜</button>
+            </div>
         </div>
 
         {% include 'includes/modals.html' %}

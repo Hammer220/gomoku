@@ -99,8 +99,7 @@ var Gomoku = window.Gomoku || {};
                         G.registerGeetestToken = token;
                         sessionStorage.removeItem('registerFormInteracted');
                     }
-                    // 显示验证成功状态
-                    container.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-green-500 text-white"><i class="fa-solid fa-check"></i></div>';
+                    // 验证成功，token 已保存，让验证码组件显示默认通过样式
                     G.showToast('验证成功');
                 });
 

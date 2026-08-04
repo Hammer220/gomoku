@@ -1,6 +1,6 @@
 <div id="historyContent" class="content-panel hidden">
     <h2 class="section-title"><i class="fa-solid fa-clock-rotate-left"></i> 游戏记录</h2>
-    <div class="section-block">
+    <div class="section-block card-diagonal">
         <div class="filter-bar">
             <div class="filter-group">
                 <label class="filter-label">游戏模式</label>
@@ -27,12 +27,12 @@
                     <option value="draw">平局</option>
                 </select>
             </div>
-            <button id="refreshHistoryBtn" class="btn-info btn-sm">
+            <button id="refreshHistoryBtn" class="btn-info btn-sm btn-ripple">
                 <i class="fa-solid fa-refresh mr-1"></i>刷新
             </button>
         </div>
         <div class="table-responsive">
-            <table class="data-table data-table-striped min-w-full">
+            <table class="data-table data-table-striped min-w-full table-rounded table-zebra-hover">
                 <thead>
                     <tr>
                         <th>日期</th>
@@ -46,7 +46,7 @@
                 <tbody id="historyTableBody"></tbody>
             </table>
             <div id="historyEmpty" class="empty-state hidden">
-                <i class="fa-solid fa-inbox"></i>
+                <i class="fa-solid fa-inbox text-4xl mb-2"></i>
                 <p>暂无游戏记录</p>
             </div>
         </div>

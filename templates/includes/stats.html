@@ -1,36 +1,36 @@
 <div id="statsContent" class="content-panel hidden">
     <h2 class="section-title"><i class="fa-solid fa-chart-pie"></i> 数据统计</h2>
     <div class="stats-grid">
-        <div class="stat-card-sm">
-            <p class="stat-card-value text-primary" id="statTotalGames">0</p>
+        <div class="stat-card-sm hover-lift card-neon">
+            <p class="stat-card-value text-primary text-gradient font-bold" id="statTotalGames">0</p>
             <p class="stat-card-label">总场次</p>
         </div>
-        <div class="stat-card-sm">
-            <p class="stat-card-value text-green-600" id="statWins">0</p>
+        <div class="stat-card-sm hover-lift">
+            <p class="stat-card-value text-green-600 font-bold" id="statWins">0</p>
             <p class="stat-card-label">胜场</p>
         </div>
-        <div class="stat-card-sm">
-            <p class="stat-card-value text-red-600" id="statLosses">0</p>
+        <div class="stat-card-sm hover-lift">
+            <p class="stat-card-value text-red-600 font-bold" id="statLosses">0</p>
             <p class="stat-card-label">负场</p>
         </div>
-        <div class="stat-card-sm">
-            <p class="stat-card-value text-yellow-600" id="statDraws">0</p>
+        <div class="stat-card-sm hover-lift">
+            <p class="stat-card-value text-yellow-600 font-bold" id="statDraws">0</p>
             <p class="stat-card-label">平局</p>
         </div>
-        <div class="stat-card-sm">
-            <p class="stat-card-value text-blue-600" id="statWinRate">0%</p>
+        <div class="stat-card-sm hover-lift">
+            <p class="stat-card-value text-blue-600 font-bold" id="statWinRate">0%</p>
             <p class="stat-card-label">胜率</p>
         </div>
     </div>
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="chart-container">
-            <h3 class="chart-title">胜负分布</h3>
+        <div class="chart-container card-3d-hover">
+            <h3 class="chart-title"><i class="fa-solid fa-chart-pie mr-2"></i>胜负分布</h3>
             <div class="chart-canvas-wrap">
                 <canvas id="statPieChart"></canvas>
             </div>
         </div>
-        <div class="chart-container">
-            <h3 class="chart-title">各模式统计</h3>
+        <div class="chart-container card-3d-hover">
+            <h3 class="chart-title"><i class="fa-solid fa-chart-bar mr-2"></i>各模式统计</h3>
             <div class="chart-canvas-wrap">
                 <canvas id="statModeChart"></canvas>
             </div>

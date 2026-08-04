@@ -2,57 +2,57 @@
 <div id="gameContent" class="content-panel flex flex-col lg:flex-row gap-6">
     <div class="sidebar-main">
         <div class="board-wrapper">
-            <div class="aspect-square bg-board rounded-lg shadow-lg relative">
+            <div class="aspect-square bg-board rounded-lg shadow-lg relative card-3d-hover">
                 <canvas id="gameCanvas" class="w-full h-full cursor-pointer relative" style="z-index: 2;"></canvas>
             </div>
         </div>
         <div id="gameStatus" class="game-status-card amber">
-            <p id="statusText" class="font-medium">游戏开始! 黑棋先行</p>
-            <p id="undoCountText" class="text-sm text-gray-600">悔棋次数: 0/3</p>
-            <p class="text-sm"><span id="gameTimeDisplay">00:00</span> · 步数: <span id="moveCount">0</span></p>
+            <p id="statusText" class="font-medium"><i class="fa-solid fa-play mr-1"></i>游戏开始! 黑棋先行</p>
+            <p id="undoCountText" class="text-sm text-gray-600"><i class="fa-solid fa-rotate-right mr-1"></i>悔棋次数: 0/3</p>
+            <p class="text-sm"><i class="fa-solid fa-clock mr-1"></i><span id="gameTimeDisplay">00:00</span> · <i class="fa-solid fa-list-numbered mr-1"></i>步数: <span id="moveCount">0</span></p>
         </div>
     </div>
 
     <div class="sidebar-aside">
         <div class="aside-cards">
             <!-- 游戏模式 -->
-            <div class="card-gray">
+            <div class="card-gray hover-lift">
                 <div class="panel-title">
                     <i class="fa-solid fa-gamepad"></i><span>游戏模式</span>
                 </div>
                 <div class="mode-btn-group">
-                    <button id="modeAI" class="mode-btn active">人机</button>
-                    <button id="modePVP" class="mode-btn">双人对战</button>
-                    <button id="modeOnline" class="mode-btn">联机对战</button>
+                    <button id="modeAI" class="mode-btn active"><i class="fa-solid fa-robot mr-1"></i>人机</button>
+                    <button id="modePVP" class="mode-btn"><i class="fa-solid fa-users mr-1"></i>双人对战</button>
+                    <button id="modeOnline" class="mode-btn"><i class="fa-solid fa-globe mr-1"></i>联机对战</button>
                 </div>
             </div>
 
             <!-- 设置 -->
-            <div class="card-gray">
+            <div class="card-gray hover-lift">
                 <div class="panel-title">
                     <i class="fa-solid fa-sliders"></i><span>设置</span>
                 </div>
                 <div class="space-y-3">
                     <div id="aiSettings">
                         <div>
-                            <label class="form-label">你的棋子</label>
+                            <label class="form-label"><i class="fa-solid fa-circle mr-1"></i>你的棋子</label>
                             <div class="flex">
-                                <button id="playerColorBlack" class="color-btn active">黑棋</button>
-                                <button id="playerColorWhite" class="color-btn">白棋</button>
+                                <button id="playerColorBlack" class="color-btn active"><i class="fa-solid fa-circle text-black mr-1"></i>黑棋</button>
+                                <button id="playerColorWhite" class="color-btn"><i class="fa-solid fa-circle text-gray-300 mr-1"></i>白棋</button>
                             </div>
                         </div>
                         <div class="mt-2">
-                            <label class="form-label">AI难度</label>
+                            <label class="form-label"><i class="fa-solid fa-brain mr-1"></i>AI难度</label>
                             <div class="difficulty-group">
-                                <button id="aiEasy" class="difficulty-btn">简单</button>
-                                <button id="aiMedium" class="difficulty-btn active">中等</button>
-                                <button id="aiHard" class="difficulty-btn">困难</button>
+                                <button id="aiEasy" class="difficulty-btn"><i class="fa-solid fa-smile mr-1"></i>简单</button>
+                                <button id="aiMedium" class="difficulty-btn active"><i class="fa-solid fa-meh mr-1"></i>中等</button>
+                                <button id="aiHard" class="difficulty-btn"><i class="fa-solid fa-skull mr-1"></i>困难</button>
                             </div>
                         </div>
                         <div class="mt-2">
                             <label class="info-row">
                                 <input type="checkbox" id="aiForbidden" class="form-checkbox" checked>
-                                <span class="text-sm">启用禁手（三三、四四、长连）</span>
+                                <span class="text-sm"><i class="fa-solid fa-ban mr-1"></i>启用禁手（三三、四四、长连）</span>
                             </label>
                         </div>
                     </div>
@@ -60,16 +60,16 @@
                         <div>
                             <label class="info-row">
                                 <input type="checkbox" id="pvpForbidden" class="form-checkbox" checked>
-                                <span class="text-sm">启用禁手（三三、四四、长连）</span>
+                                <span class="text-sm"><i class="fa-solid fa-ban mr-1"></i>启用禁手（三三、四四、长连）</span>
                             </label>
                         </div>
                         <div class="mt-2">
-                            <label class="form-label">时间限制</label>
+                            <label class="form-label"><i class="fa-solid fa-clock mr-1"></i>时间限制</label>
                             <div class="time-group">
-                                <button id="timeNone" class="time-btn active">无限制</button>
-                                <button id="time5min" class="time-btn">5分钟</button>
-                                <button id="time10min" class="time-btn">10分钟</button>
-                                <button id="time30min" class="time-btn">30分钟</button>
+                                <button id="timeNone" class="time-btn active"><i class="fa-solid fa-infinity mr-1"></i>无限制</button>
+                                <button id="time5min" class="time-btn"><i class="fa-solid fa-5 mr-1"></i>5分钟</button>
+                                <button id="time10min" class="time-btn"><i class="fa-solid fa-10 mr-1"></i>10分钟</button>
+                                <button id="time30min" class="time-btn"><i class="fa-solid fa-30 mr-1"></i>30分钟</button>
                             </div>
                         </div>
                         <div id="pvpTimerDisplay" class="settings-hint warning mt-2 hidden">
@@ -86,20 +86,20 @@
 
             <!-- 操作按钮 -->
             <div class="game-action-row">
-                <button id="restartBtn" class="game-action-btn primary">
+                <button id="restartBtn" class="game-action-btn primary btn-ripple">
                     <i class="fa-solid fa-rotate-right mr-1"></i>重开
                 </button>
-                <button id="undoBtn" class="game-action-btn secondary">
+                <button id="undoBtn" class="game-action-btn secondary btn-ripple">
                     <i class="fa-solid fa-undo mr-1"></i>悔棋
                 </button>
             </div>
 
             <!-- 存档 -->
-            <div class="card-gray">
+            <div class="card-gray hover-lift">
                 <div class="panel-title">
                     <i class="fa-solid fa-floppy-disk"></i><span>存档</span>
                 </div>
-                <button id="saveGameBtn" class="btn-secondary w-full mb-3">
+                <button id="saveGameBtn" class="btn-secondary btn-ripple w-full mb-3">
                     <i class="fa-solid fa-save mr-1"></i>保存
                 </button>
                 <div id="savedGamesList" class="h-48 overflow-y-auto space-y-2 text-sm"></div>

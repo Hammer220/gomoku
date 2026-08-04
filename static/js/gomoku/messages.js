@@ -48,9 +48,9 @@ var Gomoku = window.Gomoku || {};
         var composePanel = $('composePanel');
         var detailPanel = $('messageDetailPanel');
 
-        if (inboxTab) inboxTab.className = tab === 'inbox' ? 'tab-active px-4 py-2 font-medium whitespace-nowrap' : 'px-4 py-2 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap';
-        if (sentTab) sentTab.className = tab === 'sent' ? 'tab-active px-4 py-2 font-medium whitespace-nowrap' : 'px-4 py-2 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap';
-        if (composeTab) composeTab.className = tab === 'compose' ? 'tab-active px-4 py-2 font-medium whitespace-nowrap' : 'px-4 py-2 font-medium text-gray-600 hover:text-gray-900 whitespace-nowrap';
+        if (inboxTab) inboxTab.classList.toggle('active', tab === 'inbox');
+        if (sentTab) sentTab.classList.toggle('active', tab === 'sent');
+        if (composeTab) composeTab.classList.toggle('active', tab === 'compose');
 
         if (inboxPanel) inboxPanel.classList.toggle('hidden', tab !== 'inbox');
         if (sentPanel) sentPanel.classList.toggle('hidden', tab !== 'sent');

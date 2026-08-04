@@ -33,4 +33,4 @@ if __name__ == '__main__':
     print(f'本机访问: http://localhost:{PORT}')
     print(f'局域网访问: http://{local_ip}:{PORT}')
     print(f'========================================\n')
-    socketio.run(app, host='0.0.0.0', port=PORT)
+    socketio.run(app, host='0.0.0.0', port=PORT,debug=True)

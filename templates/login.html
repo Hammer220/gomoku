@@ -22,7 +22,7 @@
             scroll-behavior: smooth;
         }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "PingFang TC", "Hiragino Sans GB", "Hiragino Kaku Gothic Pro", "Microsoft YaHei", "Microsoft JhengHei", "Helvetica Neue", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
         }
         input {
             -webkit-appearance: none;
@@ -52,9 +52,16 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-[#f8f0e3] via-[#e8d3b8] to-[#d4b88e] bg-fixed relative">
+<body class="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-[#f8f0e3] via-[#e8d3b8] to-[#d4b88e] bg-fixed relative overflow-hidden">
 
-    
+    <!-- 装饰性背景元素 -->
+    <div class="fixed inset-0 pointer-events-none overflow-hidden">
+        <div class="absolute -top-20 -left-20 w-64 h-64 bg-primary/5 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-20 -right-20 w-80 h-80 bg-primary/5 rounded-full blur-3xl"></div>
+        <div class="absolute top-1/4 left-1/4 w-2 h-2 bg-primary/30 rounded-full animate-pulse"></div>
+        <div class="absolute top-3/4 right-1/4 w-3 h-3 bg-primary/20 rounded-full animate-pulse" style="animation-delay: 0.5s;"></div>
+        <div class="absolute top-1/2 right-1/3 w-1.5 h-1.5 bg-primary/25 rounded-full animate-pulse" style="animation-delay: 1s;"></div>
+    </div>
 
     <div class="lang-selector">
         <button id="langBtn" class="lang-btn">
@@ -74,57 +81,97 @@
         </div>
     </div>
 
-    <div class="text-center mb-6 md:mb-8">
-        <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold text-primary mb-2" data-i18n="gameTitle">五子棋</h1>
+    <!-- Logo 和标题区域 -->
+    <div class="text-center mb-6 md:mb-8 animate-bounce-in relative">
+        <div class="inline-flex items-center justify-center w-20 h-20 mb-4 rounded-2xl bg-gradient-to-br from-[#C4955A] to-[#8B5A2B] shadow-xl card-3d-hover">
+            <i class="fa-solid fa-chess-board text-white text-3xl"></i>
+        </div>
+        <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold text-primary mb-2 text-gradient" data-i18n="gameTitle">五子棋</h1>
         <p class="text-gray-600 text-sm sm:text-base md:text-lg" data-i18n="gameSubtitle">经典对弈 · 双人/人机/联机</p>
+        <div class="flex items-center justify-center gap-2 mt-3">
+            <span class="inline-block w-12 h-0.5 bg-gradient-to-r from-transparent to-primary/30 rounded"></span>
+            <span class="text-xs text-primary/60"><i class="fa-solid fa-star text-[8px]"></i></span>
+            <span class="inline-block w-12 h-0.5 bg-gradient-to-l from-transparent to-primary/30 rounded"></span>
+        </div>
     </div>
 
     <!-- 登录/注册模态框 -->
-    <div id="loginModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto modal-overlay">
-        <div class="modal-content bg-white rounded-xl p-5 sm:p-6 md:p-8 max-w-md w-full mx-3 sm:mx-4 my-4">
-            <h2 class="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-center text-primary" data-i18n="loginTitle">登录五子棋</h2>
+    <div id="loginModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 overflow-y-auto modal-overlay">
+        <div class="modal-content bg-white rounded-2xl p-5 sm:p-6 md:p-8 max-w-md w-full mx-3 sm:mx-4 my-4">
+            <div class="text-center mb-4">
+                <div class="inline-flex items-center justify-center w-14 h-14 mx-auto mb-3 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5">
+                    <i class="fa-solid fa-user text-primary text-xl"></i>
+                </div>
+                <h2 class="text-xl sm:text-2xl font-bold text-center text-primary" data-i18n="loginTitle">登录五子棋</h2>
+            </div>
             <form id="loginForm" class="space-y-3 sm:space-y-4">
-                <input type="text" id="username" data-i18n-placeholder="username" placeholder="用户名" required autocomplete="username" class="w-full px-4 py-2.5 sm:py-2 border rounded-lg text-base">
-                <input type="password" id="password" data-i18n-placeholder="password" placeholder="密码" required autocomplete="current-password" class="w-full px-4 py-2.5 sm:py-2 border rounded-lg text-base">
-                <div id="geetestLoginWidget" class="w-full h-12 border rounded cursor-pointer bg-gray-100 flex items-center justify-center text-sm text-gray-500"></div>
-                <button type="submit" class="w-full bg-primary hover:bg-primary/90 active:bg-primary/80 text-white py-3 rounded-lg font-medium transition-colors" data-i18n="loginBtn">登录</button>
-                <button type="button" id="guestLoginBtn" class="w-full bg-gray-500 hover:bg-gray-600 active:bg-gray-700 text-white py-3 rounded-lg font-medium"><span data-i18n="guestLogin">访客登录</span></button>
-                <p class="text-center text-gray-700 text-sm sm:text-base font-medium"><span data-i18n="noAccount">没有账号</span> <a href="#" id="showRegister" class="text-primary hover:underline font-semibold" data-i18n="registerNow">立即注册</a></p>
+                <div class="float-label-input">
+                    <input type="text" id="username" data-i18n-placeholder="username" placeholder=" " required autocomplete="username" class="w-full px-4 py-2.5 sm:py-2 border-2 rounded-xl text-base input-focus-animate login-input">
+                    <label data-i18n="username">用户名</label>
+                </div>
+                <div class="float-label-input">
+                    <input type="password" id="password" data-i18n-placeholder="password" placeholder=" " required autocomplete="current-password" class="w-full px-4 py-2.5 sm:py-2 border-2 rounded-xl text-base input-focus-animate login-input">
+                    <label data-i18n="password">密码</label>
+                </div>
+                <div id="geetestLoginWidget" class="geetest-container" style="min-height: 44px;"></div>
+                <button type="submit" class="w-full btn-primary btn-ripple py-3 rounded-xl font-medium" data-i18n="loginBtn">登录</button>
+                <button type="button" id="guestLoginBtn" class="w-full btn-secondary btn-ripple py-3 rounded-xl font-medium"><span data-i18n="guestLogin">访客登录</span></button>
+                <p class="text-center text-gray-700 text-sm sm:text-base font-medium"><a href="#" id="showRegister" class="text-primary hover:underline font-semibold" data-i18n="registerNow">立即注册</a></p>
                 <p class="text-center text-gray-600 text-sm sm:text-base font-medium"><a href="#" id="showPasswordFreeLogin" class="text-primary hover:underline font-semibold" data-i18n="passwordFreeLogin">免密登录</a></p>
             </form>
         </div>
     </div>
 
-    <div id="registerModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden overflow-y-auto modal-overlay">
-        <div class="modal-content bg-white rounded-xl p-5 sm:p-6 md:p-8 max-w-md w-full mx-3 sm:mx-4 my-4">
-            <h2 class="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-center text-primary" data-i18n="registerTitle">注册新账号</h2>
+    <div id="registerModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 hidden overflow-y-auto modal-overlay">
+        <div class="modal-content bg-white rounded-2xl p-5 sm:p-6 md:p-8 max-w-md w-full mx-3 sm:mx-4 my-4">
+            <div class="text-center mb-4">
+                <div class="inline-flex items-center justify-center w-14 h-14 mx-auto mb-3 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5">
+                    <i class="fa-solid fa-user-plus text-primary text-xl"></i>
+                </div>
+                <h2 class="text-xl sm:text-2xl font-bold text-center text-primary" data-i18n="registerTitle">注册新账号</h2>
+            </div>
             <form id="registerForm" class="space-y-3 sm:space-y-4">
-                <input type="text" id="regUsername" data-i18n-placeholder="username" placeholder="用户名" required autocomplete="username" class="w-full px-4 py-2.5 sm:py-2 border rounded-lg text-base">
-                <input type="password" id="regPassword" data-i18n-placeholder="passwordMinLenPlaceholder" placeholder="密码(至少6位)" required autocomplete="new-password" class="w-full px-4 py-2.5 sm:py-2 border rounded-lg text-base">
-                <input type="password" id="confirmPassword" data-i18n-placeholder="confirmPassword" placeholder="确认密码" required autocomplete="new-password" class="w-full px-4 py-2.5 sm:py-2 border rounded-lg text-base">
-                <div id="geetestRegisterWidget" class="w-full h-12 border rounded cursor-pointer bg-gray-100 flex items-center justify-center text-sm text-gray-500"></div>
-                <button type="submit" class="w-full bg-primary hover:bg-primary/90 active:bg-primary/80 text-white py-3 rounded-lg font-medium transition-colors" data-i18n="registerBtn">注册</button>
-                <p class="text-center text-gray-600 text-sm sm:text-base"><span data-i18n="hasAccount">已有账号</span>? <a href="#" id="showLogin" class="text-primary" data-i18n="loginNow">立即登录</a></p>
+                <div class="float-label-input">
+                    <input type="text" id="regUsername" data-i18n-placeholder="username" placeholder=" " required autocomplete="username" class="w-full px-4 py-2.5 sm:py-2 border-2 rounded-xl text-base input-focus-animate login-input">
+                    <label data-i18n="username">用户名</label>
+                </div>
+                <div class="float-label-input">
+                    <input type="password" id="regPassword" data-i18n-placeholder="passwordMinLenPlaceholder" placeholder=" " required autocomplete="new-password" class="w-full px-4 py-2.5 sm:py-2 border-2 rounded-xl text-base input-focus-animate login-input">
+                    <label data-i18n="passwordMinLenPlaceholder">密码(至少6位)</label>
+                </div>
+                <div class="float-label-input">
+                    <input type="password" id="confirmPassword" data-i18n-placeholder="confirmPassword" placeholder=" " required autocomplete="new-password" class="w-full px-4 py-2.5 sm:py-2 border-2 rounded-xl text-base input-focus-animate login-input">
+                    <label data-i18n="confirmPasswordPlaceholder">确认密码</label>
+                </div>
+                <div id="geetestRegisterWidget" class="geetest-container" style="min-height: 44px;"></div>
+                <button type="submit" class="w-full btn-primary btn-ripple py-3 rounded-xl font-medium" data-i18n="registerBtn">注册</button>
+                <p class="text-center text-gray-600 text-sm sm:text-base"><a href="#" id="showLogin" class="text-primary" data-i18n="loginNow">立即登录</a></p>
             </form>
         </div>
     </div>
 
     <!-- 免密登录 -->
-    <div id="passwordFreeLoginPage" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden overflow-y-auto modal-overlay">
-        <div class="modal-content bg-white rounded-xl p-5 sm:p-6 md:p-8 max-w-md w-full mx-3 sm:mx-4 my-4">
-            <h2 class="text-xl sm:text-2xl font-bold mb-2 text-center text-primary" data-i18n="passwordFreeTitle">免密登录</h2>
-            <p class="text-center text-gray-400 text-xs mb-4 sm:mb-6" data-i18n="passwordFreeDesc">需管理员开启免密权限后方可使用</p>
+    <div id="passwordFreeLoginPage" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 hidden overflow-y-auto modal-overlay">
+        <div class="modal-content bg-white rounded-2xl p-5 sm:p-6 md:p-8 max-w-md w-full mx-3 sm:mx-4 my-4">
+            <div class="text-center mb-4">
+                <div class="inline-flex items-center justify-center w-14 h-14 mx-auto mb-3 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5">
+                    <i class="fa-solid fa-key text-primary text-xl"></i>
+                </div>
+                <h2 class="text-xl sm:text-2xl font-bold text-center text-primary" data-i18n="passwordFreeTitle">免密登录</h2>
+                <p class="text-center text-gray-400 text-xs mt-1" data-i18n="passwordFreeDesc">需管理员开启免密权限后方可使用</p>
+            </div>
             <form id="passwordFreeLoginForm" class="space-y-3 sm:space-y-4">
-                <div>
-                    <input type="text" id="passwordFreeUsername" data-i18n-placeholder="enterUsername" placeholder="请输入用户名" required autocomplete="username" class="w-full px-4 py-2.5 sm:py-2 border rounded-lg text-base">
+                <div class="float-label-input">
+                    <input type="text" id="passwordFreeUsername" data-i18n-placeholder="enterUsername" placeholder=" " required autocomplete="username" class="w-full px-4 py-2.5 sm:py-2 border-2 rounded-xl text-base input-focus-animate login-input">
+                    <label data-i18n="enterUsername">请输入用户名</label>
                 </div>
                 <div id="passwordFreeAttemptsInfo" class="hidden text-center text-sm text-gray-600 bg-gray-100 rounded-lg p-2">
                     <span id="passwordFreeAttemptsText"></span>
                 </div>
-                <button type="submit" class="w-full bg-primary hover:bg-primary/90 active:bg-primary/80 text-white py-3 rounded-lg font-medium transition-colors" data-i18n="passwordFreeBtn">免密登录</button>
+                <button type="submit" class="w-full btn-primary btn-ripple py-3 rounded-xl font-medium" data-i18n="passwordFreeBtn">免密登录</button>
                 <div class="text-center space-y-2">
-                    <p class="text-gray-600 text-sm sm:text-base"><span data-i18n="normalLogin">普通登录</span>? <a href="#" id="showLoginFromFree" class="text-primary hover:underline font-medium" data-i18n="loginNow">立即登录</a></p>
-                    <p class="text-gray-500 text-sm"><span data-i18n="noAccount">没有账号</span> <a href="#" id="showRegisterFromFree" class="text-primary hover:underline" data-i18n="registerNow">立即注册</a></p>
+                    <p class="text-gray-600 text-sm sm:text-base"><a href="#" id="showLoginFromFree" class="text-primary hover:underline font-medium" data-i18n="loginNow">立即登录</a></p>
+                    <p class="text-gray-500 text-sm"><a href="#" id="showRegisterFromFree" class="text-primary hover:underline" data-i18n="registerNow">立即注册</a></p>
                 </div>
             </form>
         </div>
@@ -140,6 +187,31 @@
     <script src="/static/js/gomoku/captcha.js"></script>
     <script src="/static/js/gomoku/user.js"></script>
     <script src="/static/js/gomoku/init_login.js"></script>
+    <script>
+    (function() {
+        var floatLabelInputs = document.querySelectorAll('.float-label-input input');
+        floatLabelInputs.forEach(function(input) {
+            function updateLabelPosition() {
+                var parent = input.closest('.float-label-input');
+                if (parent) {
+                    var label = parent.querySelector('label');
+                    if (label) {
+                        if (input.value || input.placeholder === ' ') {
+                            label.classList.add('label-floated');
+                        } else {
+                            label.classList.remove('label-floated');
+                        }
+                    }
+                }
+            }
+            input.addEventListener('input', updateLabelPosition);
+            input.addEventListener('focus', updateLabelPosition);
+            input.addEventListener('blur', updateLabelPosition);
+            input.addEventListener('propertychange', updateLabelPosition);
+            updateLabelPosition();
+        });
+    })();
+    </script>
     <script>
     (function() {
         if (window.location.pathname === '/register') {

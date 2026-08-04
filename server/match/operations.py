@@ -10,11 +10,10 @@ from .storage import (
     active_matches, active_matches_lock, save_matches,
     get_active_matches_lock, get_active_matches
 )
-from ..game_logic import check_win, check_forbidden
-from ..logger import logger
+from ..game_logic import check_win, check_forbidden, RULE_MODE_STANDARD, RULE_MODE_RENJU, RULE_MODE_FREE
 
 
-def create_match(user, time_mode='untimed', move_time=30, total_time=600, allow_spectate=True, password=None):
+def create_match(user, time_mode='untimed', move_time=30, total_time=600, allow_spectate=True, password=None, rule_mode=RULE_MODE_STANDARD, invite_only=False, invited_friends=None):
     """创建新对局
     生成一个8位随机ID作为房间号，随机分配创建者颜色（黑/白），初始状态为等待中
     time_mode: 'untimed' | 'move' | 'total' | 'both'
@@ -22,6 +21,9 @@ def create_match(user, time_mode='untimed', move_time=30, total_time=600, allow_
     total_time: 总时间（秒），默认600秒=10分钟
     allow_spectate: 是否允许观战，默认True
     password: 房间密码，None表示无密码
+    rule_mode: 规则模式 ('standard' | 'renju' | 'free')
+    invite_only: 是否为邀请制房间（仅好友可加入），默认False
+    invited_friends: 邀请的好友用户名列表
     返回房间号和创建者颜色
     """
     match_id = str(uuid.uuid4())[:8]
@@ -58,9 +60,14 @@ def create_match(user, time_mode='untimed', move_time=30, total_time=600, allow_
             # 房间设置
             'allowSpectate': allow_spectate,
             'password': password,  # None表示无密码
+            # 规则模式
+            'ruleMode': rule_mode,
+            # 邀请制
+            'inviteOnly': invite_only,
+            'invitedFriends': invited_friends or [],
         }
     save_matches()
-    logger.info(f'Match created: {match_id} by {user["username"]}, time_mode={time_mode}, allow_spectate={allow_spectate}, password={"yes" if password else "no"}')
+    logger.info(f'Match created: {match_id} by {user["username"]}, time_mode={time_mode}, rule_mode={rule_mode}, allow_spectate={allow_spectate}, password={"yes" if password else "no"}')
     return match_id, creator_color
 
 
@@ -68,6 +75,7 @@ def join_match(user, match_id, password=None):
     """加入对局
     检查房间是否存在、是否可加入、是否为创建者本人
     如果房间设置了密码，需要验证密码
+    如果房间是邀请制房间，检查用户是否在邀请列表中
     加入后对局状态变为"playing"，并返回玩家颜色
     """
     with active_matches_lock:
@@ -79,6 +87,12 @@ def join_match(user, match_id, password=None):
             return {'error': '房间已开始或已结束'}, 400
         if match['creator'] == user['username']:
             return {'error': '不能加入自己创建的房间'}, 400
+
+        # 邀请制检查
+        if match.get('inviteOnly', False):
+            invited_friends = match.get('invitedFriends', [])
+            if user['username'] not in invited_friends:
+                return {'error': '该房间为邀请制房间，您未被邀请'}, 403
 
         # 密码验证
         room_password = match.get('password')
@@ -173,7 +187,8 @@ def make_move(user, match_id, row, col):
         if my_color == 1:
             temp_board = [r[:] for r in match['board']]
             temp_board[row][col] = 1
-            forbidden_check = check_forbidden(temp_board, row, col)
+            rule_mode = match.get('ruleMode', RULE_MODE_STANDARD)
+            forbidden_check = check_forbidden(temp_board, row, col, rule_mode)
             if forbidden_check['forbidden']:
                 return {'error': f"禁手: {forbidden_check['reason']}", 'forbidden': True, 'reason': forbidden_check['reason']}, 400
 
@@ -267,22 +282,21 @@ def get_match_status(user, match_id):
             'drawRequested': match.get('drawRequested', False),
             'drawRequestedBy': match.get('drawRequestedBy'),
             # 观战者
-            'spectatorCount': len(match.get('spectators', []))
+            'spectatorCount': len(match.get('spectators', [])),
+            # 规则模式
+            'ruleMode': match.get('ruleMode', RULE_MODE_STANDARD)
         }
 
     return match_data, 200
 
 
 def leave_match(user, match_id):
-    """离开对局 - 新逻辑：一旦离开直接判定对手获胜
+    """离开对局
     处理逻辑：
     - 等待中的房间：创建者离开则直接删除房间
-    - 进行中的房间：离开方判负，对手获胜，游戏结束
-    - 等待重连的房间：标记离开，如果双方都离开则删除房间
-    - 已结束的房间：直接关闭
+    - 进行中的房间：双方都离开或创建者离开且已结束则关闭房间
+    - 否则标记为等待重连
     """
-    from .storage import clear_room_chat
-
     with active_matches_lock:
         if match_id not in active_matches:
             return {'success': True}, 200
@@ -293,63 +307,29 @@ def leave_match(user, match_id):
         if match['creator'] != username and match['opponent'] != username:
             return {'success': True}, 200
 
-        clear_room_chat(match_id)
+        # 标记离开状态
+        if match['creator'] == username:
+            match['creatorLeft'] = True
+        elif match.get('opponent') == username:
+            match['opponentLeft'] = True
+
+        creator_left = match.get('creatorLeft', False)
+        opponent_left = match.get('opponentLeft', False)
 
         if match['status'] == 'waiting' and match['creator'] == username:
+            # 等待中的房间，创建者离开则删除
             del active_matches[match_id]
             save_matches()
-            return {'success': True, 'action': 'deleted'}, 200
-
-        if match['status'] == 'playing':
-            my_color = None
-            if match['creator'] == username:
-                my_color = match['creatorColor']
-            else:
-                my_color = 2 if match['creatorColor'] == 1 else 1
-
-            winner_color = 2 if my_color == 1 else 1
-            match['winner'] = winner_color
-            match['status'] = 'finished'
-            match['winReason'] = 'opponent_left'
-            match['loser'] = username
-            match['lastActivity'] = time.time()
-
-            save_matches()
-
-            return {
-                'success': True,
-                'action': 'forfeit',
-                'winner': winner_color,
-                'winReason': 'opponent_left',
-                'message': '对手已离开，您获得胜利'
-            }, 200
-
-        if match['status'] == 'waiting_for_reconnect':
-            if match['creator'] == username:
-                match['creator_left'] = True
-            else:
-                match['opponent_left'] = True
-
-            creator_left = match.get('creator_left', False)
-            opponent_left = match.get('opponent_left', False)
-            creator_disconnected = match.get('creator_disconnected', False)
-            opponent_disconnected = match.get('opponent_disconnected', False)
-
-            if (creator_left or creator_disconnected) and (opponent_left or opponent_disconnected):
-                del active_matches[match_id]
-                save_matches()
-                logger.info(f'房间 {match_id} 双方都已离开，房间已删除')
-                return {'success': True, 'action': 'deleted'}, 200
-            else:
-                match['lastActivity'] = time.time()
-                save_matches()
-                return {'success': True, 'action': 'left_waiting_reconnect'}, 200
-
-        if match['status'] in ['finished', 'closed']:
+        elif (creator_left and opponent_left) or (creator_left and match['status'] == 'finished'):
+            # 双方都离开 或 创建者离开且游戏已结束
             match['status'] = 'closed'
             save_matches()
             del active_matches[match_id]
-            return {'success': True, 'action': 'closed'}, 200
+        else:
+            # 一方离开，标记为等待重连
+            if match['status'] == 'playing':
+                match['status'] = 'waiting_for_reconnect'
+            save_matches()
 
     return {'success': True}, 200
 

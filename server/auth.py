@@ -8,7 +8,7 @@ import hmac
 import time
 import requests
 from datetime import datetime
-from flask import request, jsonify
+from flask import request, jsonify, redirect, url_for
 from functools import wraps
 
 from .config import (GT4_CAPTCHA_ID, GT4_CAPTCHA_KEY, VERIFY_URL,
@@ -112,6 +112,19 @@ def require_auth(f):
             if banned_until and time.time() < banned_until:
                 return jsonify({'error': f"账号已被封禁至 {datetime.fromtimestamp(banned_until).strftime('%Y-%m-%d %H:%M:%S')}"}), 403
         return f(user, *args, **kwargs)
+    return decorated
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        user = get_current_user()
+        if not user:
+            return redirect(url_for('login_page'))
+        if user.get('bannedUntil'):
+            banned_until = user['bannedUntil']
+            if banned_until and time.time() < banned_until:
+                return redirect(url_for('login_page') + '?banned=1')
+        return f(*args, **kwargs)
     return decorated
 
 def require_admin(f):

@@ -52,12 +52,19 @@ var Gomoku = window.Gomoku || {};
                 ? '4f9d3983ec3e3f57df82b0ccad9e273a'
                 : 'a02cc5f652aa762b93710d33448f70b5';
 
+            var langMap = {
+                'zh-CN': 'zh',
+                'zh-TW': 'zh-TW',
+                'en': 'en'
+            };
+            var captchaLang = langMap[G.i18n.currentLang] || 'zh';
+
             // 初始化极验四代验证码（滑动验证）
             initGeetest4({
                 captchaId: captchaId,
                 product: 'float',      // 浮动模式
                 riskType: 'slide',     // 滑动验证
-                language: 'zh',        // 中文
+                language: captchaLang,
                 onError: function(err) {
                     G.showToast('验证初始化失败，请重试', true);
                     if (callback) callback();

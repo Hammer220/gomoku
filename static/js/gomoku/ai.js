@@ -1,7 +1,13 @@
 // ============================================================
 // AI 逻辑模块
-// 负责：简单/中等/困难三种难度 AI 的走法计算
+// 负责：简单/中等/困难/大师四种难度 AI 的走法计算
 //       基于位置评估函数和搜索算法，包含活三检测、禁手规避等
+//
+// 难度算法分配：
+// - 简单(Easy): 冲四检测、眠三检测、活二检测、堵对方活二
+// - 中等(Medium): 3层Minimax搜索 + Alpha-Beta剪枝
+// - 困难(Hard): 5层Minimax搜索 + Alpha-Beta剪枝 + Killer Move + History Heuristic
+// - 大师(Master): MCTS算法 + UCT公式 + 10000次模拟
 // ============================================================
 var Gomoku = window.Gomoku || {};
 
@@ -254,13 +260,186 @@ var Gomoku = window.Gomoku || {};
         return best;
     };
 
+    G.findCandidateMoves = function(player, radius) {
+        var candidates = [];
+        var hasNeighbor = {};
+        for (var i = 0; i < G.BOARD_SIZE; i++) {
+            for (var j = 0; j < G.BOARD_SIZE; j++) {
+                if (G.gameBoard[i][j] === 0) {
+                    for (var dr = -radius; dr <= radius; dr++) {
+                        for (var dc = -radius; dc <= radius; dc++) {
+                            var nr = i + dr, nc = j + dc;
+                            if (nr >= 0 && nr < G.BOARD_SIZE && nc >= 0 && nc < G.BOARD_SIZE && G.gameBoard[nr][nc] !== 0) {
+                                hasNeighbor[i + ',' + j] = true;
+                                break;
+                            }
+                        }
+                        if (hasNeighbor[i + ',' + j]) break;
+                    }
+                }
+            }
+        }
+        for (var key in hasNeighbor) {
+            var parts = key.split(',');
+            candidates.push({ row: parseInt(parts[0]), col: parseInt(parts[1]) });
+        }
+        if (candidates.length === 0) {
+            for (var i = 0; i < G.BOARD_SIZE; i++) {
+                for (var j = 0; j < G.BOARD_SIZE; j++) {
+                    if (G.gameBoard[i][j] === 0) {
+                        candidates.push({ row: i, col: j });
+                    }
+                }
+            }
+        }
+        return candidates;
+    };
+
+    G.MCTSNode = function(board, player, parent, move) {
+        this.board = board.map(function(row) { return row.slice(); });
+        this.player = player;
+        this.parent = parent;
+        this.move = move;
+        this.children = [];
+        this.wins = 0;
+        this.visitCount = 0;
+        this.untriedMoves = null;
+    };
+
+    G.MCTSNode.prototype.uctValue = function(exploration) {
+        if (this.visitCount === 0) return Infinity;
+        return (this.wins / this.visitCount) + exploration * Math.sqrt(Math.log(this.parent.visitCount) / this.visitCount);
+    };
+
+    G.MCTSNode.prototype.bestChild = function() {
+        var best = null, bestValue = -Infinity;
+        for (var i = 0; i < this.children.length; i++) {
+            var val = this.children[i].uctValue();
+            if (val > bestValue) { bestValue = val; best = this.children[i]; }
+        }
+        return best;
+    };
+
+    G.MCTSNode.prototype.expand = function() {
+        if (this.untriedMoves === null) {
+            this.untriedMoves = G.findCandidateMoves(this.player, 2);
+        }
+        if (this.untriedMoves.length === 0) return null;
+
+        var move = this.untriedMoves.pop();
+        var opponent = this.player === 1 ? 2 : 1;
+        var newBoard = this.board.map(function(row) { return row.slice(); });
+        newBoard[move.row][move.col] = this.player;
+
+        if (G.checkWin(newBoard, move.row, move.col, this.player)) {
+            var child = new G.MCTSNode(newBoard, opponent, this, move);
+            child.wins = 1;
+            child.visitCount = 1;
+            this.children.push(child);
+            return child;
+        }
+
+        var child = new G.MCTSNode(newBoard, opponent, this, move);
+        this.children.push(child);
+        return child;
+    };
+
+    G.MCTSNode.prototype.isFullyExpanded = function() {
+        if (this.untriedMoves === null) return false;
+        return this.untriedMoves.length === 0 && this.children.length > 0;
+    };
+
+    G.MCTSNode.prototype.simulate = function() {
+        var simBoard = this.board.map(function(row) { return row.slice(); });
+        var simPlayer = this.player;
+        var passes = 0;
+
+        for (var i = 0; i < 100; i++) {
+            var moves = G.findCandidateMoves(simPlayer, 2);
+            if (moves.length === 0) {
+                passes++;
+                if (passes >= 2) break;
+                simPlayer = simPlayer === 1 ? 2 : 1;
+                continue;
+            }
+
+            var move = moves[Math.floor(Math.random() * moves.length)];
+            simBoard[move.row][move.col] = simPlayer;
+
+            if (G.checkWin(simBoard, move.row, move.col, simPlayer)) {
+                return simPlayer === this.player ? 1 : 0;
+            }
+
+            simPlayer = simPlayer === 1 ? 2 : 1;
+        }
+
+        return 0.5;
+    };
+
+    G.MCTSNode.prototype.backpropagate = function(result) {
+        this.visitCount++;
+        this.wins += result;
+        if (this.parent) this.parent.backpropagate(result);
+    };
+
+    G.findMasterMove = function() {
+        var ai = G.getAIColor();
+        var root = new G.MCTSNode(G.gameBoard, ai, null, null);
+
+        for (var sim = 0; sim < 10000; sim++) {
+            var node = root;
+
+            while (node.children.length > 0) {
+                node = node.bestChild();
+            }
+
+            if (node.untriedMoves !== null || node.children.length === 0) {
+                node = node.expand();
+            }
+
+            if (!node) {
+                node = root;
+                while (node.children.length > 0 && node.isFullyExpanded()) {
+                    node = node.bestChild();
+                }
+                if (!node || node.isFullyExpanded()) {
+                    continue;
+                }
+                node = node.expand();
+            }
+
+            if (!node) {
+                continue;
+            }
+
+            if (node.move && G.checkWin(node.board, node.move.row, node.move.col, node.player)) {
+                node.backpropagate(1);
+                continue;
+            }
+
+            var result = node.simulate();
+            node.backpropagate(result);
+        }
+
+        var bestChild = null, bestVisits = -1;
+        for (var i = 0; i < root.children.length; i++) {
+            if (root.children[i].visitCount > bestVisits) {
+                bestVisits = root.children[i].visitCount;
+                bestChild = root.children[i];
+            }
+        }
+
+        return bestChild ? bestChild.move : { row: 7, col: 7 };
+    };
+
     // AI 执行落子（根据当前难度选择策略）
     G.aiMove = function() {
         if (!G.gameActive || G.gameMode !== 'ai' || G.currentPlayer !== G.getAIColor()) return;
         var move = null;
         if (G.aiDifficulty === 'easy') move = G.findEasyMove();
         else if (G.aiDifficulty === 'medium') move = G.findMediumMove();
-        else move = G.findHardMove();
+        else if (G.aiDifficulty === 'hard') move = G.findHardMove();
+        else if (G.aiDifficulty === 'master') move = G.findMasterMove();
         if (move) G.placePiece(move.row, move.col, G.getAIColor());
     };
 

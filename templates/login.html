@@ -86,7 +86,7 @@
         <div class="inline-flex items-center justify-center w-20 h-20 mb-4 rounded-2xl bg-gradient-to-br from-[#C4955A] to-[#8B5A2B] shadow-xl card-3d-hover">
             <i class="fa-solid fa-chess-board text-white text-3xl"></i>
         </div>
-        <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold text-primary mb-2 text-gradient" data-i18n="gameTitle">五子棋</h1>
+        <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold mb-2 text-white" data-i18n="gameTitle">五子棋</h1>
         <p class="text-gray-600 text-sm sm:text-base md:text-lg" data-i18n="gameSubtitle">经典对弈 · 双人/人机/联机</p>
         <div class="flex items-center justify-center gap-2 mt-3">
             <span class="inline-block w-12 h-0.5 bg-gradient-to-r from-transparent to-primary/30 rounded"></span>
@@ -106,11 +106,11 @@
             </div>
             <form id="loginForm" class="space-y-3 sm:space-y-4">
                 <div class="float-label-input">
-                    <input type="text" id="username" data-i18n-placeholder="username" placeholder=" " required autocomplete="username" class="w-full px-4 py-2.5 sm:py-2 border-2 rounded-xl text-base input-focus-animate login-input">
+                    <input type="text" id="username" placeholder="" required autocomplete="username" class="w-full px-4 py-2.5 sm:py-2 border-2 rounded-xl text-base input-focus-animate login-input">
                     <label data-i18n="username">用户名</label>
                 </div>
                 <div class="float-label-input">
-                    <input type="password" id="password" data-i18n-placeholder="password" placeholder=" " required autocomplete="current-password" class="w-full px-4 py-2.5 sm:py-2 border-2 rounded-xl text-base input-focus-animate login-input">
+                    <input type="password" id="password" placeholder="" required autocomplete="current-password" class="w-full px-4 py-2.5 sm:py-2 border-2 rounded-xl text-base input-focus-animate login-input">
                     <label data-i18n="password">密码</label>
                 </div>
                 <div id="geetestLoginWidget" class="geetest-container" style="min-height: 44px;"></div>
@@ -132,15 +132,15 @@
             </div>
             <form id="registerForm" class="space-y-3 sm:space-y-4">
                 <div class="float-label-input">
-                    <input type="text" id="regUsername" data-i18n-placeholder="username" placeholder=" " required autocomplete="username" class="w-full px-4 py-2.5 sm:py-2 border-2 rounded-xl text-base input-focus-animate login-input">
+                    <input type="text" id="regUsername" placeholder="" required autocomplete="username" class="w-full px-4 py-2.5 sm:py-2 border-2 rounded-xl text-base input-focus-animate login-input">
                     <label data-i18n="username">用户名</label>
                 </div>
                 <div class="float-label-input">
-                    <input type="password" id="regPassword" data-i18n-placeholder="passwordMinLenPlaceholder" placeholder=" " required autocomplete="new-password" class="w-full px-4 py-2.5 sm:py-2 border-2 rounded-xl text-base input-focus-animate login-input">
+                    <input type="password" id="regPassword" placeholder="" required autocomplete="new-password" class="w-full px-4 py-2.5 sm:py-2 border-2 rounded-xl text-base input-focus-animate login-input">
                     <label data-i18n="passwordMinLenPlaceholder">密码(至少6位)</label>
                 </div>
                 <div class="float-label-input">
-                    <input type="password" id="confirmPassword" data-i18n-placeholder="confirmPassword" placeholder=" " required autocomplete="new-password" class="w-full px-4 py-2.5 sm:py-2 border-2 rounded-xl text-base input-focus-animate login-input">
+                    <input type="password" id="confirmPassword" placeholder="" required autocomplete="new-password" class="w-full px-4 py-2.5 sm:py-2 border-2 rounded-xl text-base input-focus-animate login-input">
                     <label data-i18n="confirmPasswordPlaceholder">确认密码</label>
                 </div>
                 <div id="geetestRegisterWidget" class="geetest-container" style="min-height: 44px;"></div>
@@ -162,7 +162,7 @@
             </div>
             <form id="passwordFreeLoginForm" class="space-y-3 sm:space-y-4">
                 <div class="float-label-input">
-                    <input type="text" id="passwordFreeUsername" data-i18n-placeholder="enterUsername" placeholder=" " required autocomplete="username" class="w-full px-4 py-2.5 sm:py-2 border-2 rounded-xl text-base input-focus-animate login-input">
+                    <input type="text" id="passwordFreeUsername" placeholder="" required autocomplete="username" class="w-full px-4 py-2.5 sm:py-2 border-2 rounded-xl text-base input-focus-animate login-input">
                     <label data-i18n="enterUsername">请输入用户名</label>
                 </div>
                 <div id="passwordFreeAttemptsInfo" class="hidden text-center text-sm text-gray-600 bg-gray-100 rounded-lg p-2">
@@ -196,7 +196,7 @@
                 if (parent) {
                     var label = parent.querySelector('label');
                     if (label) {
-                        if (input.value || input.placeholder === ' ') {
+                        if (input.value || document.activeElement === input) {
                             label.classList.add('label-floated');
                         } else {
                             label.classList.remove('label-floated');

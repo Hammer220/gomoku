@@ -1,5 +1,11 @@
 """SQLite 数据库模块
 负责 SQLite 连接管理、表结构定义、数据迁移和基础 CRUD 操作
+
+主要功能：
+- 数据库连接池管理（使用 WAL 模式优化并发性能）
+- 表结构定义和初始化（用户、密码、令牌、对局、记录、存档、设置、消息）
+- 从 JSON 文件迁移数据到 SQLite 数据库
+- 数据库模式升级（动态添加新列）
 """
 
 import sqlite3
@@ -10,15 +16,25 @@ import time
 from .config import SCRIPT_DIR
 from .logger import logger
 
+# 数据库目录和路径配置
 DB_DIR = os.path.join(SCRIPT_DIR, 'data')
 os.makedirs(DB_DIR, exist_ok=True)
 DB_PATH = os.path.join(DB_DIR, 'gomoku.db')
 
+# 全局数据库连接对象
 conn = None
 cursor = None
 
 
 def get_connection():
+    """
+    获取数据库连接（单例模式）
+    如果连接不存在则创建新连接，并配置以下优化：
+    - WAL 模式：支持并发读写
+    - NORMAL 同步模式：平衡性能和安全性
+    - 增大缓存：提升查询性能
+    - Row factory：允许通过列名访问数据
+    """
     global conn
     if conn is None:
         conn = sqlite3.connect(DB_PATH, check_same_thread=False)
@@ -53,11 +69,6 @@ def init_db():
             can_set_password_free INTEGER DEFAULT 0,
             can_monitor_matches INTEGER DEFAULT 0,
             can_manage_matches INTEGER DEFAULT 0,
-            can_manage INTEGER DEFAULT 1,
-            password_free INTEGER DEFAULT 0,
-            password_free_max_attempts INTEGER DEFAULT 0,
-            password_free_remaining_attempts INTEGER DEFAULT 0,
-            use_captcha INTEGER DEFAULT 1,
             created_at REAL DEFAULT (strftime('%s', 'now')),
             updated_at REAL DEFAULT (strftime('%s', 'now'))
         )
@@ -149,6 +160,30 @@ def init_db():
     ''')
 
     c.execute('''
+        CREATE TABLE IF NOT EXISTS friends (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user1 TEXT NOT NULL,
+            user2 TEXT NOT NULL,
+            created_at REAL DEFAULT (strftime('%s', 'now')),
+            UNIQUE(user1, user2),
+            CHECK(user1 < user2)
+        )
+    ''')
+
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS friend_invitations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            from_user TEXT NOT NULL,
+            to_user TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            created_at REAL DEFAULT (strftime('%s', 'now')),
+            updated_at REAL DEFAULT (strftime('%s', 'now')),
+            FOREIGN KEY (from_user) REFERENCES users(username),
+            FOREIGN KEY (to_user) REFERENCES users(username)
+        )
+    ''')
+
+    c.execute('''
         CREATE INDEX IF NOT EXISTS idx_tokens_username ON tokens(username)
     ''')
     c.execute('''
@@ -232,32 +267,6 @@ def init_db():
         if 'duplicate column' in str(e).lower():
             pass
 
-    try:
-        c.execute("ALTER TABLE users ADD COLUMN password_free INTEGER DEFAULT 0")
-    except sqlite3.OperationalError as e:
-        if 'duplicate column' in str(e).lower():
-            pass
-    try:
-        c.execute("ALTER TABLE users ADD COLUMN password_free_max_attempts INTEGER DEFAULT 0")
-    except sqlite3.OperationalError as e:
-        if 'duplicate column' in str(e).lower():
-            pass
-    try:
-        c.execute("ALTER TABLE users ADD COLUMN password_free_remaining_attempts INTEGER DEFAULT 0")
-    except sqlite3.OperationalError as e:
-        if 'duplicate column' in str(e).lower():
-            pass
-    try:
-        c.execute("ALTER TABLE users ADD COLUMN use_captcha INTEGER DEFAULT 1")
-    except sqlite3.OperationalError as e:
-        if 'duplicate column' in str(e).lower():
-            pass
-    try:
-        c.execute("ALTER TABLE users ADD COLUMN can_manage INTEGER DEFAULT 1")
-    except sqlite3.OperationalError as e:
-        if 'duplicate column' in str(e).lower():
-            pass
-
     connection.commit()
     logger.info('SQLite 数据库初始化完成')
 
@@ -281,10 +290,8 @@ def migrate_from_json():
                     is_admin, is_super_admin, banned_until, can_ban_user,
                     can_kick_user, can_delete_user, can_change_password,
                     can_modify_score, can_set_password_free, can_monitor_matches,
-                    can_manage_matches, can_manage, language, password_free,
-                    password_free_max_attempts, password_free_remaining_attempts,
-                    use_captcha
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    can_manage_matches
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 username,
                 user.get('password', ''),
@@ -303,13 +310,7 @@ def migrate_from_json():
                 1 if user.get('canModifyScore') else 0,
                 1 if user.get('canSetPasswordFree') else 0,
                 1 if user.get('canMonitorMatches') else 0,
-                1 if user.get('canManageMatches') else 0,
-                1 if user.get('canManage', True) else 0,
-                user.get('language', 'zh-CN'),
-                1 if user.get('passwordFree') else 0,
-                user.get('passwordFreeMaxAttempts', 0),
-                user.get('passwordFreeRemainingAttempts', 0),
-                1 if user.get('useCaptcha', True) else 0
+                1 if user.get('canManageMatches') else 0
             ))
         if users:
             logger.info(f'迁移 {len(users)} 个用户到数据库')

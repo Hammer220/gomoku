@@ -256,11 +256,50 @@
         saves.slice(0,5).forEach(s=>{
             const el = document.createElement('div');
             el.className = 'bg-white p-2 rounded border flex justify-between items-center saved-game-card cursor-pointer';
-            el.innerHTML = `<div><span class="font-medium">${s.date}</span><br><span class="text-xs">${s.difficulty} · ${G.formatTime(s.gameTime)}</span></div><button class="text-red-500 delete-save" data-id="${s.id}"><i class="fa-solid fa-times"></i></button>`;
-            el.addEventListener('click', (e)=>{ if(!e.target.closest('.delete-save')) G.loadGame(s.id); });
+            el.innerHTML = `<div class="flex-1 min-w-0"><span class="font-medium truncate block">${s.name || s.date || '未命名'}</span><span class="text-xs text-gray-500">${s.difficulty} · ${G.formatTime(s.gameTime)}</span></div><div class="flex gap-1 ml-2"><button class="text-blue-500 export-save px-1" data-id="${s.id}" title="导出"><i class="fa-solid fa-download"></i></button><button class="text-red-500 delete-save px-1" data-id="${s.id}" title="删除"><i class="fa-solid fa-times"></i></button></div>`;
+            el.addEventListener('click', (e)=>{ if(!e.target.closest('.delete-save') && !e.target.closest('.export-save')) G.loadGame(s.id); });
             el.querySelector('.delete-save').addEventListener('click', async (e)=>{ e.stopPropagation(); await G.apiCall(`/api/saves/${s.id}`,'DELETE'); G.loadSavedGames(); });
+            el.querySelector('.export-save').addEventListener('click', async (e)=>{ e.stopPropagation(); G.exportSave(s.id); });
             listDiv.appendChild(el);
         });
+    }
+
+    // 导出存档到本地文件
+    G.exportSave = async function(saveId) {
+        try {
+            const saves = await G.apiCall('/api/saves');
+            const save = saves.find(function(s) { return s.id === saveId; });
+            if (!save) {
+                G.showToast('存档不存在', true);
+                return;
+            }
+            const exportData = {
+                version: 1,
+                type: 'gomoku_save',
+                username: save.username,
+                name: save.name || save.date || '未命名',
+                timestamp: save.timestamp || Math.floor(Date.now() / 1000),
+                board: save.board,
+                moves: save.moveHistory || save.moves || [],
+                currentPlayer: save.currentPlayer,
+                mode: save.difficulty || 'ai',
+                timeMode: 'untimed',
+                blackTime: 600,
+                whiteTime: 600
+            };
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `gomoku_save_${saveId}_${(save.name || '未命名').replace(/[\s\/]/g, '_')}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            G.showToast('存档已导出');
+        } catch(e) {
+            G.showToast('导出失败', true);
+        }
     }
 
 })();

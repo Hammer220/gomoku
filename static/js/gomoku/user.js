@@ -10,7 +10,7 @@ var Gomoku = window.Gomoku || {};
 
     // 强制登出用户（多页面版本：跳转到登录页）
     G.handleForceLogout = function(message) {
-        message = message || '您已被强制登出';
+        message = message || G.i18n.t('forceLoggedOut');
         if (!G.isLoggedIn) return;
         G.isLoggedIn = false;
         // 停止所有定时器和检查
@@ -43,7 +43,7 @@ var Gomoku = window.Gomoku || {};
                 var now = new Date();
                 if (now < bannedUntil) {
                     var remainMinutes = Math.ceil((bannedUntil - now) / 60000);
-                    G.handleForceLogout('您的账号已被封禁，剩余 ' + remainMinutes + ' 分钟');
+                    G.handleForceLogout(G.i18n.t('accountBanned') + ', ' + G.i18n.t('remaining') + ' ' + remainMinutes + ' ' + G.i18n.t('minutes'));
                     return;
                 }
             }
@@ -71,12 +71,12 @@ var Gomoku = window.Gomoku || {};
             if (G.updateUnreadBadge) G.updateUnreadBadge();
         } catch (err) {
             var errorStr = err.message || '';
-            if (err.status === 403 && (errorStr.includes('封禁') || errorStr.includes('banned'))) {
-                G.handleForceLogout('您的账号已被封禁');
+            if (err.status === 403 && (errorStr.includes(G.i18n.t('banned')) || errorStr.includes('banned'))) {
+                G.handleForceLogout(G.i18n.t('accountBanned'));
                 return;
             }
-            if (errorStr.includes('401') || errorStr.includes('Unauthorized') || errorStr.includes('未授权')) {
-                G.handleForceLogout('登录状态已失效');
+            if (errorStr.includes('401') || errorStr.includes('Unauthorized') || errorStr.includes(G.i18n.t('unauthorized'))) {
+                G.handleForceLogout(G.i18n.t('sessionExpired'));
             }
         }
     };
@@ -120,7 +120,7 @@ var Gomoku = window.Gomoku || {};
             var now = new Date().getTime();
             var remaining = bannedUntil - now;
             if (remaining <= 0) {
-                el.textContent = '已解封';
+                el.textContent = G.i18n.t('unbanned');
                 el.classList.remove('text-red-600');
                 el.classList.add('text-green-600');
                 needRefresh = true;
@@ -142,20 +142,15 @@ var Gomoku = window.Gomoku || {};
         };
         setText('userNameDisplay', G.currentUser.username);
         setText('userScoreDisplay', G.currentUser.score || 0);
+        setText('userRankDisplay', G.currentUser.rank || '无段位');
         setText('userWinsDisplay', G.currentUser.wins || 0);
         setText('profileUsername', G.currentUser.username);
         setText('profileScore', G.currentUser.score || 0);
+        setText('profileRank', G.currentUser.rank || '无段位');
         setText('profileWins', G.currentUser.wins || 0);
         setText('profileGames', G.currentUser.games || 0);
-        setText('profileJoinDate', G.currentUser.joinDate || '未知');
-        setText('profileLastLogin', G.currentUser.lastLogin || '从未登录');
-
-        // 登录后将五子棋标题改为纯白
-        var gameTitle = document.getElementById('gameTitle');
-        if (gameTitle) {
-            gameTitle.classList.remove('text-gradient');
-            gameTitle.style.color = '#ffffff';
-        }
+        setText('profileJoinDate', G.currentUser.joinDate || G.i18n.t('unknown'));
+        setText('profileLastLogin', G.currentUser.lastLogin || G.i18n.t('neverLoggedIn'));
 
         // 显示/隐藏管理员导航链接
         var adminNavLink = document.getElementById('adminNavLink');
@@ -175,7 +170,7 @@ var Gomoku = window.Gomoku || {};
         if (!container) return;
         var toast = document.createElement('div');
         toast.className = 'toast px-4 py-2 rounded-lg shadow-lg mb-2 bg-blue-100 text-blue-800';
-        toast.innerHTML = '<i class="fa-solid fa-envelope mr-2"></i>您有 ' + newCount + ' 条新消息，<a href="/messages" class="underline font-medium">点击查看</a>';
+        toast.innerHTML = '<i class="fa-solid fa-envelope mr-2"></i>' + G.i18n.t('youHave') + ' ' + newCount + ' ' + G.i18n.t('newMessages') + ', <a href="/messages" class="underline font-medium">' + G.i18n.t('clickToView') + '</a>';
         container.appendChild(toast);
         setTimeout(function() { toast.remove(); }, 5000);
     };
@@ -201,7 +196,7 @@ var Gomoku = window.Gomoku || {};
                 }
             }
         } catch (err) {
-            console.error('获取未读消息数失败:', err);
+            console.error(G.i18n.t('fetchUnreadFailed') + ':', err);
         }
     };
 
@@ -209,28 +204,22 @@ var Gomoku = window.Gomoku || {};
 
     // 密码登录
     G.login = async function(username, password, captchaToken) {
-        var payload = { username: username, password: password };
-        if (captchaToken && captchaToken !== 'disabled') {
-            var parts = JSON.parse(captchaToken);
-            payload.geetestLot = parts[0];
-            payload.geetestCaptchaOutput = parts[1];
-            payload.geetestPassToken = parts[2];
-            payload.geetestGenTime = parts[3];
-        }
-        var res = await G.apiCall('/api/login', 'POST', payload, true);
+        var parts = JSON.parse(captchaToken);
+        var res = await G.apiCall('/api/login', 'POST', {
+            username: username,
+            password: password,
+            geetestLot: parts[0],
+            geetestCaptchaOutput: parts[1],
+            geetestPassToken: parts[2],
+            geetestGenTime: parts[3]
+        }, true);
         G.token = res.token;
         localStorage.setItem('token', G.token);
         G.currentUser = res.user;
         G.isLoggedIn = true;
         await G.resetGuestData();
-        G.showToast('欢迎回来，' + G.currentUser.username + '！');
-        var pendingMatchId = sessionStorage.getItem('pendingMatchId');
-        if (pendingMatchId) {
-            sessionStorage.removeItem('pendingMatchId');
-            window.location.href = '/game/' + pendingMatchId;
-        } else {
-            window.location.href = '/game';
-        }
+        G.showToast(G.i18n.t('welcomeBack') + ', ' + G.currentUser.username + '!');
+        window.location.href = '/game';
     };
 
     // 免密登录
@@ -241,14 +230,8 @@ var Gomoku = window.Gomoku || {};
         G.currentUser = res.user;
         G.isLoggedIn = true;
         await G.resetGuestData();
-        G.showToast('欢迎回来，' + G.currentUser.username + '！');
-        var pendingMatchId = sessionStorage.getItem('pendingMatchId');
-        if (pendingMatchId) {
-            sessionStorage.removeItem('pendingMatchId');
-            window.location.href = '/game/' + pendingMatchId;
-        } else {
-            window.location.href = '/game';
-        }
+        G.showToast(G.i18n.t('welcomeBack') + ', ' + G.currentUser.username + '!');
+        window.location.href = '/game';
     };
 
     // 检查免密登录剩余次数
@@ -265,16 +248,16 @@ var Gomoku = window.Gomoku || {};
             if (res.passwordFree) {
                 if (res.maxAttempts > 0) {
                     if (res.remainingAttempts <= 0) {
-                        textEl.textContent = '免密登录次数已用尽（' + res.remainingAttempts + '/' + res.maxAttempts + '），请联系管理员';
+                        textEl.textContent = G.i18n.t('passwordFreeExhausted') + ' (' + res.remainingAttempts + '/' + res.maxAttempts + '), ' + G.i18n.t('contactAdmin');
                         infoEl.classList.remove('hidden');
                         infoEl.className = 'text-center text-sm text-red-600 bg-red-100 rounded-lg p-2';
                     } else {
-                        textEl.textContent = '免密登录剩余 ' + res.remainingAttempts + '/' + res.maxAttempts + ' 次';
+                        textEl.textContent = G.i18n.t('passwordFreeRemaining') + ' ' + res.remainingAttempts + '/' + res.maxAttempts + ' ' + G.i18n.t('modelTimes');
                         infoEl.classList.remove('hidden');
                         infoEl.className = 'text-center text-sm text-gray-600 bg-gray-100 rounded-lg p-2';
                     }
                 } else {
-                    textEl.textContent = '免密登录无次数限制';
+                    textEl.textContent = G.i18n.t('noLimitStatus');
                     infoEl.classList.remove('hidden');
                     infoEl.className = 'text-center text-sm text-gray-600 bg-gray-100 rounded-lg p-2';
                 }
@@ -290,17 +273,17 @@ var Gomoku = window.Gomoku || {};
 
     // 用户注册
     G.register = async function(username, password, captchaToken) {
-        var payload = { username: username, password: password };
-        if (captchaToken && captchaToken !== 'disabled') {
-            var parts = JSON.parse(captchaToken);
-            payload.geetestLot = parts[0];
-            payload.geetestCaptchaOutput = parts[1];
-            payload.geetestPassToken = parts[2];
-            payload.geetestGenTime = parts[3];
-        }
-        await G.apiCall('/api/register', 'POST', payload, true);
+        var parts = JSON.parse(captchaToken);
+        await G.apiCall('/api/register', 'POST', {
+            username: username,
+            password: password,
+            geetestLot: parts[0],
+            geetestCaptchaOutput: parts[1],
+            geetestPassToken: parts[2],
+            geetestGenTime: parts[3]
+        }, true);
         await G.resetGuestData();
-        G.showToast('注册成功，请登录');
+        G.showToast(G.i18n.t('registerSuccess'));
         var registerModal = document.getElementById('registerModal');
         var loginModal = document.getElementById('loginModal');
         if (registerModal) registerModal.classList.add('hidden');
@@ -337,7 +320,7 @@ var Gomoku = window.Gomoku || {};
             try {
                 await G.apiCall('/api/guest/delete', 'POST', { username: guestUsername }, true);
             } catch (e) {
-                console.log('删除访客账号失败:', e);
+                console.log(G.i18n.t('deleteGuestFailed') + ':', e);
             }
         }
     };
@@ -352,9 +335,9 @@ var Gomoku = window.Gomoku || {};
     };
 
     // 访客登录
-    G.loginAsGuest = async function() {
+    G.loginAsGuest = function() {
         if (G.guestRemainingGames <= 0) {
-            G.showToast('访客次数已用完，请注册账号', true);
+            G.showToast(G.i18n.t('guestLimitReached'), true);
             return;
         }
         var guestUsername = G.getGuestUsername();
@@ -364,14 +347,7 @@ var Gomoku = window.Gomoku || {};
         G.currentUser = { username: guestUsername, isGuest: true };
         localStorage.setItem('isGuest', 'true');
         localStorage.setItem('guestRemainingGames', G.guestRemainingGames.toString());
-
-        try {
-            await G.apiCall('/api/guest/register', 'POST', { username: guestUsername }, true);
-        } catch (e) {
-            console.log('注册访客账号到服务器失败:', e);
-        }
-
-        G.showToast('欢迎来到五子棋！访客模式剩余 ' + G.guestRemainingGames + ' 次游戏机会');
+        G.showToast(G.i18n.t('welcomeGuest') + ' ' + G.guestRemainingGames + ' ' + G.i18n.t('modelTimes'));
         window.location.href = '/game';
     };
 
@@ -381,7 +357,7 @@ var Gomoku = window.Gomoku || {};
         G.guestRemainingGames--;
         localStorage.setItem('guestRemainingGames', G.guestRemainingGames.toString());
         if (G.guestRemainingGames <= 0) {
-            G.showToast('访客游戏次数已用完，请注册账号', true);
+            G.showToast(G.i18n.t('guestLimitReachedGame'), true);
         }
     };
 
@@ -400,7 +376,7 @@ var Gomoku = window.Gomoku || {};
         G.token = '';
         localStorage.removeItem('token');
         G.gameMode = 'ai';
-        G.showToast('已退出访客模式');
+        G.showToast(G.i18n.t('guestModeExited'));
         setTimeout(function() { window.location.href = '/login'; }, 1500);
     };
 
@@ -433,7 +409,7 @@ var Gomoku = window.Gomoku || {};
         G.onlineMyColor = null;
         G.onlineOpponent = null;
         G.gameMode = 'ai';
-        G.showToast('已退出登录');
+        G.showToast(G.i18n.t('loggedOut'));
         setTimeout(function() { window.location.href = '/login'; }, 1500);
     };
 
@@ -459,7 +435,7 @@ var Gomoku = window.Gomoku || {};
                 }
             }
         } catch (err) {
-            console.error('加载用户数据失败:', err);
+            console.error(G.i18n.t('loadUserDataFailed') + ':', err);
         }
     };
 
@@ -468,7 +444,7 @@ var Gomoku = window.Gomoku || {};
     // 修改密码
     G.changePassword = async function() {
         if (G.isGuest) {
-            G.showToast('访客模式无法修改密码，请注册账号', true);
+            G.showToast(G.i18n.t('guestCannotChangePassword'), true);
             return;
         }
         var oldPasswordEl = document.getElementById('changeOldPassword');
@@ -481,11 +457,11 @@ var Gomoku = window.Gomoku || {};
         var confirmPassword = confirmPasswordEl.value;
 
         if (!oldPassword || !newPassword || !confirmPassword) {
-            G.showToast('请填写所有密码字段', true);
+            G.showToast(G.i18n.t('fillAllPasswordFields'), true);
             return;
         }
         if (newPassword !== confirmPassword) {
-            G.showToast('两次输入的新密码不一致', true);
+            G.showToast(G.i18n.t('passwordMismatch'), true);
             return;
         }
         try {
@@ -493,7 +469,7 @@ var Gomoku = window.Gomoku || {};
                 oldPassword: oldPassword,
                 newPassword: newPassword
             });
-            G.showToast('密码修改成功');
+            G.showToast(G.i18n.t('passwordChanged'));
             oldPasswordEl.value = '';
             newPasswordEl.value = '';
             confirmPasswordEl.value = '';

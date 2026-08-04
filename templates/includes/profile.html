@@ -1,55 +1,60 @@
 <!-- 个人资料页面 -->
-<div id="profileContent" class="content-panel hidden">
-    <h2 class="section-title" data-i18n="personalProfile"><i class="fa-solid fa-user"></i> 个人资料</h2>
-
-    <div class="section-block card-diagonal">
-        <div class="section-block-header"><i class="fa-solid fa-circle-info"></i> <span data-i18n="basicInfo">基本信息</span></div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="info-card hover-lift">
-                <div class="info-card-label"><i class="fa-solid fa-user info-card-icon mr-2"></i><span data-i18n="username">用户名</span></div>
-                <div class="info-card-value" id="profileUsername">-</div>
+<div id="profileContent" class="p-6 md:p-8 hidden">
+    <h2 class="text-2xl font-bold mb-6 text-primary">个人资料</h2>
+    
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h3 class="text-xl font-semibold mb-4">基本信息</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">用户名</label>
+                <p id="profileUsername" class="text-lg font-semibold">-</p>
             </div>
-            <div class="info-card hover-lift">
-                <div class="info-card-label"><i class="fa-solid fa-star info-card-icon mr-2"></i><span data-i18n="points">积分</span></div>
-                <div class="info-card-value text-gradient font-bold" id="profileScore">-</div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">积分</label>
+                <p id="profileScore" class="text-lg font-semibold">-</p>
             </div>
-            <div class="info-card hover-lift">
-                <div class="info-card-label"><i class="fa-solid fa-trophy info-card-icon mr-2"></i><span data-i18n="wins">胜场</span></div>
-                <div class="info-card-value text-green-600 font-semibold" id="profileWins">-</div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">段位</label>
+                <p id="profileRank" class="text-lg font-semibold">-</p>
             </div>
-            <div class="info-card hover-lift">
-                <div class="info-card-label"><i class="fa-solid fa-gamepad info-card-icon mr-2"></i><span data-i18n="gamesCount">对局数</span></div>
-                <div class="info-card-value" id="profileGames">-</div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">胜场</label>
+                <p id="profileWins" class="text-lg font-semibold">-</p>
             </div>
-            <div class="info-card hover-lift">
-                <div class="info-card-label"><i class="fa-solid fa-calendar info-card-icon mr-2"></i><span data-i18n="registrationDate">注册日期</span></div>
-                <div class="info-card-value" id="profileJoinDate">-</div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">对局数</label>
+                <p id="profileGames" class="text-lg font-semibold">-</p>
             </div>
-            <div class="info-card hover-lift">
-                <div class="info-card-label"><i class="fa-solid fa-clock info-card-icon mr-2"></i><span data-i18n="lastLogin">最后登录</span></div>
-                <div class="info-card-value" id="profileLastLogin">-</div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">注册日期</label>
+                <p id="profileJoinDate" class="text-lg font-semibold">-</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">最后登录</label>
+                <p id="profileLastLogin" class="text-lg font-semibold">-</p>
             </div>
         </div>
     </div>
-
-    <div class="section-block card-diagonal">
-        <div class="section-block-header"><i class="fa-solid fa-key"></i> <span data-i18n="changePassword">修改密码</span></div>
+    
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <h3 class="text-xl font-semibold mb-4">修改密码</h3>
         <div class="space-y-4 max-w-md">
-            <div class="float-label-input">
-                <input type="password" id="changeOldPassword" data-i18n-placeholder="enterOldPassword" placeholder=" " class="form-input input-focus-animate">
-                <label>旧密码</label>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">旧密码</label>
+                <input type="password" id="changeOldPassword" placeholder="请输入旧密码" class="w-full px-4 py-2 border rounded-lg">
             </div>
-            <div class="float-label-input">
-                <input type="password" id="changeNewPassword" data-i18n-placeholder="enterNewPassword" placeholder=" " class="form-input input-focus-animate">
-                <label>新密码（至少6位）</label>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">新密码</label>
+                <input type="password" id="changeNewPassword" placeholder="请输入新密码（至少6位）" class="w-full px-4 py-2 border rounded-lg">
             </div>
-            <div class="float-label-input">
-                <input type="password" id="changeConfirmPassword" data-i18n-placeholder="reenterNewPassword" placeholder=" " class="form-input input-focus-animate">
-                <label>确认新密码</label>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">确认新密码</label>
+                <input type="password" id="changeConfirmPassword" placeholder="请再次输入新密码" class="w-full px-4 py-2 border rounded-lg">
             </div>
-            <button id="changePasswordBtn" class="btn-primary btn-ripple">
-                <i class="fa-solid fa-key mr-2"></i><span data-i18n="changePassword">修改密码</span>
+            <button id="changePasswordBtn" class="bg-primary hover:bg-primary/90 text-white px-6 py-3 rounded-lg font-medium">
+                <i class="fa-solid fa-key mr-2"></i>修改密码
             </button>
         </div>
     </div>
-</div>
+
+    </div>

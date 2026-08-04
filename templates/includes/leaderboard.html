@@ -1,22 +1,21 @@
-<div id="leaderboardContent" class="content-panel hidden">
-    <h2 class="section-title text-gradient"><i class="fa-solid fa-trophy"></i> 积分排行榜</h2>
-    <div class="section-block card-diagonal">
-        <div class="leaderboard-header">
-            <p class="text-gray-600 text-sm"><i class="fa-solid fa-info-circle mr-1"></i>按积分从高到低排序</p>
-            <button id="refreshLeaderboardBtn" class="btn-info btn-sm btn-ripple">
-                <i class="fa-solid fa-refresh mr-1"></i>刷新
-            </button>
+<div id="leaderboardContent" class="p-6 md:p-8 hidden">
+    <h2 class="text-2xl font-bold mb-6 text-primary">积分排行榜</h2>
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex justify-between items-center mb-4">
+            <p class="text-gray-600">按积分从高到低排序</p>
+            <button id="refreshLeaderboardBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm"><i class="fa-solid fa-refresh mr-1"></i>刷新</button>
         </div>
-        <div class="table-responsive">
-            <table class="data-table data-table-striped min-w-full table-rounded table-zebra-hover">
-                <thead>
+        <div class="overflow-x-auto">
+            <table class="min-w-full border">
+                <thead class="bg-gray-50">
                     <tr>
-                        <th class="w-16"><i class="fa-solid fa-hashtag mr-1"></i>排名</th>
-                        <th><i class="fa-solid fa-user mr-1"></i>用户名</th>
-                        <th><i class="fa-solid fa-star mr-1"></i>积分</th>
-                        <th><i class="fa-solid fa-trophy mr-1"></i>胜场</th>
-                        <th><i class="fa-solid fa-gamepad mr-1"></i>对局数</th>
-                        <th><i class="fa-solid fa-calendar mr-1"></i>注册日期</th>
+                        <th class="border px-4 py-3 w-16">排名</th>
+                        <th class="border px-4 py-3">用户名</th>
+                        <th class="border px-4 py-3">段位</th>
+                        <th class="border px-4 py-3">积分</th>
+                        <th class="border px-4 py-3">胜场</th>
+                        <th class="border px-4 py-3">对局数</th>
+                        <th class="border px-4 py-3">注册日期</th>
                     </tr>
                 </thead>
                 <tbody id="leaderboardTable"></tbody>

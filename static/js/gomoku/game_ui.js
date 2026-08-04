@@ -63,7 +63,7 @@ var Gomoku = window.Gomoku || {};
 
     // 更新 AI 难度按钮的选中状态
     G.updateDifficultyButtons = function() {
-        ['easy', 'medium', 'hard'].forEach(function(d) {
+        ['easy', 'medium', 'hard', 'master'].forEach(function(d) {
             var btn = $('ai' + d.charAt(0).toUpperCase() + d.slice(1));
             if (!btn) return;
             btn.classList.toggle('bg-primary', G.aiDifficulty === d);

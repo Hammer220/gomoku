@@ -131,7 +131,7 @@ var Gomoku = window.Gomoku || {};
     G.timerInterval = null;
     // 玩家所选棋子颜色
     G.playerColor = 1;
-    // AI 难度：'easy' | 'medium' | 'hard'
+    // AI 难度：'easy' | 'medium' | 'hard' | 'master'
     G.aiDifficulty = 'medium';
     // 获胜棋子位置（用于高亮）
     G.winningCells = [];

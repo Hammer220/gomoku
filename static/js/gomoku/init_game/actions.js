@@ -19,6 +19,56 @@
     var saveGameBtn = $('saveGameBtn');
     if (saveGameBtn) saveGameBtn.addEventListener('click', G.saveGame);
 
+    // 导出当前棋局
+    var exportGameBtn = $('exportGameBtn');
+    if (exportGameBtn) exportGameBtn.addEventListener('click', G.exportCurrentGame);
+
+    // 导入棋局（加载到前端）
+    var importGameBtn = $('importGameBtn');
+    if (importGameBtn) {
+        importGameBtn.addEventListener('click', function() {
+            var fileInput = $('importFileInput');
+            if (fileInput) fileInput.click();
+        });
+    }
+
+    // 导入棋局文件选择处理
+    var importFileInput = $('importFileInput');
+    var importAction = 'frontend';
+    if (importFileInput) {
+        importFileInput.addEventListener('change', function(e) {
+            var file = e.target.files[0];
+            if (file) {
+                if (importAction === 'server') {
+                    G.importGameToServer(file);
+                } else {
+                    G.importGameFromFile(file);
+                }
+                e.target.value = '';
+            }
+        });
+    }
+
+    // 导入棋局（加载到前端）
+    var importGameBtn = $('importGameBtn');
+    if (importGameBtn) {
+        importGameBtn.addEventListener('click', function() {
+            importAction = 'frontend';
+            var fileInput = $('importFileInput');
+            if (fileInput) fileInput.click();
+        });
+    }
+
+    // 导入存档（保存到服务器）
+    var importSaveBtn = $('importSaveBtn');
+    if (importSaveBtn) {
+        importSaveBtn.addEventListener('click', function() {
+            importAction = 'server';
+            var fileInput = $('importFileInput');
+            if (fileInput) fileInput.click();
+        });
+    }
+
     // 新游戏
     var newGameBtn = $('newGameBtn');
     if (newGameBtn) newGameBtn.addEventListener('click', G.resetGame);
@@ -27,8 +77,8 @@
     if (G.canvas) {
         G.canvas.addEventListener('click', function(e) {
             if (!G.gameActive) return;
-            if (G.gameMode === 'online') return;
             if (G.gameMode === 'ai' && G.currentPlayer !== G.playerColor) return;
+            if (G.gameMode === 'online' && G.currentPlayer !== G.onlineMyColor) return;
             var rect = G.canvas.getBoundingClientRect();
             var scaleX = G.canvas.width / rect.width;
             var scaleY = G.canvas.height / rect.height;
@@ -39,6 +89,7 @@
             var row = Math.round((y - margin) / G.CELL_SIZE);
             if (row >= 0 && row < G.BOARD_SIZE && col >= 0 && col < G.BOARD_SIZE && G.gameBoard[row][col] === 0) {
                 G.placePiece(row, col, G.currentPlayer);
+                if (G.gameMode === 'online') G.makeOnlineMove(row, col);
             }
         });
     }

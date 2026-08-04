@@ -17,7 +17,7 @@
             }
 
             if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-gray-500">暂无数据</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">暂无数据</td></tr>';
                 return;
             }
 
@@ -36,10 +36,12 @@
 
                 const isCurrentUser = G.currentUser && G.currentUser.username === u.username;
                 const rowClass = isCurrentUser ? 'bg-yellow-50 font-semibold' : '';
+                const userRank = u.rank || '-';
 
                 return `<tr class="${rowClass}">
                     <td class="border px-4 py-3 text-center">${rankDisplay}</td>
                     <td class="border px-4 py-2">${u.username} ${isCurrentUser ? '<span class="text-xs text-primary">(我)</span>' : ''}</td>
+                    <td class="border px-4 py-2 font-semibold text-orange-600">${userRank}</td>
                     <td class="border px-4 py-2 font-bold text-primary">${u.score}</td>
                     <td class="border px-4 py-2">${u.wins}</td>
                     <td class="border px-4 py-2">${u.games}</td>
@@ -50,7 +52,7 @@
             console.error('排行榜加载失败:', error);
             const tbody = document.getElementById('leaderboardTable');
             if (tbody) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-red-500">加载失败: ' + (error.message || '未知错误') + '</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-red-500">加载失败: ' + (error.message || '未知错误') + '</td></tr>';
             }
         }
     };

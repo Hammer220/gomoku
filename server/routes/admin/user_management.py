@@ -44,7 +44,6 @@ def admin_get_users(admin_user):
                 'lastLogin': user_data.get('lastLogin', ''),
                 'isAdmin': user_data.get('isAdmin', False),
                 'isSuperAdmin': user_data.get('isSuperAdmin', False),
-                'isGuest': username.startswith('guest_'),
                 'canManage': user_data.get('canManage', True),
                 'bannedUntil': banned_until,
                 'isBanned': is_banned,

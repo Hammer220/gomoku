@@ -112,6 +112,18 @@
         }
     });
 
+    document.getElementById('aiMaster').addEventListener('click', function() {
+        if (G.aiDifficulty === 'master') return;
+        G.aiDifficulty = 'master';
+        G.updateDifficultyButtons();
+        if (G.gameMode === 'ai' && G.gameActive && G.moveHistory.length > 0) {
+            G.resetGame();
+            G.showToast('AI难度已设为大师，游戏重新开始');
+        } else {
+            G.showToast('AI难度已设置为大师');
+        }
+    });
+
     document.getElementById('aiForbidden').addEventListener('change', function(e) {
         G.aiForbidden = e.target.checked;
         if (G.gameMode === 'ai' && G.gameActive && G.moveHistory.length > 0) {

@@ -15,6 +15,7 @@ from ..models import (get_user, save_user, save_plain_password, get_plain_passwo
                       load_settings, save_settings)
 from ..auth import require_auth
 from ..logger import logger
+from .auth_routes import calculate_rank
 
 user_bp = Blueprint('user', __name__)
 
@@ -24,6 +25,7 @@ def get_profile(user):
     return jsonify({
         'username': user['username'],
         'score': user.get('score', 0),
+        'rank': calculate_rank(user.get('score', 0)),
         'wins': user.get('wins', 0),
         'games': user.get('games', 0),
         'joinDate': user.get('joinDate', ''),
@@ -221,10 +223,10 @@ def get_saves(user):
             for save in saves:
                 if save.get('username') == user['username']:
                     user_saves.append(save)
-        return jsonify({'saves': user_saves[:20]})
+        return jsonify(user_saves[:20])
     except Exception as e:
         logger.error(f'获取存档错误: {str(e)}')
-        return jsonify({'saves': []})
+        return jsonify([])
 
 @user_bp.route('/api/saves/save', methods=['POST'])
 @require_auth
@@ -263,6 +265,42 @@ def delete_save_route(user, save_id):
         return jsonify({'error': '存档不存在'}), 404
     except Exception as e:
         logger.error(f'删除存档错误: {str(e)}')
+        return jsonify({'error': '服务器内部错误'}), 500
+
+@user_bp.route('/api/saves/import', methods=['POST'])
+@require_auth
+def import_save(user):
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+
+        if data.get('type') != 'gomoku_save':
+            return jsonify({'error': '无效的文件格式'}), 400
+
+        moves = data.get('moves', data.get('moveHistory', []))
+        if not isinstance(moves, list):
+            moves = []
+
+        save_data = {
+            'player': user['username'],
+            'board': data.get('board', []),
+            'moves': moves,
+            'currentPlayer': data.get('currentPlayer', 1),
+            'mode': data.get('mode', 'ai'),
+            'timestamp': int(time.time()),
+            'name': data.get('name', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+            'gameTime': data.get('gameTime', 0),
+            'difficulty': data.get('difficulty', 'medium'),
+            'blackTime': data.get('blackTime', 600),
+            'whiteTime': data.get('whiteTime', 600),
+            'playerColor': data.get('playerColor', 1)
+        }
+        save_save(save_data)
+
+        return jsonify({'success': True, 'message': '棋局导入成功'})
+    except Exception as e:
+        logger.error(f'导入棋局错误: {str(e)}')
         return jsonify({'error': '服务器内部错误'}), 500
 
 @user_bp.route('/api/settings', methods=['GET'])
@@ -321,9 +359,8 @@ def password_free_info():
 
 
 @user_bp.route('/api/backgrounds', methods=['GET'])
-@require_auth
-def get_backgrounds(user):
-    """获取可用的棋盘背景图片列表"""
+def get_backgrounds():
+    """获取可用的棋盘背景图片列表（访客可访问）"""
     try:
         picture_dir = os.path.join(SCRIPT_DIR, 'picture')
         if not os.path.isdir(picture_dir):

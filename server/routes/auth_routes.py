@@ -12,7 +12,8 @@ from flask import Blueprint, request, jsonify
 
 from ..config import (GT4_CAPTCHA_ID, GT4_LOGIN_CAPTCHA_ID,
                       GT4_LOGIN_CAPTCHA_KEY, LOGIN_VERIFY_URL,
-                      get_config, CAPTCHA_ENABLED)
+                      get_config)
+                      # TURNSTILE_SITE_KEY
 from ..models import (get_user, save_user, delete_user, save_plain_password,
                       get_plain_password, get_admin_permissions,
                       add_token, remove_token)
@@ -23,13 +24,33 @@ from ..logger import logger
 
 auth_bp = Blueprint('auth', __name__)
 
+RANK_CONFIG = [
+    {'name': '无段位', 'min_score': float('-inf'), 'max_score': 0},
+    {'name': '入门', 'min_score': 0, 'max_score': 100},
+    {'name': '初段', 'min_score': 100, 'max_score': 300},
+    {'name': '二段', 'min_score': 300, 'max_score': 600},
+    {'name': '三段', 'min_score': 600, 'max_score': 1000},
+    {'name': '四段', 'min_score': 1000, 'max_score': 1500},
+    {'name': '五段', 'min_score': 1500, 'max_score': 2000},
+    {'name': '六段', 'min_score': 2000, 'max_score': 3000},
+    {'name': '七段', 'min_score': 3000, 'max_score': 4000},
+    {'name': '八段', 'min_score': 4000, 'max_score': 5000},
+    {'name': '九段', 'min_score': 5000, 'max_score': float('inf')}
+]
+
+def calculate_rank(score):
+    for rank in RANK_CONFIG:
+        if rank['min_score'] <= score < rank['max_score']:
+            return rank['name']
+    return RANK_CONFIG[-1]['name']
+
 @auth_bp.route('/api/config', methods=['GET'])
 def api_config():
     """获取前端配置（验证码 ID 等）"""
     return jsonify({
         'captchaId': GT4_CAPTCHA_ID,
         'loginCaptchaId': GT4_LOGIN_CAPTCHA_ID,
-        'captchaEnabled': CAPTCHA_ENABLED,
+        # 'turnstileSiteKey': TURNSTILE_SITE_KEY
     })
 
 @auth_bp.route('/api/register', methods=['POST'])
@@ -58,14 +79,18 @@ def register():
             return jsonify({'error': '密码长度至少为6个字符'}), 400
 
         if not geetest_lot:
-            if CAPTCHA_ENABLED:
-                return jsonify({'error': '请完成验证码验证'}), 400
-        else:
-            if CAPTCHA_ENABLED:
-                geetest_success, geetest_msg = geetest_verify(geetest_lot, geetest_output, geetest_pass, geetest_gen_time)
-                if not geetest_success:
-                    return jsonify({'error': geetest_msg}), 400
-                logger.info(f'极验验证通过，用户名: {username}')
+            return jsonify({'error': '请完成验证码验证'}), 400
+
+        # if turnstile_token:
+        #     turnstile_success, turnstile_msg = turnstile_verify(turnstile_token)
+        #     if not turnstile_success:
+        #         return jsonify({'error': turnstile_msg}), 400
+        #     logger.info(f'Turnstile验证通过，用户名: {username}')
+        # else:
+        geetest_success, geetest_msg = geetest_verify(geetest_lot, geetest_output, geetest_pass, geetest_gen_time)
+        if not geetest_success:
+            return jsonify({'error': geetest_msg}), 400
+        logger.info(f'极验验证通过，用户名: {username}')
 
         existing_user = get_user(username)
         if existing_user:
@@ -98,6 +123,7 @@ def register():
             'user': {
                 'username': username,
                 'score': 0,
+                'rank': calculate_rank(0),
                 'wins': 0,
                 'games': 0,
                 'isAdmin': False,
@@ -128,18 +154,22 @@ def login():
             return jsonify({'error': '用户名和密码不能为空'}), 400
 
         if not geetest_lot:
-            if CAPTCHA_ENABLED:
-                return jsonify({'error': '请完成验证码验证'}), 400
-        else:
-            if CAPTCHA_ENABLED:
-                geetest_success, geetest_msg = geetest_verify(
-                    geetest_lot, geetest_output, geetest_pass, geetest_gen_time,
-                    captcha_id=GT4_LOGIN_CAPTCHA_ID,
-                    captcha_key=GT4_LOGIN_CAPTCHA_KEY, verify_url=LOGIN_VERIFY_URL
-                )
-                if not geetest_success:
-                    return jsonify({'error': geetest_msg}), 400
-                logger.info(f'极验登录验证通过，用户名: {username}')
+            return jsonify({'error': '请完成验证码验证'}), 400
+
+        # if turnstile_token:
+        #     turnstile_success, turnstile_msg = turnstile_verify(turnstile_token)
+        #     if not turnstile_success:
+        #         return jsonify({'error': turnstile_msg}), 400
+        #     logger.info(f'Turnstile登录验证通过，用户名: {username}')
+        # else:
+        geetest_success, geetest_msg = geetest_verify(
+            geetest_lot, geetest_output, geetest_pass, geetest_gen_time,
+            captcha_id=GT4_LOGIN_CAPTCHA_ID,
+            captcha_key=GT4_LOGIN_CAPTCHA_KEY, verify_url=LOGIN_VERIFY_URL
+        )
+        if not geetest_success:
+            return jsonify({'error': geetest_msg}), 400
+        logger.info(f'极验登录验证通过，用户名: {username}')
 
         user = get_user(username)
         if not user:
@@ -172,6 +202,7 @@ def login():
             'user': {
                 'username': username,
                 'score': user.get('score', 0),
+                'rank': calculate_rank(user.get('score', 0)),
                 'wins': user.get('wins', 0),
                 'games': user.get('games', 0),
                 'isAdmin': user.get('isAdmin', False),
@@ -193,44 +224,6 @@ def logout(user):
     except Exception as e:
         logger.error(f'退出错误: {str(e)}')
         return jsonify({'success': True})
-
-@auth_bp.route('/api/guest/register', methods=['POST'])
-def register_guest():
-    """注册访客账号：在数据库中创建访客用户记录"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': '无效的请求数据'}), 400
-
-        username = data.get('username', '').strip()
-        if not username or not username.startswith('guest_'):
-            return jsonify({'error': '无效的访客用户名'}), 400
-
-        existing_user = get_user(username)
-        if existing_user:
-            logger.info(f'访客账号已存在: {username}')
-            return jsonify({'success': True, 'message': '访客账号已存在'})
-
-        user_data = {
-            'username': username,
-            'password': '',
-            'score': 1000,
-            'wins': 0,
-            'games': 0,
-            'joinDate': datetime.now().strftime('%Y-%m-%d'),
-            'lastLogin': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'isAdmin': False,
-            'isSuperAdmin': False,
-            'bannedUntil': None
-        }
-        save_user(username, user_data)
-
-        logger.info(f'访客账号注册成功: {username}')
-        return jsonify({'success': True, 'message': '访客账号注册成功'})
-    except Exception as e:
-        logger.error(f'注册访客账号错误: {str(e)}')
-        return jsonify({'error': '注册访客账号失败'}), 500
-
 
 @auth_bp.route('/api/guest/delete', methods=['POST'])
 def delete_guest():
@@ -258,6 +251,7 @@ def current_user_route(user):
     result = {
         'username': user['username'],
         'score': user.get('score', 0),
+        'rank': calculate_rank(user.get('score', 0)),
         'wins': user.get('wins', 0),
         'games': user.get('games', 0),
         'joinDate': user.get('joinDate', ''),
@@ -316,6 +310,7 @@ def login_password_free():
             'user': {
                 'username': username,
                 'score': user.get('score', 0),
+                'rank': calculate_rank(user.get('score', 0)),
                 'wins': user.get('wins', 0),
                 'games': user.get('games', 0),
                 'isAdmin': user.get('isAdmin', False),

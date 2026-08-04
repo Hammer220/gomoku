@@ -124,16 +124,31 @@
         });
     }
 
+    // AI 难度：大师
+    var aiMaster = $('aiMaster');
+    if (aiMaster) {
+        aiMaster.addEventListener('click', function() {
+            if (G.aiDifficulty === 'master') return;
+            G.aiDifficulty = 'master';
+            G.updateDifficultyButtons();
+            if (G.gameMode === 'ai' && G.gameActive && G.moveHistory.length > 0) {
+                G.resetGame();
+                G.showToast('AI难度已设为大师，游戏重新开始');
+            } else {
+                G.showToast('AI难度已设置为大师');
+            }
+        });
+    }
+
     // 禁手规则开关
     var pvpForbidden = $('pvpForbidden');
     if (pvpForbidden) {
         pvpForbidden.addEventListener('change', function(e) {
             G.pvpForbidden = e.target.checked;
+            G.showToast(G.pvpForbidden ? '已启用禁手规则' : '已禁用禁手规则');
             if (G.gameMode === 'pvp' && G.gameActive && G.moveHistory.length > 0) {
                 G.resetGame();
-                G.showToast('禁手规则已更改，游戏重新开始');
-            } else {
-                G.showToast(G.pvpForbidden ? '已启用禁手规则' : '已禁用禁手规则');
+                G.showToast('设置已更改，游戏重新开始');
             }
         });
     }
@@ -162,10 +177,75 @@
                 if (display) display.classList.add('hidden');
             }
             G.showToast('时间限制: ' + timeLabels[index]);
-            if (G.gameMode === 'pvp' && G.gameActive && G.moveHistory.length > 0) {
+            if (G.gameMode === 'pvp' && G.gameActive) {
                 G.stopPvpTurnTimer();
                 G.resetGame();
             }
         });
     });
+
+    // 规则模式按钮组 - PVP
+    var pvpRuleButtons = ['ruleStandard', 'ruleRenju', 'ruleFree'];
+    pvpRuleButtons.forEach(function(id) {
+        var btn = $(id);
+        if (!btn) return;
+        btn.addEventListener('click', function() {
+            var mode = id === 'ruleStandard' ? 'standard' : (id === 'ruleRenju' ? 'renju' : 'free');
+            if (G.ruleMode === mode) return;
+            G.ruleMode = mode;
+            G.updateRuleModeButtons && G.updateRuleModeButtons();
+            G.showToast('规则模式: ' + G.getRuleModeName(mode));
+            if (G.gameMode === 'pvp' && G.gameActive && G.moveHistory.length > 0) {
+                G.resetGame();
+            }
+        });
+    });
+
+    // 规则模式按钮组 - AI
+    var aiRuleButtons = ['aiRuleStandard', 'aiRuleRenju', 'aiRuleFree'];
+    aiRuleButtons.forEach(function(id) {
+        var btn = $(id);
+        if (!btn) return;
+        btn.addEventListener('click', function() {
+            var mode = id === 'aiRuleStandard' ? 'standard' : (id === 'aiRuleRenju' ? 'renju' : 'free');
+            if (G.aiRuleMode === mode) return;
+            G.aiRuleMode = mode;
+            G.updateAiRuleModeButtons && G.updateAiRuleModeButtons();
+            G.showToast('AI规则模式: ' + G.getRuleModeName(mode));
+            if (G.gameMode === 'ai' && G.gameActive && G.moveHistory.length > 0) {
+                G.resetGame();
+            }
+        });
+    });
+
+    // 更新规则模式按钮状态
+    G.updateRuleModeButtons = function() {
+        var buttons = ['ruleStandard', 'ruleRenju', 'ruleFree'];
+        var modes = ['standard', 'renju', 'free'];
+        buttons.forEach(function(id, index) {
+            var btn = $(id);
+            if (btn) {
+                if (modes[index] === G.ruleMode) {
+                    btn.classList.add('bg-primary', 'text-white');
+                } else {
+                    btn.classList.remove('bg-primary', 'text-white');
+                }
+            }
+        });
+    };
+
+    G.updateAiRuleModeButtons = function() {
+        var buttons = ['aiRuleStandard', 'aiRuleRenju', 'aiRuleFree'];
+        var modes = ['standard', 'renju', 'free'];
+        buttons.forEach(function(id, index) {
+            var btn = $(id);
+            if (btn) {
+                if (modes[index] === G.aiRuleMode) {
+                    btn.classList.add('bg-primary', 'text-white');
+                } else {
+                    btn.classList.remove('bg-primary', 'text-white');
+                }
+            }
+        });
+    };
 })();

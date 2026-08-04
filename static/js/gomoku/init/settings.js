@@ -84,11 +84,12 @@
         G.renderHistory();
     });
 
+    G.initCanvasObserver();
+
     window.addEventListener('resize', function() {
         G.drawBoard();
         G.drawOnlineBoard();
     });
-    G.initCanvasObserver();
 
     window.addEventListener('beforeunload', function(event) {
         G.stopStatusCheck();

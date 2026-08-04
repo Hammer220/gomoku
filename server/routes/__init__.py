@@ -6,6 +6,7 @@ import os
 from flask import send_from_directory, render_template
 
 from .auth_routes import auth_bp
+from ..auth import login_required
 from .user_routes import user_bp
 from .admin_routes import admin_bp
 from .match_routes import match_bp
@@ -36,31 +37,37 @@ def register_routes(app):
         return render_template('login.html')
 
     # 游戏大厅页面
+    @login_required
     @app.route('/game')
     def game_page():
         return render_template('game.html')
 
     # 游戏大厅页面（带房间号，直接访问链接进入房间）
+    @login_required
     @app.route('/game/<match_id>')
     def game_page_with_match(match_id):
         return render_template('game.html', match_id=match_id)
 
     # 个人中心页面
+    @login_required
     @app.route('/user')
     def user_page():
         return render_template('user.html')
 
     # 管理后台页面
+    @login_required
     @app.route('/admin')
     def admin_page():
         return render_template('admin.html')
 
     # 消息页面
+    @login_required
     @app.route('/messages')
     def messages_page():
         return render_template('messages.html')
 
     # 设置页面
+    @login_required
     @app.route('/settings')
     def settings_page():
         return render_template('settings.html')

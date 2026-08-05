@@ -2,8 +2,8 @@
 <div id="onlineContent" class="content-panel hidden relative">
     <!-- 访客模式遮罩 -->
     <div id="guestOnlineOverlay" class="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-30 hidden modal-overlay">
-        <div class="modal-content bg-white rounded-2xl p-6 max-w-sm w-full mx-4 text-center card-3d-hover">
-            <div class="inline-flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100">
+        <div class="modal-content bg-white rounded-2xl p-6 max-w-sm w-full mx-4 text-center card-3d-hover shadow-2xl">
+            <div class="inline-flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-gray-100 to-gray-200">
                 <i class="fa-solid fa-user-slash text-gray-400 text-2xl"></i>
             </div>
             <h3 class="text-xl font-bold text-gray-800 mb-2">访客模式</h3>
@@ -24,17 +24,20 @@
                     </div>
                 </div>
                 <div class="online-status-bar">
-                    <p id="onlineStatusText" class="online-status-title"><span id="onlineStatusLight" class="inline-block w-3 h-3 bg-gray-400 rounded-full mr-2"></span><span id="onlineStatusLabel">等待加入房间...</span></p>
+                    <div class="online-status-title">
+                        <span id="onlineStatusLight" class="inline-block w-3 h-3 bg-gray-400 rounded-full shadow-sm"></span>
+                        <span id="onlineStatusLabel">等待加入房间...</span>
+                    </div>
                     <div class="online-status-info">
-                        <span><i class="fa-solid fa-list-numbered mr-1"></i>步数: <span id="onlineMoveCount">0</span></span>
-                        <span><i class="fa-solid fa-clock mr-1"></i>时间: <span id="onlineGameTimeDisplay">00:00</span></span>
-                        <span><i class="fa-solid fa-door-open mr-1"></i>房间号: <span id="onlineMatchIdDisplay">-</span></span>
+                        <span><i class="fa-solid fa-list-numbered"></i>步数: <strong id="onlineMoveCount">0</strong></span>
+                        <span><i class="fa-solid fa-clock"></i>时间: <strong id="onlineGameTimeDisplay">00:00</strong></span>
+                        <span><i class="fa-solid fa-door-open"></i>房间号: <strong id="onlineMatchIdDisplay">-</strong></span>
                     </div>
                     <!-- 计时模式倒计时 -->
                     <div id="timedCountdown" class="online-timer hidden">
                         <div class="online-timer-info">
-                            <span><i class="fa-solid fa-circle text-black mr-1"></i>黑棋剩余: <span id="blackTimeDisplay" class="timer-value">10:00</span></span>
-                            <span><i class="fa-solid fa-circle text-white mr-1"></i>白棋剩余: <span id="whiteTimeDisplay" class="timer-value">10:00</span></span>
+                            <span id="onlineBlackSection"><i class="fa-solid fa-circle text-gray-900"></i>黑棋剩余: <strong id="blackTimeDisplay" class="timer-value">10:00</strong></span>
+                            <span id="onlineWhiteSection"><i class="fa-solid fa-circle text-gray-300"></i>白棋剩余: <strong id="whiteTimeDisplay" class="timer-value">10:00</strong></span>
                         </div>
                         <div id="moveDeadlineBar" class="progress-bar hidden">
                             <div id="moveDeadlineFill" class="progress-bar-fill" style="width: 100%"></div>
@@ -49,11 +52,11 @@
                     <!-- 房间大厅面板（未进入棋局时显示） -->
                     <div id="onlineLobbyPanel">
                         <div class="card-padded hover-lift">
-                            <div class="panel-title">
+                            <div class="online-section-title">
                                 <i class="fa-solid fa-door-open"></i><span>房间大厅</span>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label"><i class="fa-solid fa-clock mr-1"></i>计时模式</label>
+                            <div class="online-form-group">
+                                <label class="online-form-label"><i class="fa-solid fa-clock"></i>计时模式</label>
                                 <select id="timeModeSelect" class="form-select input-focus-animate">
                                     <option value="untimed">无计时</option>
                                     <option value="move">每步限时 (30秒)</option>
@@ -61,22 +64,22 @@
                                     <option value="both">每步限时 + 总时间</option>
                                 </select>
                             </div>
-                            <div class="mb-3 space-y-2">
+                            <div class="online-form-group">
                                 <label class="info-row">
                                     <input type="checkbox" id="allowSpectateCheck" checked class="form-checkbox">
                                     <span class="text-sm text-gray-600"><i class="fa-solid fa-eye mr-1"></i>允许观战</span>
                                 </label>
-                                <div>
-                                    <label class="form-label"><i class="fa-solid fa-key mr-1"></i>房间密码（可选）</label>
-                                    <input type="text" id="roomPasswordInput" placeholder=" " class="form-input input-focus-animate">
-                                </div>
+                            </div>
+                            <div class="online-form-group">
+                                <label class="online-form-label"><i class="fa-solid fa-key"></i>房间密码（可选）</label>
+                                <input type="text" id="roomPasswordInput" placeholder="留空则不设密码" class="form-input input-focus-animate">
                             </div>
                             <button id="onlineCreateBtn" class="btn-primary btn-ripple w-full mb-3">
                                 <i class="fa-solid fa-plus mr-2"></i>创建房间
                             </button>
                             <div class="room-join-group">
-                                <input type="text" id="onlineMatchIdInput" placeholder=" " class="form-input input-focus-animate">
-                                <input type="password" id="joinPasswordInput" placeholder="房间密码" class="form-input w-24 input-focus-animate">
+                                <input type="text" id="onlineMatchIdInput" placeholder="房间号" class="form-input input-focus-animate">
+                                <input type="password" id="joinPasswordInput" placeholder="密码" class="form-input w-24 input-focus-animate">
                                 <button id="onlineJoinBtn" class="btn-primary btn-sm btn-ripple">
                                     <i class="fa-solid fa-right-to-bracket mr-1"></i>加入
                                 </button>
@@ -91,7 +94,7 @@
                         </div>
 
                         <div class="card-padded hover-lift">
-                            <div class="panel-title">
+                            <div class="online-section-title">
                                 <i class="fa-solid fa-eye"></i><span>观战大厅</span>
                                 <span id="spectateCount" class="text-xs text-gray-400 ml-1"></span>
                             </div>
@@ -103,16 +106,16 @@
                     </div>
 
                     <!-- 房间聊天面板 -->
-                    <div id="roomChatPanel" class="card-padded hidden">
-                        <div class="panel-title">
+                    <div id="roomChatPanel" class="card-padded hidden hover-lift">
+                        <div class="online-section-title">
                             <i class="fa-solid fa-comments"></i><span>房间聊天</span>
                             <button onclick="Gomoku.toggleRoomChat()" class="btn-ghost btn-xs ml-auto">
-                                <i class="fa-solid fa-times"></i>
+                                <i class="fa-solid fa-minus"></i>
                             </button>
                         </div>
                         <div id="roomChatMessages" class="chat-messages-container"></div>
                         <div class="chat-input-group">
-                            <input type="text" id="roomChatInput" placeholder=" " class="form-input flex-1 input-focus-animate" onkeypress="if(event.key==='Enter')Gomoku.sendRoomChatMessage()">
+                            <input type="text" id="roomChatInput" placeholder="输入消息..." class="form-input flex-1 input-focus-animate" onkeypress="if(event.key==='Enter')Gomoku.sendRoomChatMessage()">
                             <button onclick="Gomoku.sendRoomChatMessage()" class="btn-primary btn-sm btn-ripple">
                                 <i class="fa-solid fa-paper-plane"></i>
                             </button>
@@ -121,7 +124,7 @@
 
                     <!-- 房间信息 -->
                     <div class="card-padded hover-lift">
-                        <div class="panel-title">
+                        <div class="online-section-title">
                             <i class="fa-solid fa-info-circle"></i><span>房间信息</span>
                         </div>
                         <div id="roomInfo" class="space-y-2 text-sm">
@@ -133,21 +136,13 @@
                                     <i class="fa-solid fa-link mr-1"></i>复制观战链接
                                 </button>
                                 <div id="undoDrawActions" class="action-btn-group hidden">
-                                    <div class="action-btn-row">
-                                        <button id="requestUndoBtn" class="action-btn action-btn-undo btn-ripple">
-                                            <i class="fa-solid fa-undo mr-1"></i>悔棋
-                                        </button>
-                                        <button id="requestDrawBtn" class="action-btn action-btn-draw btn-ripple">
-                                            <i class="fa-solid fa-handshake mr-1"></i>求和
-                                        </button>
-                                    </div>
+                                    <button id="requestDrawBtn" class="action-btn-full action-btn-draw btn-ripple">
+                                        <i class="fa-solid fa-handshake mr-1"></i>求和
+                                    </button>
                                     <button id="resignBtn" class="action-btn-full action-btn-resign btn-ripple">
                                         <i class="fa-solid fa-flag mr-1"></i>认输
                                     </button>
                                 </div>
-                                <button id="closeRoomBtn" class="action-btn-full action-btn-close btn-ripple">
-                                    <i class="fa-solid fa-door-closed mr-1"></i>关闭房间
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -160,6 +155,19 @@
                         <button id="spectateLeaveBtn" class="btn-danger btn-ripple w-full hidden">
                             <i class="fa-solid fa-right-from-bracket mr-1"></i>退出观战
                         </button>
+                    </div>
+
+                    <!-- 求和请求弹窗 -->
+                    <div id="drawRequestOverlay" class="hidden mt-3 p-4 rounded-xl text-center border border-amber-200 bg-gradient-to-br from-amber-50 to-yellow-50 shadow-lg">
+                        <p class="text-amber-700 font-medium mb-3"><i class="fa-solid fa-handshake mr-1"></i>对手请求和棋</p>
+                        <div class="flex space-x-3 justify-center">
+                            <button onclick="Gomoku.acceptOnlineDraw()" class="btn-primary btn-sm btn-ripple">
+                                <i class="fa-solid fa-check mr-1"></i>同意
+                            </button>
+                            <button onclick="Gomoku.declineOnlineDraw()" class="btn-secondary btn-sm btn-ripple">
+                                <i class="fa-solid fa-times mr-1"></i>拒绝
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

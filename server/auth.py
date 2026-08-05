@@ -53,12 +53,11 @@ def geetest_verify(lot_number, captcha_output, pass_token, gen_time,
     use_verify_url = verify_url if verify_url else VERIFY_URL
 
     if not all([lot_number, captcha_output, pass_token, gen_time]):
-        logger.warning('极验参数不完整')
-        return False, '验证码参数缺失'
+        logger.warning('极验参数不完整，可能为前端容灾模式')
 
     hmac_obj = hmac.new(
         use_captcha_key.encode('utf-8'),
-        lot_number.encode('utf-8'),
+        (lot_number or '').encode('utf-8'),
         hashlib.sha256
     )
     sign_token = hmac_obj.hexdigest()
@@ -80,23 +79,26 @@ def geetest_verify(lot_number, captcha_output, pass_token, gen_time,
         resp = requests.post(use_verify_url, data=params, headers=headers, timeout=10)
         logger.info(f'极验请求状态码: {resp.status_code}, 原始返回: {repr(resp.text)}')
         if resp.status_code != 200:
-            return False, f'接口请求异常，状态码：{resp.status_code}'
+            logger.warning(f'极验接口返回非200状态码: {resp.status_code}，触发容灾模式')
+            return True, 'request geetest api fail'
         resp_text = resp.text.strip()
         if not resp_text:
-            return False, '极验接口返回空数据'
+            logger.warning('极验接口返回空数据，触发容灾模式')
+            return True, 'request geetest api fail'
         if not resp_text.startswith('{'):
-            return False, '接口返回非JSON（域名未授权/请求非法）'
+            logger.warning('极验接口返回非JSON数据，触发容灾模式')
+            return True, 'request geetest api fail'
         data = resp.json()
         if data.get('result') == 'success':
             return True, '验证码验证通过'
         else:
             return False, f"验证失败：{data.get('reason', '未知原因')}"
     except requests.exceptions.RequestException as e:
-        logger.error(f'极验网络请求异常: {str(e)}')
-        return False, '网络请求超时/连接失败'
+        logger.error(f'极验网络请求异常: {str(e)}，触发容灾模式')
+        return True, 'request geetest api fail'
     except Exception as e:
-        logger.error(f'极验校验全局异常: {str(e)}')
-        return False, f'系统异常：{str(e)}'
+        logger.error(f'极验校验全局异常: {str(e)}，触发容灾模式')
+        return True, 'request geetest api fail'
 
 def get_current_user():
     return get_current_user_from_request(request)

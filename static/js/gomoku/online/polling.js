@@ -1,7 +1,7 @@
 // ============================================================
-// 联机对战模块 - 轮询
-// 负责：后台轮询更新对局状态、自动重连、心跳
-// WebSocket优先：WebSocket连接时自动停止轮询，断开时恢复轮询
+// 联机对战模块 - WebSocket实时同步
+// 负责：通过WebSocket实时更新对局状态、自动重连、心跳
+// 已移除HTTP轮询，所有状态更新通过WebSocket推送
 // ============================================================
 
 var Gomoku = window.Gomoku || {};
@@ -19,16 +19,11 @@ var Gomoku = window.Gomoku || {};
     G.maxPollingInterval = 10000;
 
     G.startOnlinePolling = function() {
-        if (G.onlinePollingTimer) return;
-        if (G.WebSocketManager && G.WebSocketManager.usingWebSocket) return;
-        G.onlinePollingTimer = setInterval(G.pollOnlineMatch, G.currentPollingInterval);
+        // WebSocket模式下不需要轮询
     };
 
     G.stopOnlinePolling = function() {
-        if (G.onlinePollingTimer) {
-            clearInterval(G.onlinePollingTimer);
-            G.onlinePollingTimer = null;
-        }
+        // WebSocket模式下不需要轮询
     };
 
     G.startHeartbeat = function() {
@@ -56,24 +51,7 @@ var Gomoku = window.Gomoku || {};
     };
 
     G.pollOnlineMatch = async function() {
-        if (!G.onlineMatchId || !G.onlineGameActive) return;
-        if (G.WebSocketManager && G.WebSocketManager.usingWebSocket) return;
-        try {
-            var res = await G.apiCall('/api/match/' + G.onlineMatchId + '/status', 'GET');
-            if (res.error) {
-                console.warn('轮询错误:', res.error);
-                return;
-            }
-            G.processMatchData(res);
-        } catch (e) {
-            console.error('轮询错误:', e);
-            G.reconnectAttempts = (G.reconnectAttempts || 0) + 1;
-            if (G.reconnectAttempts > 5) {
-                G.currentPollingInterval = Math.min(G.currentPollingInterval + 1000, G.maxPollingInterval);
-                G.stopOnlinePolling();
-                G.startOnlinePolling();
-            }
-        }
+        // WebSocket模式下不需要轮询
     };
 
     G.processMatchData = function(res) {
@@ -86,6 +64,10 @@ var Gomoku = window.Gomoku || {};
             G.stopTimedCountdown();
             G.stopHeartbeat();
             var message = '对局已结束';
+            if (res.winner === 0) {
+                G.showGameEndDialog(null, '双方同意和棋');
+                return;
+            }
             if (res.finishedReason === 'opponent_left') {
                 message = '对手已离开，' + (res.winner === G.onlineMyColor ? '你获胜了！' : '你输了');
             } else if (res.status === 'closed') {
@@ -184,6 +166,11 @@ var Gomoku = window.Gomoku || {};
             G.stopTimedCountdown();
             var myWin = res.winner === G.onlineMyColor;
 
+            if (res.winner === 0) {
+                G.showGameEndDialog(null, '双方同意和棋');
+                return;
+            }
+
             var message = '';
             if (res.winReason === 'opponent_left') {
                 message = '对手已离开';
@@ -206,6 +193,10 @@ var Gomoku = window.Gomoku || {};
         }
 
         G.updateOnlineTimers();
+
+        if (res.spectatorCount !== undefined) {
+            G.updateSpectatorCount(res.spectatorCount);
+        }
 
         if (res.undoRequested && res.undoRequestedBy && res.undoRequestedBy !== G.username) {
             G.showUndoRequestPrompt();
@@ -321,22 +312,50 @@ var Gomoku = window.Gomoku || {};
         });
 
         G.WebSocketManager.on('connected', function() {
-            console.log('WebSocket已连接，停止HTTP轮询');
-            G.stopOnlinePolling();
+            console.log('WebSocket已连接');
         });
 
         G.WebSocketManager.on('disconnected', function() {
-            console.log('WebSocket连接断开，恢复HTTP轮询');
-            G.showToast('WebSocket连接断开，切换到轮询模式', true);
-            if (G.onlineMatchId && G.onlineGameActive) {
-                G.startOnlinePolling();
+            console.log('WebSocket连接断开，尝试重连...');
+            G.showToast('WebSocket连接断开，正在重连...', true);
+        });
+
+        G.WebSocketManager.on('not_authenticated', function() {
+            console.log('WebSocket认证失败，请重新登录');
+            G.showToast('认证失败，请重新登录', true);
+        });
+
+        G.WebSocketManager.on('ws_error', function(data) {
+            console.error('WebSocket错误:', data);
+            if (data && data.message) {
+                G.showToast(data.message, true);
             }
         });
 
-        G.WebSocketManager.on('polling_started', function() {
-            console.log('已切换到轮询模式');
-            if (G.onlineMatchId && G.onlineGameActive) {
-                G.startOnlinePolling();
+        G.WebSocketManager.on('game_over', function(data) {
+            console.log('WebSocket收到游戏结束:', data);
+            if (data.match_id === G.onlineMatchId) {
+                G.onlineGameActive = false;
+                G.stopOnlineTimer();
+                G.stopTimedCountdown();
+                var myWin = data.winner === G.onlineMyColor;
+                var message = data.reason || '游戏结束';
+                G.showGameEndDialog(myWin, message);
+            }
+        });
+
+        G.WebSocketManager.on('match_started', function(data) {
+            console.log('WebSocket收到对局开始:', data);
+            if (data.match_id === G.onlineMatchId) {
+                G.onlineGameActive = true;
+                G.onlineBoard = data.board.map(function(r) { return r.slice(); });
+                G.onlineCurrentPlayer = data.currentPlayer;
+                G.onlineMoveHistory = [];
+                if (G.drawOnlineBoard) G.drawOnlineBoard();
+                G.updateOnlineUI();
+                G.startOnlineTimer();
+                G.startTimedCountdown();
+                G.showToast('对局开始！');
             }
         });
     };

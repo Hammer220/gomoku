@@ -80,14 +80,13 @@ var Gomoku = window.Gomoku || {};
         }
     };
 
-    G.spectateFromList = function(matchId, hasPassword) {
-        if (hasPassword) {
-            var pwd = prompt('该房间需要密码，请输入密码：');
-            if (pwd === null) return;
-            G.spectateMatch(matchId, true);
-        } else {
-            G.spectateMatch(matchId, false);
+    G.spectateFromList = function(matchId, spectateToken) {
+        if (!spectateToken) {
+            G.showToast('该房间不允许观战', true);
+            return;
         }
+        var url = window.location.origin + '/spectate?room=' + matchId + '&token=' + spectateToken;
+        window.open(url, '_blank');
     };
 
     G.loadAvailableMatches = async function() {
@@ -100,10 +99,13 @@ var Gomoku = window.Gomoku || {};
                 container.innerHTML = '<div class="text-center text-gray-500 py-8 text-sm">暂无可用房间，请自己创建一个吧</div>';
                 return;
             }
-            var html = '<div class="space-y-2 max-h-48 overflow-y-auto">';
+            var timeModeNames = {untimed: '无计时', move: '每步限时', total: '总时间', both: '每步+总时间'};
+            var html = '<div class="space-y-2 max-h-64 overflow-y-auto">';
             matches.forEach(function(match) {
                 var lockIcon = match.hasPassword ? '<i class="fa-solid fa-lock text-amber-500 mr-1"></i>' : '';
-                var spectateIcon = match.allowSpectate ? '<button onclick="Gomoku.spectateFromList(\'' + match.id + '\', ' + (match.hasPassword ? 'true' : 'false') + ')" class="text-blue-500 hover:text-blue-700 transition-colors"><i class="fa-solid fa-eye"></i></button>' : '';
+                var spectateBtn = match.allowSpectate && match.spectateToken ?
+                    '<button onclick="event.stopPropagation();Gomoku.spectateFromList(\'' + match.id + '\', \'' + match.spectateToken + '\')" class="text-blue-500 hover:text-blue-700 transition-colors ml-1" title="观战"><i class="fa-solid fa-eye"></i></button>' : '';
+                var timeModeLabel = timeModeNames[match.timeMode] || '无计时';
                 
                 if (match.hasPassword) {
                     html += '\
@@ -113,11 +115,14 @@ var Gomoku = window.Gomoku || {};
                                     ' + lockIcon + '<span class="font-mono font-bold text-gray-800">' + match.id + '</span>\
                                 </div>\
                                 <div class="flex items-center gap-2">\
-                                    ' + spectateIcon + '\
+                                    ' + spectateBtn + '\
                                     <span class="text-xs px-2 py-1 bg-amber-200 text-amber-800 rounded-full">私人</span>\
                                 </div>\
                             </div>\
-                            <div class="text-sm text-gray-600 mt-1">创建者: ' + match.creator + '</div>\
+                            <div class="text-sm text-gray-600 mt-1">\
+                                创建者: ' + match.creator + '\
+                                <span class="text-xs text-gray-400 ml-2">' + timeModeLabel + '</span>\
+                            </div>\
                             <button onclick="Gomoku.clickAvailableMatch(\'' + match.id + '\', true)" class="mt-2 w-full bg-amber-500 hover:bg-amber-600 text-white py-1.5 rounded-lg text-sm transition-colors">输入密码加入</button>\
                         </div>\
                     ';
@@ -128,11 +133,14 @@ var Gomoku = window.Gomoku || {};
                             <div class="flex justify-between items-center">\
                                 <span class="font-mono font-bold text-gray-800">' + match.id + '</span>\
                                 <div class="flex items-center gap-2">\
-                                    ' + spectateIcon + '\
+                                    ' + spectateBtn + '\
                                     <span class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">公共</span>\
                                 </div>\
                             </div>\
-                            <div class="text-sm text-gray-600 mt-1">创建者: ' + match.creator + '</div>\
+                            <div class="text-sm text-gray-600 mt-1">\
+                                创建者: ' + match.creator + '\
+                                <span class="text-xs text-gray-400 ml-2">' + timeModeLabel + '</span>\
+                            </div>\
                         </div>\
                     ';
                 }

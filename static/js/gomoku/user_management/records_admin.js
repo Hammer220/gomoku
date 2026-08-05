@@ -10,6 +10,8 @@
             const res = await G.apiCall('/api/leaderboard');
             const data = res.leaderboard || [];
             const tbody = document.getElementById('leaderboardTable');
+            const emptyEl = document.getElementById('leaderboardEmpty');
+            const podiumEl = document.getElementById('leaderboardPodium');
 
             if (!tbody) {
                 console.error('排行榜表格元素不存在');
@@ -17,35 +19,58 @@
             }
 
             if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">暂无数据</td></tr>';
+                tbody.innerHTML = '';
+                if (emptyEl) emptyEl.classList.remove('hidden');
+                if (podiumEl) podiumEl.classList.add('hidden');
                 return;
+            }
+
+            if (emptyEl) emptyEl.classList.add('hidden');
+
+            if (podiumEl && data.length >= 3) {
+                podiumEl.classList.remove('hidden');
+                document.getElementById('podiumName1').textContent = data[0].username;
+                document.getElementById('podiumScore1').textContent = data[0].score + '分';
+                document.getElementById('podiumName2').textContent = data[1].username;
+                document.getElementById('podiumScore2').textContent = data[1].score + '分';
+                document.getElementById('podiumName3').textContent = data[2].username;
+                document.getElementById('podiumScore3').textContent = data[2].score + '分';
+            } else if (podiumEl) {
+                podiumEl.classList.add('hidden');
             }
 
             tbody.innerHTML = data.map((u, index) => {
                 const rank = index + 1;
-                let rankDisplay = '';
+                let rankBadgeClass = 'rank-badge rank-badge-default';
+                let rankContent = rank;
                 if (rank === 1) {
-                    rankDisplay = '<span class="text-xl">🥇</span>';
+                    rankBadgeClass = 'rank-badge rank-badge-gold';
+                    rankContent = '1';
                 } else if (rank === 2) {
-                    rankDisplay = '<span class="text-xl">🥈</span>';
+                    rankBadgeClass = 'rank-badge rank-badge-silver';
+                    rankContent = '2';
                 } else if (rank === 3) {
-                    rankDisplay = '<span class="text-xl">🥉</span>';
-                } else {
-                    rankDisplay = `<span class="font-medium text-gray-600">${rank}</span>`;
+                    rankBadgeClass = 'rank-badge rank-badge-bronze';
+                    rankContent = '3';
                 }
 
+                let rowClass = '';
+                if (rank === 1) rowClass = 'leaderboard-rank-1';
+                else if (rank === 2) rowClass = 'leaderboard-rank-2';
+                else if (rank === 3) rowClass = 'leaderboard-rank-3';
+
                 const isCurrentUser = G.currentUser && G.currentUser.username === u.username;
-                const rowClass = isCurrentUser ? 'bg-yellow-50 font-semibold' : '';
+                if (isCurrentUser) rowClass += ' font-semibold';
                 const userRank = u.rank || '-';
 
                 return `<tr class="${rowClass}">
-                    <td class="border px-4 py-3 text-center">${rankDisplay}</td>
-                    <td class="border px-4 py-2">${u.username} ${isCurrentUser ? '<span class="text-xs text-primary">(我)</span>' : ''}</td>
-                    <td class="border px-4 py-2 font-semibold text-orange-600">${userRank}</td>
-                    <td class="border px-4 py-2 font-bold text-primary">${u.score}</td>
-                    <td class="border px-4 py-2">${u.wins}</td>
-                    <td class="border px-4 py-2">${u.games}</td>
-                    <td class="border px-4 py-3 text-gray-500 text-sm">${u.joinDate || '-'}</td>
+                    <td class="px-4 py-3 text-center"><span class="${rankBadgeClass}">${rankContent}</span></td>
+                    <td class="px-4 py-3 font-medium">${u.username} ${isCurrentUser ? '<span class="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 ml-1">我</span>' : ''}</td>
+                    <td class="px-4 py-3 font-semibold text-orange-600">${userRank}</td>
+                    <td class="px-4 py-3 text-right font-bold text-primary">${u.score}</td>
+                    <td class="px-4 py-3 text-right">${u.wins}</td>
+                    <td class="px-4 py-3 text-right">${u.games}</td>
+                    <td class="px-4 py-3 text-gray-500 text-sm">${u.joinDate || '-'}</td>
                 </tr>`;
             }).join('');
         } catch (error) {
@@ -104,8 +129,8 @@
 
             const usernames = new Set();
             records.forEach(r => {
-                if (r.player && !isBuiltinUser(r.player)) usernames.add(r.player);
-                if (r.opponent && !isBuiltinUser(r.opponent)) usernames.add(r.opponent);
+                if (r.player1 && !isBuiltinUser(r.player1)) usernames.add(r.player1);
+                if (r.player2 && !isBuiltinUser(r.player2)) usernames.add(r.player2);
             });
             const sortedUsernames = Array.from(usernames).sort();
             userFilter.innerHTML = '<option value="">所有用户</option>';
@@ -128,23 +153,27 @@
             return;
         }
 
-        let filtered = selectedUser ? records.filter(r => r.player === selectedUser || r.opponent === selectedUser) : records;
+        let filtered = selectedUser ? records.filter(r => r.player1 === selectedUser || r.player2 === selectedUser) : records;
         let totalRecords = filtered.length;
 
         let html = '';
         html += `<div class="space-y-2">`;
         filtered.forEach((record, index) => {
-            const time = record.date || record.timestamp ? new Date((record.timestamp || 0) * 1000).toLocaleString() : '未知时间';
-            const mode = record.modeLabel || record.mode || '未知模式';
-            const result = record.result || '未知结果';
-            const resultClass = result === 'win' || result === '胜利' ? 'text-green-600' :
-                               result === 'lose' || result === '失败' ? 'text-red-600' : 'text-yellow-600';
-            const player = record.player || '未知';
-            const hasMoves = record.moveHistory && record.moveHistory.length > 0;
+            const endTime = record.endTime || record.startTime;
+            const time = endTime ? new Date(endTime * 1000).toLocaleString() : '未知时间';
+            const mode = record.mode || '未知模式';
+            const winner = record.winner || '';
+            const player1 = record.player1 || '未知';
+            const player2 = record.player2 || '未知';
+            const isWin = winner === player1 || winner === 'player1';
+            const isLose = winner === player2 || winner === 'player2';
+            const result = winner ? (isWin ? '胜利' : (isLose ? '失败' : '平局')) : '未知结果';
+            const resultClass = isWin ? 'text-green-600' : (isLose ? 'text-red-600' : 'text-yellow-600');
+            const hasMoves = record.moves && record.moves.length > 0;
 
             html += `
                 <div class="flex justify-between items-center text-sm bg-gray-50 p-2 rounded">
-                    <span class="font-medium text-gray-700">${G.escapeHtml(player)}</span>
+                    <span class="font-medium text-gray-700">${G.escapeHtml(player1)} vs ${G.escapeHtml(player2)}</span>
                     <span>${mode}</span>
                     <span class="${resultClass}">${result}</span>
                     <span class="text-gray-400">${time}</span>

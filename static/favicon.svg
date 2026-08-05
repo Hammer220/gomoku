@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <!-- 木纹背景渐变 -->
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#D4A96A"/>
+      <stop offset="25%" stop-color="#C89A5B"/>
+      <stop offset="50%" stop-color="#B8864A"/>
+      <stop offset="75%" stop-color="#A8753F"/>
+      <stop offset="100%" stop-color="#8B5E3C"/>
+    </linearGradient>
+    <!-- 棋盘边框 -->
+    <linearGradient id="border" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6B3A2A"/>
+      <stop offset="50%" stop-color="#8B5E3C"/>
+      <stop offset="100%" stop-color="#5C2E1E"/>
+    </linearGradient>
+    <!-- 黑子渐变 - 3D效果 -->
+    <radialGradient id="blackStone" cx="35%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#888"/>
+      <stop offset="15%" stop-color="#555"/>
+      <stop offset="45%" stop-color="#1a1a1a"/>
+      <stop offset="100%" stop-color="#000"/>
+    </radialGradient>
+    <!-- 白子渐变 - 3D效果 -->
+    <radialGradient id="whiteStone" cx="35%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#fff"/>
+      <stop offset="20%" stop-color="#f5f5f5"/>
+      <stop offset="55%" stop-color="#ddd"/>
+      <stop offset="100%" stop-color="#aaa"/>
+    </radialGradient>
+    <!-- 高光 -->
+    <radialGradient id="highlight" cx="35%" cy="30%" r="50%">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <!-- 阴影滤镜 -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0.8" dy="1.2" stdDeviation="1.2" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+    <filter id="innerGlow">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="0.5" result="blur"/>
+      <feOffset dx="0" dy="0"/>
+      <feComposite in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1"/>
+    </filter>
+  </defs>
+
+  <!-- 棋盘底板 -->
+  <rect x="2" y="2" width="60" height="60" rx="12" ry="12" fill="url(#wood)"/>
+
+  <!-- 棋盘内边框 -->
+  <rect x="2" y="2" width="60" height="60" rx="12" ry="12" fill="none" stroke="url(#border)" stroke-width="2.5"/>
+
+  <!-- 棋盘网格线 -->
+  <g stroke="#A0784A" stroke-width="0.6" opacity="0.35">
+    <line x1="14" y1="22" x2="52" y2="22"/>
+    <line x1="14" y1="30" x2="52" y2="30"/>
+    <line x1="14" y1="38" x2="52" y2="38"/>
+    <line x1="22" y1="14" x2="22" y2="52"/>
+    <line x1="30" y1="14" x2="30" y2="52"/>
+    <line x1="38" y1="14" x2="38" y2="52"/>
+  </g>
+
+  <!-- 星位 -->
+  <circle cx="30" cy="30" r="1.2" fill="#A0784A" opacity="0.4"/>
+  <circle cx="22" cy="22" r="1.2" fill="#A0784A" opacity="0.4"/>
+  <circle cx="38" cy="38" r="1.2" fill="#A0784A" opacity="0.4"/>
+
+  <!-- 黑子 -->
+  <circle cx="22" cy="22" r="9" fill="url(#blackStone)" filter="url(#shadow)"/>
+  <circle cx="22" cy="22" r="9" fill="url(#highlight)"/>
+
+  <!-- 白子 -->
+  <circle cx="40" cy="40" r="9" fill="url(#whiteStone)" filter="url(#shadow)"/>
+  <circle cx="40" cy="40" r="9" fill="url(#highlight)"/>
+
+  <!-- 棋盘顶部光泽 -->
+  <rect x="4" y="4" width="56" height="28" rx="10" ry="10" fill="#fff" opacity="0.06"/>
+</svg>

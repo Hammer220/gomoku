@@ -355,16 +355,41 @@ var Gomoku = window.Gomoku || {};
     };
 
     // 访客登录
-    G.loginAsGuest = function() {
+    G.loginAsGuest = async function() {
         if (G.guestRemainingGames <= 0) {
             G.showToast(G.i18n.t('guestLimitReached'), true);
             return;
         }
         var guestUsername = G.getGuestUsername();
         G.saveGuestUsername(guestUsername);
+
+        // 如果启用了验证码，调用服务端接口验证验证码并创建访客会话
+        if (G.captchaEnabled && G.guestGeetestToken && G.guestGeetestToken !== 'disabled') {
+            try {
+                var parts = JSON.parse(G.guestGeetestToken);
+                var res = await G.apiCall('/api/guest/login', 'POST', {
+                    username: guestUsername,
+                    geetestLot: parts[0],
+                    geetestCaptchaOutput: parts[1],
+                    geetestPassToken: parts[2],
+                    geetestGenTime: parts[3]
+                }, true);
+                G.token = res.token;
+                localStorage.setItem('token', G.token);
+                G.currentUser = res.user;
+            } catch (err) {
+                G.showToast(err.message, true);
+                if (G.captchaEnabled) {
+                    G.guestGeetestToken = '';
+                    G.initGeetestWidget('geetestGuestWidget', function() {});
+                }
+                return;
+            }
+        }
+
         G.isGuest = true;
         G.isLoggedIn = true;
-        G.currentUser = { username: guestUsername, isGuest: true };
+        G.currentUser = G.currentUser || { username: guestUsername, isGuest: true };
         localStorage.setItem('isGuest', 'true');
         localStorage.setItem('guestRemainingGames', G.guestRemainingGames.toString());
         G.showToast(G.i18n.t('welcomeGuest') + ' ' + G.guestRemainingGames + ' ' + G.i18n.t('modelTimes'));

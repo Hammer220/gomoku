@@ -71,6 +71,8 @@ def _batch_operate(admin_user, usernames, operation, **kwargs):
         except Exception:
             failed_count += 1
 
+    from .admin.user_management import _invalidate_admin_users_cache
+    _invalidate_admin_users_cache()
     return success_count, failed_count
 
 

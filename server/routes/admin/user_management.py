@@ -9,54 +9,73 @@ from flask import request, jsonify
 
 from ..admin_routes import admin_bp, require_permission
 from ...models import (get_user, save_user, delete_user, save_plain_password,
-                       get_admin_permissions, get_all_tokens, get_all_users_from_db)
+                       get_admin_permissions, get_all_tokens, get_all_users_from_db,
+                       remove_user_tokens)
 from ...auth import require_admin, require_super_admin
 from ...logger import logger
+
+_admin_users_cache = {'data': None, 'timestamp': 0, 'ttl': 5}
+
+
+def _invalidate_admin_users_cache():
+    _admin_users_cache['data'] = None
+    _admin_users_cache['timestamp'] = 0
+
+
+def _build_admin_user_list():
+    now = time.time()
+    if _admin_users_cache['data'] is not None and now - _admin_users_cache['timestamp'] < _admin_users_cache['ttl']:
+        return _admin_users_cache['data']
+
+    users = get_all_users_from_db()
+    tokens = get_all_tokens()
+    online_users = set()
+    for token, token_data in tokens.items():
+        if isinstance(token_data, dict) and now - token_data.get('createdAt', 0) < 3600:
+            online_users.add(token_data.get('username'))
+
+    user_list = []
+    for username, user_data in users.items():
+        is_banned = False
+        remaining_minutes = 0
+        banned_until = user_data.get('bannedUntil')
+        if banned_until and now < banned_until:
+            is_banned = True
+            remaining_minutes = max(0, int((banned_until - now) / 60))
+
+        user_entry = {
+            'username': user_data.get('username', username),
+            'score': user_data.get('score', 0),
+            'wins': user_data.get('wins', 0),
+            'games': user_data.get('games', 0),
+            'joinDate': user_data.get('joinDate', ''),
+            'lastLogin': user_data.get('lastLogin', ''),
+            'isAdmin': user_data.get('isAdmin', False),
+            'isSuperAdmin': user_data.get('isSuperAdmin', False),
+            'canManage': user_data.get('canManage', True),
+            'bannedUntil': banned_until,
+            'isBanned': is_banned,
+            'remainingMinutes': remaining_minutes,
+            'isOnline': username in online_users,
+            'useCaptcha': user_data.get('useCaptcha', True),
+            'passwordFree': user_data.get('passwordFree', False),
+            'passwordFreeMaxAttempts': user_data.get('passwordFreeMaxAttempts', 0),
+            'passwordFreeRemainingAttempts': user_data.get('passwordFreeRemainingAttempts', 0)
+        }
+        if user_data.get('isAdmin'):
+            user_entry['permissions'] = get_admin_permissions(user_data)
+        user_list.append(user_entry)
+
+    _admin_users_cache['data'] = user_list
+    _admin_users_cache['timestamp'] = now
+    return user_list
 
 
 @admin_bp.route('/api/admin/users', methods=['GET'])
 @require_admin
 def admin_get_users(admin_user):
     try:
-        users = get_all_users_from_db()
-        tokens = get_all_tokens()
-        online_users = set()
-        current_time = time.time()
-        for token, token_data in tokens.items():
-            if isinstance(token_data, dict) and current_time - token_data.get('createdAt', 0) < 3600:
-                online_users.add(token_data.get('username'))
-
-        user_list = []
-        for username, user_data in users.items():
-            is_banned = False
-            remaining_minutes = 0
-            banned_until = user_data.get('bannedUntil')
-            if banned_until and current_time < banned_until:
-                is_banned = True
-                remaining_minutes = max(0, int((banned_until - current_time) / 60))
-
-            user_entry = {
-                'username': user_data.get('username', username),
-                'score': user_data.get('score', 0),
-                'wins': user_data.get('wins', 0),
-                'games': user_data.get('games', 0),
-                'joinDate': user_data.get('joinDate', ''),
-                'lastLogin': user_data.get('lastLogin', ''),
-                'isAdmin': user_data.get('isAdmin', False),
-                'isSuperAdmin': user_data.get('isSuperAdmin', False),
-                'canManage': user_data.get('canManage', True),
-                'bannedUntil': banned_until,
-                'isBanned': is_banned,
-                'remainingMinutes': remaining_minutes,
-                'isOnline': username in online_users,
-                'useCaptcha': user_data.get('useCaptcha', True),
-                'passwordFree': user_data.get('passwordFree', False),
-                'passwordFreeMaxAttempts': user_data.get('passwordFreeMaxAttempts', 0),
-                'passwordFreeRemainingAttempts': user_data.get('passwordFreeRemainingAttempts', 0)
-            }
-            if user_data.get('isAdmin'):
-                user_entry['permissions'] = get_admin_permissions(user_data)
-            user_list.append(user_entry)
+        user_list = _build_admin_user_list()
         return jsonify({'users': user_list})
     except Exception as e:
         logger.error(f'获取用户列表错误: {str(e)}')
@@ -108,6 +127,7 @@ def admin_ban_user(admin_user, username):
             user['bannedUntil'] = None
 
         save_user(username, user)
+        _invalidate_admin_users_cache()
         logger.info(f'管理员 {admin_user["username"]} 封禁了 {username}，时长: {duration}秒')
         return jsonify({'success': True, 'message': '操作成功'})
     except Exception as e:
@@ -133,6 +153,7 @@ def admin_set_score(admin_user, username):
         else:
             user['score'] = int(score_input)
         save_user(username, user)
+        _invalidate_admin_users_cache()
         return jsonify({'success': True, 'message': '积分修改成功'})
     except Exception as e:
         logger.error(f'修改积分错误: {str(e)}')
@@ -156,6 +177,7 @@ def admin_set_admin(admin_user, username):
         if not is_admin:
             user['isSuperAdmin'] = False
         save_user(username, user)
+        _invalidate_admin_users_cache()
         return jsonify({'success': True, 'message': '权限修改成功'})
     except Exception as e:
         logger.error(f'修改管理员权限错误: {str(e)}')
@@ -181,6 +203,7 @@ def admin_set_captcha(admin_user):
 
         user['useCaptcha'] = use_captcha
         save_user(username, user)
+        _invalidate_admin_users_cache()
         logger.info(f'管理员 {admin_user["username"]} 设置 {username} 的验证码: {use_captcha}')
         return jsonify({'success': True, 'message': '验证码设置已更新'})
     except Exception as e:
@@ -225,6 +248,7 @@ def admin_set_password_free(admin_user):
             pass
 
         save_user(username, user)
+        _invalidate_admin_users_cache()
         logger.info(f'管理员 {admin_user["username"]} 设置 {username} 的免密登录: {password_free}')
         return jsonify({'success': True, 'message': '免密登录设置已更新'})
     except Exception as e:
@@ -255,6 +279,7 @@ def admin_change_password(admin_user):
         user['password'] = hashlib.sha256(new_password.encode('utf-8')).hexdigest()
         save_user(username, user)
         save_plain_password(username, new_password)
+        _invalidate_admin_users_cache()
         logger.info(f'管理员 {admin_user["username"]} 修改了 {username} 的密码')
         return jsonify({'success': True, 'message': '密码修改成功'})
     except Exception as e:
@@ -296,6 +321,7 @@ def admin_ban(admin_user):
                 'bannedUntil': user['bannedUntil']
             })
 
+        _invalidate_admin_users_cache()
         logger.info(f'管理员 {admin_user["username"]} 封禁了 {username}，时长: {minutes}分钟')
         return jsonify({'success': True, 'message': '操作成功'})
     except Exception as e:
@@ -327,6 +353,7 @@ def admin_unban(admin_user):
             'bannedUntil': None
         })
 
+        _invalidate_admin_users_cache()
         logger.info(f'管理员 {admin_user["username"]} 解封了 {username}')
         return jsonify({'success': True, 'message': '操作成功'})
     except Exception as e:
@@ -355,6 +382,7 @@ def admin_kick(admin_user):
 
         remove_user_tokens(username)
 
+        _invalidate_admin_users_cache()
         logger.info(f'管理员 {admin_user["username"]} 强制登出了 {username}')
         return jsonify({'success': True, 'message': '操作成功'})
     except Exception as e:
@@ -377,6 +405,7 @@ def admin_delete_user(admin_user, username):
 
         delete_user(username)
 
+        _invalidate_admin_users_cache()
         logger.info(f'管理员 {admin_user["username"]} 注销了用户 {username}')
         return jsonify({'success': True, 'message': '操作成功'})
     except Exception as e:

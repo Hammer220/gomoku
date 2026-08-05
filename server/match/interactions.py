@@ -78,6 +78,9 @@ def accept_undo(user, match_id):
 
         match['undoRequested'] = False
         match['undoRequestedBy'] = None
+        match['undoAccepted'] = True
+        match['undoDeclined'] = False
+        match['undoDeclinedBy'] = None
         match['lastActivity'] = time.time()
         board_copy = [row[:] for row in match['board']]
         save_matches()
@@ -102,6 +105,8 @@ def decline_undo(user, match_id):
 
         match['undoRequested'] = False
         match['undoRequestedBy'] = None
+        match['undoDeclined'] = True
+        match['undoAccepted'] = False
         match['undoDeclinedBy'] = username
         match['lastActivity'] = time.time()
         save_matches()
@@ -137,6 +142,9 @@ def request_draw(user, match_id):
                 match['status'] = 'finished'
                 match['drawRequested'] = False
                 match['drawRequestedBy'] = None
+                match['drawAccepted'] = True
+                match['drawDeclined'] = False
+                match['drawDeclinedBy'] = None
                 match['lastActivity'] = time.time()
                 save_matches()
                 return {'success': True, 'drawAccepted': True, 'winner': 0,
@@ -169,6 +177,9 @@ def accept_draw(user, match_id):
         match['status'] = 'finished'
         match['drawRequested'] = False
         match['drawRequestedBy'] = None
+        match['drawAccepted'] = True
+        match['drawDeclined'] = False
+        match['drawDeclinedBy'] = None
         match['lastActivity'] = time.time()
         save_matches()
         return {'success': True, 'drawAccepted': True, 'winner': 0, 'message': '和棋！'}, 200
@@ -190,6 +201,8 @@ def decline_draw(user, match_id):
 
         match['drawRequested'] = False
         match['drawRequestedBy'] = None
+        match['drawDeclined'] = True
+        match['drawAccepted'] = False
         match['drawDeclinedBy'] = username
         match['lastActivity'] = time.time()
         save_matches()

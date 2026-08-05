@@ -1,6 +1,7 @@
 // ============================================================
 // 联机对战模块 - 交互操作
 // 负责：悔棋、和棋、观战、落子等交互操作
+// 所有操作优先走 WebSocket，HTTP 作为降级方案
 // ============================================================
 
 var Gomoku = window.Gomoku || {};
@@ -14,10 +15,25 @@ var Gomoku = window.Gomoku || {};
         return document.getElementById(id);
     };
 
+    // ==================== WebSocket 通信辅助 ====================
+
+    G.wsSend = function(eventName, data) {
+        if (G.WebSocketManager && G.WebSocketManager.usingWebSocket && G.WebSocketManager.socket) {
+            G.WebSocketManager.socket.emit(eventName, data);
+            return true;
+        }
+        return false;
+    };
+
     // ==================== 悔棋 ====================
 
     G.requestOnlineUndo = async function() {
         if (!G.onlineMatchId) return;
+
+        if (G.wsSend('ws_undo_request', { matchId: G.onlineMatchId })) {
+            return;
+        }
+
         try {
             var res = await G.apiCall('/api/match/undo/request', 'POST', { matchId: G.onlineMatchId });
             if (res.undoRequested) {
@@ -41,6 +57,11 @@ var Gomoku = window.Gomoku || {};
 
     G.acceptOnlineUndo = async function() {
         if (!G.onlineMatchId) return;
+
+        if (G.wsSend('ws_undo_accept', { matchId: G.onlineMatchId })) {
+            return;
+        }
+
         try {
             var res = await G.apiCall('/api/match/undo/accept', 'POST', { matchId: G.onlineMatchId });
             if (res.undoAccepted) {
@@ -60,6 +81,11 @@ var Gomoku = window.Gomoku || {};
 
     G.declineOnlineUndo = async function() {
         if (!G.onlineMatchId) return;
+
+        if (G.wsSend('ws_undo_decline', { matchId: G.onlineMatchId })) {
+            return;
+        }
+
         try {
             var res = await G.apiCall('/api/match/undo/decline', 'POST', { matchId: G.onlineMatchId });
             G.hideUndoRequestPrompt();
@@ -83,6 +109,11 @@ var Gomoku = window.Gomoku || {};
 
     G.requestOnlineDraw = async function() {
         if (!G.onlineMatchId) return;
+
+        if (G.wsSend('ws_draw_request', { matchId: G.onlineMatchId })) {
+            return;
+        }
+
         try {
             var res = await G.apiCall('/api/match/draw/request', 'POST', { matchId: G.onlineMatchId });
             if (res.drawRequested) {
@@ -103,6 +134,11 @@ var Gomoku = window.Gomoku || {};
 
     G.acceptOnlineDraw = async function() {
         if (!G.onlineMatchId) return;
+
+        if (G.wsSend('ws_draw_accept', { matchId: G.onlineMatchId })) {
+            return;
+        }
+
         try {
             var res = await G.apiCall('/api/match/draw/accept', 'POST', { matchId: G.onlineMatchId });
             if (res.drawAccepted) {
@@ -119,6 +155,11 @@ var Gomoku = window.Gomoku || {};
 
     G.declineOnlineDraw = async function() {
         if (!G.onlineMatchId) return;
+
+        if (G.wsSend('ws_draw_decline', { matchId: G.onlineMatchId })) {
+            return;
+        }
+
         try {
             var res = await G.apiCall('/api/match/draw/decline', 'POST', { matchId: G.onlineMatchId });
             G.hideDrawRequestPrompt();
@@ -143,6 +184,10 @@ var Gomoku = window.Gomoku || {};
     G.resignOnline = async function() {
         if (!G.onlineMatchId) return;
         if (!confirm('确定要认输吗？')) return;
+
+        if (G.wsSend('ws_resign', { matchId: G.onlineMatchId })) {
+            return;
+        }
 
         try {
             var res = await G.apiCall('/api/match/resign', 'POST', { matchId: G.onlineMatchId });
@@ -221,50 +266,6 @@ var Gomoku = window.Gomoku || {};
     };
 
     // ==================== 观战 ====================
-
-    G.loadSpectatableMatches = async function() {
-        try {
-            var res = await G.apiCall('/api/match/spectate/list', 'GET');
-            var container = $('spectatableMatchesContainer');
-            if (!container) return;
-            var matches = res.matches || [];
-            if (matches.length === 0) {
-                container.innerHTML = '<div class="text-center text-gray-500 py-4 text-sm">暂无可观看的对局</div>';
-                return;
-            }
-            var html = '';
-            matches.forEach(function(match) {
-                var lockIcon = match.hasPassword ? '<i class="fa-solid fa-lock text-amber-500 mr-1"></i>' : '';
-                var statusBadge = match.hasPassword ? 
-                    '<span class="text-xs px-2 py-1 bg-amber-200 text-amber-800 rounded-full">私人</span>' :
-                    '<span class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">公共</span>';
-                
-                html += '\
-                    <div class="border border-gray-200 rounded-lg p-3 hover:border-purple-400 hover:bg-purple-50 transition-colors mb-2">\
-                        <div class="flex justify-between items-center">\
-                            <div class="flex items-center">\
-                                ' + lockIcon + '<span class="font-mono font-bold text-gray-800">' + match.id + '</span>\
-                            </div>\
-                            <div class="flex items-center gap-2">\
-                                <button onclick="Gomoku.spectateMatch(\'' + match.id + '\', ' + (match.hasPassword ? 'true' : 'false') + ')" class="text-blue-500 hover:text-blue-700 transition-colors">\
-                                    <i class="fa-solid fa-eye text-lg"></i>\
-                                </button>\
-                                ' + statusBadge + '\
-                            </div>\
-                        </div>\
-                        <div class="text-sm text-gray-600 mt-1">\
-                            ' + match.creator + ' vs ' + (match.opponent || '等待中') + '\
-                            <span class="text-xs text-gray-400 ml-2">' + match.moveCount + ' 手</span>\
-                            <span class="text-xs text-gray-400 ml-2">' + match.spectatorCount + ' 人观看</span>\
-                        </div>\
-                    </div>\
-                ';
-            });
-            container.innerHTML = html;
-        } catch (e) {
-            console.error('加载观战列表错误:', e);
-        }
-    };
 
     G.spectateMatch = async function(matchId, hasPassword) {
         if (hasPassword) {
@@ -455,6 +456,11 @@ var Gomoku = window.Gomoku || {};
             G.showToast('还没轮到你，请等待对手', true);
             return;
         }
+
+        if (G.wsSend('ws_game_move', { matchId: G.onlineMatchId, row: row, col: col })) {
+            return;
+        }
+
         try {
             var res = await G.apiCall('/api/match/move', 'POST', { matchId: G.onlineMatchId, row: row, col: col });
             if (res.error) {

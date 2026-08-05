@@ -18,8 +18,6 @@ var Gomoku = window.Gomoku || {};
         G.onlineCanvas = document.getElementById('onlineCanvas');
         G.onlineCtx = G.onlineCanvas.getContext('2d');
 
-        document.getElementById('loginModal').classList.remove('hidden');
-
         if (G.WebSocketManager) {
             G.WebSocketManager.init();
             if (G.initWebSocketPollingIntegration) {
@@ -27,33 +25,37 @@ var Gomoku = window.Gomoku || {};
             }
         }
 
-        await new Promise(function(resolve) {
-            G.initGeetestWidget('geetestLoginWidget', function() {
-                resolve();
-            });
-        });
-    };
-
-    G.init();
-
-    if (G.token) {
-        (async function() {
+        var autoLoginSuccess = false;
+        if (G.token) {
             try {
                 G.currentUser = await G.apiCall('/api/current_user', 'GET', null, true);
                 G.isLoggedIn = true;
-                if (G.loadBoardColorSettings) await G.loadBoardColorSettings();
-                G.showGameUI();
-                G.calcCanvasSize();
-                G.resetGame();
-                G.startStatusCheck();
-                await G.recoverOnlineMatch();
-                if (G.handleRouteChange) G.handleRouteChange();
+                autoLoginSuccess = true;
             } catch (e) {
                 G.token = '';
                 localStorage.removeItem('token');
             }
-        })();
-    }
+        }
+
+        if (autoLoginSuccess) {
+            if (G.loadBoardColorSettings) await G.loadBoardColorSettings();
+            G.showGameUI();
+            G.calcCanvasSize();
+            G.resetGame();
+            G.startStatusCheck();
+            await G.recoverOnlineMatch();
+            if (G.handleRouteChange) G.handleRouteChange();
+        } else {
+            document.getElementById('loginModal').classList.remove('hidden');
+            await new Promise(function(resolve) {
+                G.initGeetestWidget('geetestLoginWidget', function() {
+                    resolve();
+                });
+            });
+        }
+    };
+
+    G.init();
 
     G.initReplayEvents();
 

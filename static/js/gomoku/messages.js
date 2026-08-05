@@ -17,6 +17,7 @@ var Gomoku = window.Gomoku || {};
     G.isAdminUser = false;
     G.selectedImage = null;
     G.selectedImageData = '';
+    G.redPacketEnabled = false;
 
     G.messageHashToTab = {
         '/inbox': 'inbox',
@@ -133,14 +134,163 @@ var Gomoku = window.Gomoku || {};
         }).join('');
     };
 
+    G.selectImage = function() {
+        var input = $('imageFileInput');
+        if (input) input.click();
+    };
+
+    G.handleImageSelected = function(event) {
+        var file = event.target.files[0];
+        if (!file) return;
+        if (file.size > 10 * 1024 * 1024) {
+            G.showToast('图片大小不能超过10MB', true);
+            return;
+        }
+        G._compressImage(file, function(compressedDataUrl) {
+            G.selectedImageData = compressedDataUrl;
+            G.selectedImage = file;
+            var preview = $('imagePreview');
+            var container = $('imagePreviewContainer');
+            if (preview) preview.src = compressedDataUrl;
+            if (container) container.classList.remove('hidden');
+        });
+    };
+
+    G._compressImage = function(file, callback) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var img = new Image();
+            img.onload = function() {
+                var maxW = 800;
+                var maxH = 800;
+                var w = img.width;
+                var h = img.height;
+                if (w > maxW || h > maxH) {
+                    var ratio = Math.min(maxW / w, maxH / h);
+                    w = Math.round(w * ratio);
+                    h = Math.round(h * ratio);
+                }
+                var canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                var compressed = canvas.toDataURL('image/jpeg', 0.7);
+                callback(compressed);
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
+
+    G.clearImageSelection = function() {
+        G.selectedImage = null;
+        G.selectedImageData = '';
+        var preview = $('imagePreview');
+        var container = $('imagePreviewContainer');
+        var input = $('imageFileInput');
+        if (preview) preview.src = '';
+        if (container) container.classList.add('hidden');
+        if (input) input.value = '';
+    };
+
+    G._renderMessageImage = function(imageData) {
+        if (!imageData) return '';
+        return '<div class="mt-2"><img src="' + imageData + '" alt="图片" class="max-w-[200px] max-h-[200px] rounded-lg border object-cover cursor-pointer hover:opacity-90 transition-opacity message-image" onclick="var w=window.open(\'\');w.document.write(\'<img src=\\\'\' + this.src + \'\\\' style=\\\'max-width:100%;max-height:100vh;\\\'/>\');"></div>';
+    };
+
+    G.toggleRedPacket = function() {
+        G.redPacketEnabled = !G.redPacketEnabled;
+        var config = $('redPacketConfig');
+        if (config) config.classList.toggle('hidden', !G.redPacketEnabled);
+        if (G.redPacketEnabled) {
+            G.clearImageSelection();
+        }
+    };
+
+    G.cancelRedPacket = function() {
+        G.redPacketEnabled = false;
+        var config = $('redPacketConfig');
+        if (config) config.classList.add('hidden');
+    };
+
+    G._renderRedPacket = function(rp, messageId, isSent) {
+        if (!rp) return '';
+        var claimed = rp.total_claimed || 0;
+        var count = rp.count || 1;
+        var isFinished = claimed >= count;
+        var isCurrentUserSender = G.currentUser && G.currentUser.username === rp._sender;
+        var hasClaimed = rp.claimed_by && G.currentUser && rp.claimed_by.indexOf(G.currentUser.username) !== -1;
+
+        var html = '<div class="mt-2 p-3 bg-gradient-to-r from-red-500 to-orange-400 rounded-lg text-white cursor-pointer red-packet-item" data-message-id="' + messageId + '">';
+        html += '<div class="flex items-center gap-2">';
+        html += '<i class="fa-solid fa-gift text-2xl"></i>';
+        html += '<div>';
+        html += '<div class="font-bold text-lg">积分红包</div>';
+        html += '<div class="text-xs opacity-90">总金额: ' + rp.amount + ' 积分 · ' + claimed + '/' + count + ' 已领取</div>';
+        html += '</div>';
+        html += '</div>';
+
+        if (isFinished) {
+            html += '<div class="mt-2 text-xs text-center opacity-80">红包已被领完</div>';
+            if (rp.claimed && rp.claimed.length > 0) {
+                html += '<div class="mt-1 text-xs opacity-70">';
+                for (var i = 0; i < rp.claimed_by.length; i++) {
+                    html += rp.claimed_by[i] + ': ' + rp.claimed[i] + '积分 ';
+                }
+                html += '</div>';
+            }
+        } else if (!isSent && !hasClaimed) {
+            html += '<div class="mt-2 text-center"><span class="inline-block bg-white text-red-500 px-4 py-1 rounded-full text-sm font-bold cursor-pointer hover:bg-red-50 transition-colors claim-red-packet-btn" data-message-id="' + messageId + '">开</span></div>';
+        } else if (hasClaimed) {
+            html += '<div class="mt-2 text-xs text-center opacity-80">已领取</div>';
+        }
+
+        html += '</div>';
+        return html;
+    };
+
+    G.claimRedPacket = async function(messageId) {
+        var btn = document.querySelector('.claim-red-packet-btn[data-message-id="' + messageId + '"]');
+        if (btn) {
+            btn.textContent = '...';
+            btn.style.pointerEvents = 'none';
+        }
+        try {
+            var data = await G.apiCall('/api/messages/red-packet/claim', 'POST', { message_id: parseInt(messageId) });
+            G.showToast('恭喜！领取了 ' + data.claimed_amount + ' 积分！');
+            if (G.currentUser) {
+                G.currentUser.score = (G.currentUser.score || 0) + data.claimed_amount;
+                G.updateUserDisplay();
+            }
+            G.loadInbox();
+        } catch (err) {
+            G.showToast('领取失败: ' + err.message, true);
+            if (btn) {
+                btn.textContent = '开';
+                btn.style.pointerEvents = 'auto';
+            }
+        }
+    };
+
     // ==================== 发送消息 ====================
 
     G.sendMessage = async function() {
         var content = ($('messageContent') || {}).value || '';
         content = content.trim();
         var image = G.selectedImageData || '';
-        if (!content && !image) {
-            G.showToast('请输入消息内容或选择图片', true);
+        var redPacket = null;
+        if (G.redPacketEnabled) {
+            var amount = parseInt(($('redPacketAmount') || {}).value) || 0;
+            var count = parseInt(($('redPacketCount') || {}).value) || 1;
+            if (amount <= 0) {
+                G.showToast('请输入有效的红包积分数量', true);
+                return;
+            }
+            redPacket = { amount: amount, count: count };
+        }
+        if (!content && !image && !redPacket) {
+            G.showToast('请输入消息内容、选择图片或发红包', true);
             return;
         }
         if (G.selectedRecipients.length === 0) {
@@ -160,12 +310,16 @@ var Gomoku = window.Gomoku || {};
             if (image) {
                 payload.image = image;
             }
+            if (redPacket) {
+                payload.red_packet = redPacket;
+            }
             await G.apiCall('/api/messages/send', 'POST', payload);
             G.showToast('消息发送成功');
             if ($('messageContent')) $('messageContent').value = '';
             G.selectedRecipients = [];
             G.renderRecipientTags();
             G.clearImageSelection();
+            G.cancelRedPacket();
             G.showMessageTab('sent');
         } catch (err) {
             G.showToast('发送失败: ' + err.message, true);
@@ -194,12 +348,17 @@ var Gomoku = window.Gomoku || {};
                 var time = new Date(m.timestamp * 1000).toLocaleString('zh-CN');
                 var cls = m.isRead ? 'message-read' : 'message-unread';
                 var dot = m.isRead ? '' : '<span class="inline-block w-2 h-2 bg-red-500 rounded-full mr-1"></span>';
+                var imageHtml = G._renderMessageImage(m.image);
+                var redPacketHtml = G._renderRedPacket(m.red_packet, m.id, false);
+                var contentPreview = m.content ? m.content.substring(0, 50) + (m.content.length > 50 ? '...' : '') : (m.image ? '[图片]' : (m.red_packet ? '[积分红包]' : ''));
                 return '<div class="p-3 bg-white rounded-lg border cursor-pointer hover:shadow-md transition-shadow ' + cls + ' message-item" data-id="' + m.id + '" data-type="inbox">' +
                     '<div class="flex justify-between items-start">' +
                         '<div class="flex items-center">' + dot + '<span class="font-medium">' + m.from + '</span></div>' +
                         '<span class="text-xs text-gray-400">' + time + '</span>' +
                     '</div>' +
-                    '<div class="text-sm text-gray-600 mt-1 truncate">' + m.content + '</div>' +
+                    '<div class="text-sm text-gray-600 mt-1 truncate">' + contentPreview + '</div>' +
+                    imageHtml +
+                    redPacketHtml +
                     '<div class="text-xs text-gray-400 mt-1">发送给: ' + m.to.join(', ') + '</div>' +
                 '</div>';
             }).join('');
@@ -249,12 +408,17 @@ var Gomoku = window.Gomoku || {};
             container.innerHTML = messages.map(function(m) {
                 var time = new Date(m.timestamp * 1000).toLocaleString('zh-CN');
                 var readStatusHtml = G._buildReadStatusHtml(m.read_by, m.to);
+                var imageHtml = G._renderMessageImage(m.image);
+                var redPacketHtml = G._renderRedPacket(m.red_packet, m.id, true);
+                var contentPreview = m.content ? m.content.substring(0, 50) + (m.content.length > 50 ? '...' : '') : (m.image ? '[图片]' : (m.red_packet ? '[积分红包]' : ''));
                 return '<div class="p-3 bg-white rounded-lg border cursor-pointer hover:shadow-md transition-shadow message-item" data-id="' + m.id + '" data-type="sent">' +
                     '<div class="flex justify-between items-start">' +
                         '<span class="font-medium">发送给: ' + m.to.join(', ') + '</span>' +
                         '<span class="text-xs text-gray-400">' + time + '</span>' +
                     '</div>' +
-                    '<div class="text-sm text-gray-600 mt-1 truncate">' + m.content + '</div>' +
+                    '<div class="text-sm text-gray-600 mt-1 truncate">' + contentPreview + '</div>' +
+                    imageHtml +
+                    redPacketHtml +
                     '<div class="mt-1 message-read-status">' + readStatusHtml + '</div>' +
                 '</div>';
             }).join('');
@@ -315,6 +479,8 @@ var Gomoku = window.Gomoku || {};
             '<span class="font-medium">' + (msgType === 'inbox' ? msg.from : msg.to.join(', ')) + '</span>' +
             '<span class="text-xs text-gray-400 ml-4">' + time + '</span></div>' +
             '<div class="bg-white rounded-lg p-4 border whitespace-pre-wrap text-sm">' + msg.content + '</div>' +
+            G._renderMessageImage(msg.image) +
+            G._renderRedPacket(msg.red_packet, msg.id, msgType === 'sent') +
             readStatus +
             '<div class="mt-4"><button class="text-red-500 hover:text-red-700 text-sm delete-msg-btn" data-id="' + msg.id + '" data-type="' + msgType + '"><i class="fa-solid fa-trash mr-1"></i>删除</button></div>';
 
@@ -450,6 +616,9 @@ var Gomoku = window.Gomoku || {};
         var markAllReadBtn = $('markAllReadBtn');
         var backBtn = $('backToListBtn');
         var searchInput = $('recipientSearch');
+        var selectImageBtn = $('selectImageBtn');
+        var imageFileInput = $('imageFileInput');
+        var removeImageBtn = $('removeImageBtn');
 
         if (inboxTab) inboxTab.addEventListener('click', function() { G.showMessageTab('inbox'); });
         if (sentTab) sentTab.addEventListener('click', function() { G.showMessageTab('sent'); });
@@ -496,6 +665,15 @@ var Gomoku = window.Gomoku || {};
             });
         }
 
+        if (selectImageBtn) selectImageBtn.addEventListener('click', G.selectImage);
+        if (imageFileInput) imageFileInput.addEventListener('change', G.handleImageSelected);
+        if (removeImageBtn) removeImageBtn.addEventListener('click', G.clearImageSelection);
+
+        var toggleRedPacketBtn = $('toggleRedPacketBtn');
+        var cancelRedPacketBtn = $('cancelRedPacketBtn');
+        if (toggleRedPacketBtn) toggleRedPacketBtn.addEventListener('click', G.toggleRedPacket);
+        if (cancelRedPacketBtn) cancelRedPacketBtn.addEventListener('click', G.cancelRedPacket);
+
         document.addEventListener('click', function(e) {
             var target = e.target;
             if (target.classList.contains('user-suggestion-item')) {
@@ -510,6 +688,10 @@ var Gomoku = window.Gomoku || {};
             }
             if (target.classList.contains('delete-msg-btn')) {
                 G.deleteMessage(target.dataset.id, target.dataset.type);
+            }
+            if (target.classList.contains('claim-red-packet-btn')) {
+                e.stopPropagation();
+                G.claimRedPacket(target.dataset.messageId);
             }
             var suggestions = $('userSuggestions');
             if (suggestions && !target.closest('#recipientSearch') && !target.closest('#userSuggestions')) {

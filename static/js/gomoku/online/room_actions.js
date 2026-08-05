@@ -1,6 +1,7 @@
 // ============================================================
 // 联机对战模块 - 房间操作
 // 负责：恢复房间、创建房间、加入房间、关闭房间、重开请求
+// 所有操作优先走 WebSocket，HTTP 作为降级方案
 // ============================================================
 
 var Gomoku = window.Gomoku || {};
@@ -22,6 +23,7 @@ var Gomoku = window.Gomoku || {};
     G.showOnlineLobby = function() {
         var lobbyPanel = $('onlineLobbyPanel');
         if (lobbyPanel) lobbyPanel.classList.remove('hidden');
+        G.updateSpectatorCount(0, true);
     };
 
     G.autoJoinMatchById = async function(matchId) {
@@ -300,7 +302,6 @@ var Gomoku = window.Gomoku || {};
                     '<p>对手: <span class="font-bold">' + res.opponent + '</span></p>';
             }
             if (roomActions) roomActions.classList.remove('hidden');
-            if (closeRoomBtn) closeRoomBtn.classList.add('hidden');
             if (onlineLeaveBtn) onlineLeaveBtn.classList.remove('hidden');
             if (onlineCreateBtn) onlineCreateBtn.classList.add('hidden');
             if (onlineJoinBtn) onlineJoinBtn.parentElement.classList.add('hidden');
@@ -386,16 +387,19 @@ var Gomoku = window.Gomoku || {};
         roomActions.classList.remove('hidden');
         roomActions.innerHTML =
             '<button id="shareSpectateBtn" class="action-btn-full action-btn-spectate btn-ripple"><i class="fa-solid fa-link mr-1"></i>复制观战链接</button>' +
-            '<button id="requestRestartBtn" class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 rounded-lg text-sm mb-2 font-medium shadow-md transition-all">重新开始</button>' +
-            '<button id="closeRoomBtn" class="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-3 rounded-lg text-sm font-medium shadow-md transition-all">关闭房间</button>';
+            '<button id="requestRestartBtn" class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 rounded-lg text-sm mb-2 font-medium shadow-md transition-all">重新开始</button>';
         var requestRestartBtn = $('requestRestartBtn');
         requestRestartBtn.addEventListener('click', G.requestOnlineRestart);
-        G.attachCloseRoomHandler();
         G.attachShareSpectateHandler();
     };
 
     G.requestOnlineRestart = async function() {
         if (!G.onlineMatchId) return;
+
+        if (G.wsSend && G.wsSend('ws_restart', { matchId: G.onlineMatchId })) {
+            return;
+        }
+
         try {
             var res = await G.apiCall('/api/match/restart', 'POST', { matchId: G.onlineMatchId });
             if (res.restartInitiated) {
@@ -427,6 +431,11 @@ var Gomoku = window.Gomoku || {};
 
     G.declineOnlineRestart = async function() {
         if (!G.onlineMatchId) return;
+
+        if (G.wsSend && G.wsSend('ws_restart_decline', { matchId: G.onlineMatchId })) {
+            return;
+        }
+
         try {
             var res = await G.apiCall('/api/match/restart/decline', 'POST', { matchId: G.onlineMatchId });
             G.hideRestartCountdown();

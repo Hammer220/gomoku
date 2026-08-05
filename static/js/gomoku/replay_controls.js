@@ -1,4 +1,76 @@
-// ============================================================
+在行为验证中，配置了ai模式的绝大多数真实用户仅需点击一下即可通过验证。但是考虑到实际风险情况，被行为验证判定为有风险的请求，会进入下个阶段的验证。此时，行为验证提供了弹出二级验证的交互样式，方便用户兼容自己本身的界面。
+
+目前提供三种展现形式
+
+popup（弹出式）
+
+float（浮动式）
+
+bind（隐藏按钮类型）
+
+对于popup和bind类型，可设置mask中以下参数：
+
+参数	类型	作用	说明
+bgColor	string	设置弹出背景的颜色	默认为黑色，可设置任何一种合法的颜色值
+各展现形式效果如下。
+
+popup，弹出式：
+
+initGeetest4({
+    // 省略必须的配置参数
+
+    product: 'popup'
+}, function (captchaObj) {
+    captchaObj.appendTo("#captchaBox"); //将验证按钮插入到宿主页面中captchaBox元素内
+    captchaObj.onReady(function(){
+      //your code
+    }).onSuccess(function(){
+      //your code
+    }).onError(function(){
+      //your code
+    })
+})
+float，浮动式：
+
+initGeetest4({
+    // 省略必须的配置参数
+
+    product: 'float'
+}, function (captchaObj) {
+    captchaObj.appendTo("#captchaBox"); //将验证按钮插入到宿主页面中captchaBox元素内
+    captchaObj.onReady(function(){
+      //your code
+    }).onSuccess(function(){
+      //your code
+    }).onError(function(){
+      //your code
+    })
+});
+bind，隐藏按钮式:
+
+对于bind类型，需要注意此时appendTo接口调用将无效，验证时调用showCaptcha实例方法进行验证。
+
+initGeetest4({
+    // 省略必须的配置参数
+
+    product: 'bind'
+}, function(captchaObj){
+    captchaObj.onReady(function(){
+        //验证码ready之后才能调用showCaptcha方法显示验证码
+    }).onSuccess(function(){
+        //your code,结合您的业务逻辑重置验证码
+        captchaObj.reset()
+    }).onError(function(){
+        //your code
+    })
+    // 按钮提交事件
+    button.click = function(){
+        // some code
+        // 检测验证码是否ready, 验证码的onReady是否执行
+        captchaObj.showCaptcha(); //显示验证码
+        // some code
+    }
+});// ============================================================
 // 复盘功能 - 控制与交互
 // 负责：复盘启动/关闭、步进控制、自动播放、连线切换、
 //       UI 更新、走法列表渲染、键盘快捷键、事件绑定
@@ -15,7 +87,7 @@
                 G.showToast('记录不存在', true);
                 return;
             }
-            if (!G.replayRecord.moveHistory || G.replayRecord.moveHistory.length === 0) {
+            if (!G.replayRecord.moves || G.replayRecord.moves.length === 0) {
                 G.showToast('该记录没有棋谱数据', true);
                 return;
             }
@@ -73,7 +145,7 @@
 
     // 更新复盘 UI（步数信息、按钮状态、对局信息）
     G.updateReplayUI = function() {
-        const moves = G.replayRecord ? G.replayRecord.moveHistory || [] : [];
+        const moves = G.replayRecord ? G.replayRecord.moves || [] : [];
         var stepInfo = document.getElementById('replayStepInfo');
         var prevBtn = document.getElementById('replayPrevBtn');
         var nextBtn = document.getElementById('replayNextBtn');
@@ -83,11 +155,15 @@
 
         const info = document.getElementById('replayInfo');
         if (info && G.replayRecord) {
-            const modeLabel = G.replayRecord.modeLabel || G.replayRecord.mode || '未知';
-            const result = G.replayRecord.result || '未知';
-            const player = G.replayRecord.player || '未知';
-            const opponent = G.replayRecord.opponent || '未知';
-            info.innerHTML = '<span class="font-medium">' + G.escapeHtml(player) + '</span> vs <span class="font-medium">' + G.escapeHtml(opponent) + '</span> · ' + modeLabel + ' · <span class="font-medium">' + result + '</span>';
+            const modeLabel = G.replayRecord.mode || '未知';
+            const player1 = G.replayRecord.player1 || '未知';
+            const player2 = G.replayRecord.player2 || '未知';
+            const winner = G.replayRecord.winner || '';
+            var result;
+            if (winner === player1) result = player1 + ' 胜';
+            else if (winner === player2) result = player2 + ' 胜';
+            else result = '平局';
+            info.innerHTML = '<span class="font-medium">' + G.escapeHtml(player1) + '</span> vs <span class="font-medium">' + G.escapeHtml(player2) + '</span> · ' + modeLabel + ' · <span class="font-medium">' + result + '</span>';
         }
         G.scrollReplayMoveList();
     }
@@ -96,7 +172,7 @@
     G.renderReplayMoveList = function() {
         const container = document.getElementById('replayMoveList');
         if (!container) return;
-        const moves = G.replayRecord ? G.replayRecord.moveHistory || [] : [];
+        const moves = G.replayRecord ? G.replayRecord.moves || [] : [];
         if (moves.length === 0) {
             container.innerHTML = '<div class="text-gray-400 text-center py-4">无棋谱数据</div>';
             return;
@@ -151,7 +227,7 @@
 
     // 跳转到复盘指定步数
     G.goToStep = function(step) {
-        const moves = G.replayRecord ? G.replayRecord.moveHistory || [] : [];
+        const moves = G.replayRecord ? G.replayRecord.moves || [] : [];
         step = Math.max(0, Math.min(step, moves.length));
         G.replayStep = step;
         G.clearReplayLineHighlight();

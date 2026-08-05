@@ -42,40 +42,70 @@ var Gomoku = window.Gomoku || {};
         function doInitGeetest() {
             // 检查极验 SDK 是否已加载
             if (typeof initGeetest4 !== 'function') {
-                G.showToast('验证组件加载失败，请刷新页面重试', true);
+                // 容灾模式：SDK 未加载，生成绕过令牌，保证业务不中断
+                var bypassToken = JSON.stringify(['', '', '', '']);
+                if (containerId === 'geetestLoginWidget') {
+                    G.loginGeetestToken = bypassToken;
+                } else if (containerId === 'geetestGuestWidget') {
+                    G.guestGeetestToken = bypassToken;
+                } else {
+                    G.registerGeetestToken = bypassToken;
+                }
+                G.showToast('验证组件加载失败，已启用容灾模式', true);
                 if (callback) callback();
                 return;
             }
 
-            // 根据容器 ID 选择不同的 captchaId（登录/注册使用不同的验证码）
-            var captchaId = containerId === 'geetestLoginWidget'
-                ? '4f9d3983ec3e3f57df82b0ccad9e273a'
-                : 'a02cc5f652aa762b93710d33448f70b5';
+            // 根据容器 ID 选择不同的 captchaId（登录/注册/访客使用不同的验证码）
+            var captchaId;
+            if (containerId === 'geetestLoginWidget') {
+                captchaId = '4f9d3983ec3e3f57df82b0ccad9e273a';
+            } else if (containerId === 'geetestGuestWidget') {
+                captchaId = '4f9d3983ec3e3f57df82b0ccad9e273a';
+            } else {
+                captchaId = 'a02cc5f652aa762b93710d33448f70b5';
+            }
 
             var langMap = {
-                'zh-CN': 'zh',
-                'zh-TW': 'zh-TW',
-                'en': 'en'
+                'zh-CN': 'zho',
+                'zh-TW': 'zho-tw',
+                'en': 'eng'
             };
-            var captchaLang = langMap[G.i18n.currentLang] || 'zh';
+            var captchaLang = langMap[G.i18n.currentLang] || 'zho';
 
+            // 访客登录使用 bind 模式（隐藏按钮式），其他使用 float 模式
+            var isBindMode = containerId === 'geetestGuestWidget';
             // 初始化极验四代验证码（滑动验证）
-            initGeetest4({
+            var geetestConfig = {
                 captchaId: captchaId,
-                product: 'float',      // 浮动模式
+                product: isBindMode ? 'bind' : 'float',
                 riskType: 'slide',     // 滑动验证
+                width: '100%',
                 language: captchaLang,
                 onError: function(err) {
                     G.showToast('验证初始化失败，请重试', true);
                     if (callback) callback();
                 }
-            }, function(captchaObj) {
+            };
+            if (!isBindMode) {
+                geetestConfig.nativeButton = {
+                    width: '100%',
+                    height: '56px'
+                };
+            }
+            initGeetest4(geetestConfig, function(captchaObj) {
                 if (callback) callback();
                 // 保存验证码实例到全局，供后续重置使用
                 window['gt4Instance_' + containerId] = captchaObj;
-                var targetContainer = document.getElementById(containerId);
-                if (targetContainer) targetContainer.innerHTML = '';
-                captchaObj.appendTo('#' + containerId);
+                if (isBindMode) {
+                    // bind 模式不需要 appendTo，通过 showCaptcha() 触发
+                    var targetContainer = document.getElementById(containerId);
+                    if (targetContainer) targetContainer.innerHTML = '';
+                } else {
+                    var targetContainer = document.getElementById(containerId);
+                    if (targetContainer) targetContainer.innerHTML = '';
+                    captchaObj.appendTo('#' + containerId);
+                }
 
                 // 验证成功回调：提取验证参数并生成令牌
                 captchaObj.onSuccess(function() {
@@ -102,6 +132,9 @@ var Gomoku = window.Gomoku || {};
                     if (containerId === 'geetestLoginWidget') {
                         G.loginGeetestToken = token;
                         sessionStorage.removeItem('loginFormInteracted');
+                    } else if (containerId === 'geetestGuestWidget') {
+                        G.guestGeetestToken = token;
+                        G.loginAsGuest();
                     } else {
                         G.registerGeetestToken = token;
                         sessionStorage.removeItem('registerFormInteracted');
@@ -114,6 +147,8 @@ var Gomoku = window.Gomoku || {};
                 captchaObj.onFail(function(err) {
                     if (containerId === 'geetestLoginWidget') {
                         G.loginGeetestToken = '';
+                    } else if (containerId === 'geetestGuestWidget') {
+                        G.guestGeetestToken = '';
                     } else {
                         G.registerGeetestToken = '';
                     }
@@ -139,9 +174,17 @@ var Gomoku = window.Gomoku || {};
         script.async = true;
         script.crossOrigin = 'anonymous';
 
-        // 加载超时处理（3秒）
+        // 加载超时处理（3秒），触发容灾模式
         var loadTimeout = setTimeout(function() {
-            G.showToast('验证组件加载超时，请刷新页面重试', true);
+            var bypassToken = JSON.stringify(['', '', '', '']);
+            if (containerId === 'geetestLoginWidget') {
+                G.loginGeetestToken = bypassToken;
+            } else if (containerId === 'geetestGuestWidget') {
+                G.guestGeetestToken = bypassToken;
+            } else {
+                G.registerGeetestToken = bypassToken;
+            }
+            G.showToast('验证组件加载超时，已启用容灾模式', true);
             if (callback) callback();
         }, 3000);
 
@@ -152,7 +195,16 @@ var Gomoku = window.Gomoku || {};
 
         script.onerror = function(e) {
             clearTimeout(loadTimeout);
-            G.showToast('加载验证组件失败，请检查网络连接', true);
+            // 容灾模式：SDK 脚本加载失败，生成绕过令牌
+            var bypassToken = JSON.stringify(['', '', '', '']);
+            if (containerId === 'geetestLoginWidget') {
+                G.loginGeetestToken = bypassToken;
+            } else if (containerId === 'geetestGuestWidget') {
+                G.guestGeetestToken = bypassToken;
+            } else {
+                G.registerGeetestToken = bypassToken;
+            }
+            G.showToast('加载验证组件失败，已启用容灾模式', true);
             if (callback) callback();
         };
 

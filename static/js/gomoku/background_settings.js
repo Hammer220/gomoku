@@ -7,7 +7,8 @@
 
     // 跳转到游戏大厅页面（如果已在游戏大厅则不需要跳转）
     G.showGameUI = function(){
-        if (window.location.pathname === '/game') return;
+        var path = window.location.pathname;
+        if (path === '/game' || path === '/online' || path.startsWith('/game/') || path.startsWith('/online/')) return;
         window.location.href = '/game';
     }
 

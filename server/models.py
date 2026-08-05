@@ -175,6 +175,7 @@ def _row_to_user(row):
         'passwordFree': safe_bool(get_row_val(row, 'password_free')),
         'passwordFreeMaxAttempts': safe_int(get_row_val(row, 'password_free_max_attempts')),
         'passwordFreeRemainingAttempts': safe_int(get_row_val(row, 'password_free_remaining_attempts')),
+        'isGuest': safe_bool(get_row_val(row, 'is_guest')),
         'language': get_row_val(row, 'language', 'zh-CN'),
     }
 
@@ -221,7 +222,8 @@ def save_user(username, data):
     for col, col_type, default in [
         ('password_free', 'INTEGER', 0),
         ('password_free_max_attempts', 'INTEGER', 0),
-        ('password_free_remaining_attempts', 'INTEGER', 0)
+        ('password_free_remaining_attempts', 'INTEGER', 0),
+        ('is_guest', 'INTEGER', 0)
     ]:
         try:
             c.execute(f'ALTER TABLE users ADD COLUMN {col} {col_type} DEFAULT {default}')
@@ -235,8 +237,8 @@ def save_user(username, data):
             can_kick_user, can_delete_user, can_change_password,
             can_modify_score, can_set_password_free, can_monitor_matches,
             can_manage_matches, password_free, password_free_max_attempts,
-            password_free_remaining_attempts, language, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            password_free_remaining_attempts, is_guest, language, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         username,
         data.get('password', ''),
@@ -259,6 +261,7 @@ def save_user(username, data):
         1 if data.get('passwordFree') else 0,
         data.get('passwordFreeMaxAttempts', 0),
         data.get('passwordFreeRemainingAttempts', 0),
+        1 if data.get('isGuest') else 0,
         data.get('language', 'zh-CN'),
         time.time()
     ))
@@ -280,6 +283,8 @@ def get_plain_password(username):
 
 def get_current_user_from_request(request):
     token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    if not token:
+        token = request.cookies.get('token', '')
     if not token:
         return None
 
@@ -610,6 +615,18 @@ def load_messages():
         except Exception:
             pass
 
+        red_packet_val = None
+        try:
+            if 'red_packet' in row.keys():
+                rp = row['red_packet']
+                if rp:
+                    try:
+                        red_packet_val = json.loads(rp)
+                    except (json.JSONDecodeError, TypeError):
+                        red_packet_val = None
+        except Exception:
+            pass
+
         messages[str(row['id'])] = {
             'id': row['id'],
             'from': row['from_user'],
@@ -618,6 +635,7 @@ def load_messages():
             'timestamp': row['timestamp'],
             'read_by': read_by_list,
             'image': image_val,
+            'red_packet': red_packet_val,
         }
     return messages
 
@@ -633,8 +651,8 @@ def save_message(message):
     if isinstance(read_by, list):
         read_by = json.dumps(read_by, ensure_ascii=False)
     c.execute('''
-        INSERT INTO messages (from_user, to_user, content, timestamp, read, read_by, image)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO messages (from_user, to_user, content, timestamp, read, read_by, image, red_packet)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         message.get('from', ''),
         to_val,
@@ -643,6 +661,7 @@ def save_message(message):
         1 if message.get('read') else 0,
         read_by,
         message.get('image', ''),
+        json.dumps(message.get('red_packet'), ensure_ascii=False) if message.get('red_packet') else '',
     ))
     conn.commit()
 
@@ -659,7 +678,7 @@ def update_message(message_id, message):
         read_by = json.dumps(read_by, ensure_ascii=False)
     c.execute('''
         UPDATE messages SET from_user = ?, to_user = ?, content = ?, timestamp = ?,
-            read = ?, read_by = ?, image = ?
+            read = ?, read_by = ?, image = ?, red_packet = ?
         WHERE id = ?
     ''', (
         message.get('from', ''),
@@ -669,6 +688,7 @@ def update_message(message_id, message):
         1 if message.get('read') else 0,
         read_by,
         message.get('image', ''),
+        json.dumps(message.get('red_packet'), ensure_ascii=False) if message.get('red_packet') else '',
         int(message_id),
     ))
     conn.commit()

@@ -120,15 +120,21 @@ def list_available_matches(username):
         available_list = []
         for match_id, match in active_matches.items():
             if match['status'] == 'waiting' and match['creator'] != username:
-                available_list.append({
+                item = {
                     'id': match_id,
                     'creator': match['creator'],
                     'status': match['status'],
                     'creatorColor': match['creatorColor'],
                     'startTime': match['startTime'],
                     'hasPassword': match.get('password') is not None,
-                    'allowSpectate': match.get('allowSpectate', True)
-                })
+                    'allowSpectate': match.get('allowSpectate', True),
+                    'timeMode': match.get('timeMode', 'untimed'),
+                    'moveTime': match.get('moveTime', 30),
+                    'totalTime': match.get('totalTime', 600),
+                }
+                if match.get('allowSpectate', True):
+                    item['spectateToken'] = match.get('spectateToken', '')
+                available_list.append(item)
         available_list.sort(key=lambda x: x['startTime'], reverse=True)
     return {'matches': available_list}
 

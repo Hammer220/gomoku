@@ -378,7 +378,14 @@ def api_spectate_join(user):
         data = request.get_json()
         match_id = data.get('matchId', '')
         password = data.get('password') or None
-        return spectate_match(user, match_id, password)
+        result = spectate_match(user, match_id, password)
+        if isinstance(result, tuple):
+            resp, code = result
+            if code == 200:
+                _emit_match_update(match_id)
+            return resp, code
+        _emit_match_update(match_id)
+        return result
     except Exception as e:
         logger.error(f'Spectate join error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
@@ -389,7 +396,9 @@ def api_spectate_leave(user):
     try:
         data = request.get_json()
         match_id = data.get('matchId', '')
-        return leave_spectate(user, match_id)
+        result = leave_spectate(user, match_id)
+        _emit_match_update(match_id)
+        return result
     except Exception as e:
         logger.error(f'Spectate leave error: {e}')
         return jsonify({'error': 'Internal server error'}), 500

@@ -94,6 +94,8 @@ def admin_create_admin(admin_user):
         }
         save_user(username, new_user)
         save_plain_password(username, password)
+        from .user_management import _invalidate_admin_users_cache
+        _invalidate_admin_users_cache()
         logger.info(f'超级管理员 {admin_user["username"]} 创建了管理员账号 {username}')
         return jsonify({'success': True, 'message': '管理员账号创建成功'})
     except Exception as e:
@@ -119,6 +121,8 @@ def admin_set_permission(admin_user):
 
         user['canManage'] = can_manage
         save_user(username, user)
+        from .user_management import _invalidate_admin_users_cache
+        _invalidate_admin_users_cache()
         logger.info(f'超级管理员 {admin_user["username"]} 设置 {username} 的管理权限: {can_manage}')
         return jsonify({'success': True, 'message': '权限设置已更新'})
     except Exception as e:
@@ -152,6 +156,8 @@ def admin_set_permissions(admin_user):
                 user[field] = bool(permissions[field])
 
         save_user(username, user)
+        from .user_management import _invalidate_admin_users_cache
+        _invalidate_admin_users_cache()
         logger.info(f'超级管理员 {admin_user["username"]} 设置了 {username} 的细粒度权限')
         return jsonify({'success': True, 'message': '权限设置已更新', 'permissions': get_admin_permissions(user)})
     except Exception as e:
@@ -186,6 +192,8 @@ def admin_set_all_permissions(admin_user):
 
         save_user(username, user)
         action = '启用' if enable else '禁用'
+        from .user_management import _invalidate_admin_users_cache
+        _invalidate_admin_users_cache()
         logger.info(f'超级管理员 {admin_user["username"]} {action}了 {username} 的所有权限')
         return jsonify({'success': True, 'message': f'已{action}所有权限', 'permissions': get_admin_permissions(user)})
     except Exception as e:

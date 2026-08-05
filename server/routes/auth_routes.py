@@ -8,7 +8,7 @@ import re
 import time
 import uuid
 from datetime import datetime
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, make_response
 
 from ..config import (GT4_CAPTCHA_ID, GT4_LOGIN_CAPTCHA_ID,
                       GT4_LOGIN_CAPTCHA_KEY, LOGIN_VERIFY_URL,
@@ -117,7 +117,7 @@ def register():
         add_token(token, username)
 
         logger.info(f'用户注册成功: {username}')
-        return jsonify({
+        resp = make_response(jsonify({
             'success': True,
             'token': token,
             'user': {
@@ -129,7 +129,9 @@ def register():
                 'isAdmin': False,
                 'isSuperAdmin': False
             }
-        })
+        }))
+        resp.set_cookie('token', token, max_age=30*24*3600, httponly=False, samesite='Lax', path='/')
+        return resp
     except Exception as e:
         logger.error(f'注册错误: {str(e)}')
         return jsonify({'error': '服务器内部错误'}), 500
@@ -196,7 +198,7 @@ def login():
         add_token(token, username)
 
         logger.info(f'用户登录成功: {username}')
-        return jsonify({
+        resp = make_response(jsonify({
             'success': True,
             'token': token,
             'user': {
@@ -208,7 +210,9 @@ def login():
                 'isAdmin': user.get('isAdmin', False),
                 'isSuperAdmin': user.get('isSuperAdmin', False)
             }
-        })
+        }))
+        resp.set_cookie('token', token, max_age=30*24*3600, httponly=False, samesite='Lax', path='/')
+        return resp
     except Exception as e:
         logger.error(f'登录错误: {str(e)}')
         return jsonify({'error': '服务器内部错误'}), 500
@@ -219,8 +223,12 @@ def logout(user):
     """用户登出：删除服务端 token"""
     try:
         token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        if not token:
+            token = request.cookies.get('token', '')
         remove_token(token)
-        return jsonify({'success': True})
+        resp = make_response(jsonify({'success': True}))
+        resp.set_cookie('token', '', max_age=0, path='/')
+        return resp
     except Exception as e:
         logger.error(f'退出错误: {str(e)}')
         return jsonify({'success': True})
@@ -243,6 +251,84 @@ def delete_guest():
     except Exception as e:
         logger.error(f'删除访客账号错误: {str(e)}')
         return jsonify({'success': True})
+
+@auth_bp.route('/api/guest/login', methods=['POST'])
+def guest_login():
+    """访客登录：验证极验验证码，创建访客账号，返回 token"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': '无效的请求数据'}), 400
+
+        username = data.get('username', '').strip()
+        geetest_lot = data.get('geetestLot', '')
+        geetest_output = data.get('geetestCaptchaOutput', '')
+        geetest_pass = data.get('geetestPassToken', '')
+        geetest_gen_time = data.get('geetestGenTime', '')
+
+        if not username:
+            return jsonify({'error': '访客用户名不能为空'}), 400
+
+        if not geetest_lot:
+            return jsonify({'error': '请完成验证码验证'}), 400
+
+        geetest_success, geetest_msg = geetest_verify(
+            geetest_lot, geetest_output, geetest_pass, geetest_gen_time,
+            captcha_id=GT4_LOGIN_CAPTCHA_ID,
+            captcha_key=GT4_LOGIN_CAPTCHA_KEY, verify_url=LOGIN_VERIFY_URL
+        )
+        if not geetest_success:
+            return jsonify({'error': geetest_msg}), 400
+        logger.info(f'极验访客登录验证通过，用户名: {username}')
+
+        existing_user = get_user(username)
+        if existing_user:
+            if existing_user.get('bannedUntil'):
+                banned_until = existing_user['bannedUntil']
+                if banned_until and time.time() < banned_until:
+                    return jsonify({'error': f"账号已被封禁至 {datetime.fromtimestamp(banned_until).strftime('%Y-%m-%d %H:%M:%S')}"}), 403
+            token = str(uuid.uuid4())
+            add_token(token, username)
+            existing_user['lastLogin'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            save_user(username, existing_user)
+        else:
+            user_data = {
+                'username': username,
+                'password': '',
+                'score': 0,
+                'wins': 0,
+                'games': 0,
+                'joinDate': datetime.now().strftime('%Y-%m-%d'),
+                'lastLogin': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'isAdmin': False,
+                'isSuperAdmin': False,
+                'bannedUntil': None,
+                'isGuest': True
+            }
+            save_user(username, user_data)
+            token = str(uuid.uuid4())
+            add_token(token, username)
+
+        logger.info(f'访客登录成功: {username}')
+        resp = make_response(jsonify({
+            'success': True,
+            'token': token,
+            'user': {
+                'username': username,
+                'score': 0,
+                'rank': calculate_rank(0),
+                'wins': 0,
+                'games': 0,
+                'isAdmin': False,
+                'isSuperAdmin': False,
+                'isGuest': True
+            }
+        }))
+        resp.set_cookie('token', token, max_age=30*24*3600, httponly=False, samesite='Lax', path='/')
+        return resp
+    except Exception as e:
+        logger.error(f'访客登录错误: {str(e)}')
+        return jsonify({'error': '服务器内部错误'}), 500
 
 @auth_bp.route('/api/current_user', methods=['GET'])
 @require_auth
@@ -304,7 +390,7 @@ def login_password_free():
         add_token(token, username)
 
         logger.info(f'免密登录成功: {username}')
-        return jsonify({
+        resp = make_response(jsonify({
             'success': True,
             'token': token,
             'user': {
@@ -316,7 +402,9 @@ def login_password_free():
                 'isAdmin': user.get('isAdmin', False),
                 'isSuperAdmin': user.get('isSuperAdmin', False)
             }
-        })
+        }))
+        resp.set_cookie('token', token, max_age=30*24*3600, httponly=False, samesite='Lax', path='/')
+        return resp
     except Exception as e:
         logger.error(f'免密登录错误: {str(e)}')
         return jsonify({'error': '服务器内部错误'}), 500

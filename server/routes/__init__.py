@@ -37,50 +37,50 @@ def register_routes(app):
         return render_template('login.html')
 
     # 游戏大厅页面
-    @login_required
     @app.route('/game')
+    @login_required
     def game_page():
         return render_template('game.html')
 
     # 游戏大厅页面（带房间号，直接访问链接进入房间）
-    @login_required
     @app.route('/game/<match_id>')
+    @login_required
     def game_page_with_match(match_id):
         return render_template('game.html', match_id=match_id)
 
     # 联机页面（无房间号）
-    @login_required
     @app.route('/online')
+    @login_required
     def online_page():
         return render_template('game.html')
 
     # 联机页面（带房间号，直接访问链接进入房间）
-    @login_required
     @app.route('/online/<match_id>')
+    @login_required
     def online_page_with_match(match_id):
         return render_template('game.html', match_id=match_id)
 
     # 个人中心页面
-    @login_required
     @app.route('/user')
+    @login_required
     def user_page():
         return render_template('user.html')
 
     # 管理后台页面
-    @login_required
     @app.route('/admin')
+    @login_required
     def admin_page():
         return render_template('admin.html')
 
     # 消息页面
-    @login_required
     @app.route('/messages')
+    @login_required
     def messages_page():
         return render_template('messages.html')
 
     # 设置页面
-    @login_required
     @app.route('/settings')
+    @login_required
     def settings_page():
         return render_template('settings.html')
 

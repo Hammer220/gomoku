@@ -71,12 +71,11 @@ var Gomoku = window.Gomoku || {};
         ['easy', 'medium', 'hard', 'master'].forEach(function(d) {
             var btn = $('ai' + d.charAt(0).toUpperCase() + d.slice(1));
             if (!btn) return;
-            btn.classList.toggle('bg-primary', G.aiDifficulty === d);
-            btn.classList.toggle('text-white', G.aiDifficulty === d);
+            btn.classList.toggle('difficulty-btn', true);
+            btn.classList.toggle('active', G.aiDifficulty === d);
         });
     };
 
-    // 更新游戏模式按钮的选中状态
     G.updateModeButtons = function() {
         var isAI = G.gameMode === 'ai';
         var isOnline = G.gameMode === 'online';
@@ -90,22 +89,16 @@ var Gomoku = window.Gomoku || {};
         var onlineSettingsHint = $('onlineSettingsHint');
 
         if (modeAI) {
-            modeAI.classList.toggle('bg-primary', isAI);
-            modeAI.classList.toggle('text-white', isAI);
-            modeAI.classList.toggle('border-gray-300', !isAI);
-            modeAI.classList.toggle('text-gray-700', !isAI);
+            modeAI.classList.toggle('mode-btn', true);
+            modeAI.classList.toggle('active', isAI);
         }
         if (modePVP) {
-            modePVP.classList.toggle('bg-primary', isPVP);
-            modePVP.classList.toggle('text-white', isPVP);
-            modePVP.classList.toggle('border-gray-300', !isPVP);
-            modePVP.classList.toggle('text-gray-700', !isPVP);
+            modePVP.classList.toggle('mode-btn', true);
+            modePVP.classList.toggle('active', isPVP);
         }
         if (modeOnline) {
-            modeOnline.classList.toggle('bg-primary', isOnline);
-            modeOnline.classList.toggle('text-white', isOnline);
-            modeOnline.classList.toggle('border-gray-300', !isOnline);
-            modeOnline.classList.toggle('text-gray-700', !isOnline);
+            modeOnline.classList.toggle('mode-btn', true);
+            modeOnline.classList.toggle('active', isOnline);
         }
         if (aiSettings) aiSettings.classList.toggle('hidden', !isAI);
         if (pvpSettings) pvpSettings.classList.toggle('hidden', !isPVP);
@@ -114,17 +107,16 @@ var Gomoku = window.Gomoku || {};
         if (!isPVP) G.stopPvpTurnTimer();
     };
 
-    // 更新棋子颜色按钮的选中状态
     G.updateColorButtons = function() {
         var black = $('playerColorBlack');
         var white = $('playerColorWhite');
         if (black) {
-            black.classList.toggle('bg-primary', G.playerColor === 1);
-            black.classList.toggle('text-white', G.playerColor === 1);
+            black.classList.toggle('color-btn', true);
+            black.classList.toggle('active', G.playerColor === 1);
         }
         if (white) {
-            white.classList.toggle('bg-primary', G.playerColor === 2);
-            white.classList.toggle('text-white', G.playerColor === 2);
+            white.classList.toggle('color-btn', true);
+            white.classList.toggle('active', G.playerColor === 2);
         }
     };
 

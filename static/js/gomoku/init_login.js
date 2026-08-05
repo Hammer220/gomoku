@@ -37,11 +37,47 @@ var Gomoku = window.Gomoku || {};
             G.onlineCtx = onlineCanvas.getContext('2d');
         }
 
+        // 初始化WebSocket管理器
+        if (G.WebSocketManager) {
+            G.WebSocketManager.init();
+        }
+
+        // ==================== 自动登录 ====================
+
+        // 如果已有 token，先尝试自动登录，成功则跳转到游戏大厅，不显示登录界面
+        if (G.token) {
+            try {
+                G.currentUser = await G.apiCall('/api/current_user', 'GET', null, true);
+                G.isLoggedIn = true;
+                var pendingMatchId = sessionStorage.getItem('pendingMatchId');
+                if (pendingMatchId) {
+                    sessionStorage.removeItem('pendingMatchId');
+                    window.location.href = '/game/' + pendingMatchId;
+                } else {
+                    window.location.href = '/game';
+                }
+                return;
+            } catch (e) {
+                G.token = '';
+                localStorage.removeItem('token');
+            }
+        }
+
+        // 自动登录失败或无 token，显示登录界面
+        document.getElementById('loginModal').classList.remove('hidden');
+
         // 访客登录按钮点击事件
         var guestLoginBtn = document.getElementById('guestLoginBtn');
         if (guestLoginBtn) {
-            guestLoginBtn.addEventListener('click', function() {
-                G.loginAsGuest();
+            guestLoginBtn.addEventListener('click', async function() {
+                if (!G.captchaEnabled || G.guestGeetestToken) {
+                    G.loginAsGuest();
+                } else {
+                    var captchaInstance = window['gt4Instance_geetestGuestWidget'];
+                    if (captchaInstance && captchaInstance.showCaptcha) {
+                        captchaInstance.showCaptcha();
+                    }
+                }
             });
         }
         G.updateGuestRemainingDisplay();
@@ -54,8 +90,10 @@ var Gomoku = window.Gomoku || {};
         if (!G.captchaEnabled) {
             var loginCaptcha = document.getElementById('geetestLoginWidget');
             var regCaptcha = document.getElementById('geetestRegisterWidget');
+            var guestCaptcha = document.getElementById('geetestGuestWidget');
             if (loginCaptcha) loginCaptcha.classList.add('hidden');
             if (regCaptcha) regCaptcha.classList.add('hidden');
+            if (guestCaptcha) guestCaptcha.classList.add('hidden');
         }
 
         // 初始化极验登录验证码
@@ -65,8 +103,15 @@ var Gomoku = window.Gomoku || {};
                     resolve();
                 });
             });
+            // 初始化访客登录验证码
+            await new Promise(function(resolve) {
+                G.initGeetestWidget('geetestGuestWidget', function() {
+                    resolve();
+                });
+            });
         } else {
             G.loginGeetestToken = 'disabled';
+            G.guestGeetestToken = 'disabled';
         }
 
         // ==================== 显示注册弹窗 ====================
@@ -206,34 +251,6 @@ var Gomoku = window.Gomoku || {};
             G.registerFormInteracted = true;
             sessionStorage.setItem('registerFormInteracted', 'true');
         });
-
-        // ==================== 自动登录 ====================
-
-        // 如果已有 token，尝试自动登录，成功则跳转到游戏大厅
-        // 注意：不再根据 isGuest 自动跳转，让访客用户也能访问登录页面选择登录或注册
-        if (G.token) {
-            try {
-                G.currentUser = await G.apiCall('/api/current_user', 'GET', null, true);
-                G.isLoggedIn = true;
-                // 登录页面没有游戏 UI，直接跳转到游戏大厅
-                var pendingMatchId = sessionStorage.getItem('pendingMatchId');
-                if (pendingMatchId) {
-                    sessionStorage.removeItem('pendingMatchId');
-                    window.location.href = '/game/' + pendingMatchId;
-                } else {
-                    window.location.href = '/game';
-                }
-            } catch (e) {
-                // token 无效，清除并停留在登录页
-                G.token = '';
-                localStorage.removeItem('token');
-            }
-        }
-
-        // 初始化WebSocket管理器
-        if (G.WebSocketManager) {
-            G.WebSocketManager.init();
-        }
     };
 
     // 启动初始化

@@ -123,6 +123,7 @@ var Gomoku = window.Gomoku || {};
             statusLabel.textContent = '未在对局中';
             if (statusLight) statusLight.className = 'inline-block w-3 h-3 bg-gray-400 rounded-full mr-2';
             if (undoDrawActions) undoDrawActions.classList.add('hidden');
+            G.updateSpectatorCount(0, true);
             return;
         }
 
@@ -134,6 +135,18 @@ var Gomoku = window.Gomoku || {};
         } else {
             statusLabel.textContent = '等待对手';
             if (statusLight) statusLight.className = 'inline-block w-3 h-3 bg-yellow-500 rounded-full mr-2';
+        }
+    };
+
+    G.updateSpectatorCount = function(count, forceHide) {
+        var spectatorEl = $('onlineSpectatorCount');
+        var spectatorNum = $('onlineSpectatorNum');
+        if (!spectatorEl || !spectatorNum) return;
+        if (forceHide || count === undefined || count === null || count <= 0) {
+            spectatorEl.classList.add('hidden');
+        } else {
+            spectatorEl.classList.remove('hidden');
+            spectatorNum.textContent = count;
         }
     };
 

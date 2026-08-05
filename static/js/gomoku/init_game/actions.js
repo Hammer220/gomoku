@@ -100,19 +100,6 @@
         onlineLeaveBtn.classList.add('hidden');
     }
 
-    // 退出观战
-    var spectateLeaveBtn = $('spectateLeaveBtn');
-    if (spectateLeaveBtn) {
-        spectateLeaveBtn.addEventListener('click', G.leaveSpectate);
-        spectateLeaveBtn.classList.add('hidden');
-    }
-
-    // 刷新观战列表
-    var refreshSpectateBtn = $('refreshSpectateBtn');
-    if (refreshSpectateBtn) {
-        refreshSpectateBtn.addEventListener('click', G.loadSpectatableMatches);
-    }
-
     // 刷新可用房间列表
     var refreshAvailableBtn = $('refreshAvailableBtn');
     if (refreshAvailableBtn) {
@@ -124,10 +111,6 @@
 
     // 观战链接分享
     if (G.attachShareSpectateHandler) G.attachShareSpectateHandler();
-
-    // 联机房间：悔棋按钮
-    var requestUndoBtn = $('requestUndoBtn');
-    if (requestUndoBtn) requestUndoBtn.addEventListener('click', G.requestOnlineUndo);
 
     // 联机房间：求和按钮
     var requestDrawBtn = $('requestDrawBtn');

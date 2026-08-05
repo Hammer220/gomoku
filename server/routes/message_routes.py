@@ -3,10 +3,11 @@
 """
 
 import time
+import random
 from flask import Blueprint, request, jsonify
 
 from ..models import (load_messages, save_message, update_message, delete_message_by_id,
-                      get_user, get_all_users_from_db)
+                      get_user, get_all_users_from_db, save_user)
 from ..auth import require_auth
 from ..logger import logger
 from ..i18n import get_text, get_user_language
@@ -82,14 +83,40 @@ def send_message(user):
         recipients = body.get('to', [])
         content = body.get('content', '').strip()
         image = body.get('image', '').strip()
+        red_packet = body.get('red_packet')
 
-        if not content and not image:
+        if not content and not image and not red_packet:
             return jsonify({'error': get_text('message_content_empty', lang)}), 400
         if not recipients:
             return jsonify({'error': get_text('please_select_recipient', lang)}), 400
 
-        if image and len(image) > 5 * 1024 * 1024:
-            return jsonify({'error': get_text('image_too_large', lang) or '图片大小不能超过5MB'}), 400
+        if image and len(image) > 10 * 1024 * 1024:
+            return jsonify({'error': get_text('image_too_large', lang) or '图片大小不能超过10MB'}), 400
+
+        if red_packet:
+            if not isinstance(red_packet, dict):
+                return jsonify({'error': get_text('invalid_red_packet', lang) or '红包数据格式无效'}), 400
+            rp_amount = red_packet.get('amount', 0)
+            rp_count = red_packet.get('count', 1)
+            if not isinstance(rp_amount, (int, float)) or rp_amount <= 0:
+                return jsonify({'error': get_text('invalid_red_packet_amount', lang) or '红包积分数量无效'}), 400
+            if not isinstance(rp_count, int) or rp_count < 1:
+                return jsonify({'error': get_text('invalid_red_packet_count', lang) or '红包个数无效'}), 400
+            if rp_count > len(valid_recipients):
+                rp_count = len(valid_recipients)
+            sender = get_user(from_username)
+            if not sender or sender.get('score', 0) < rp_amount:
+                return jsonify({'error': get_text('insufficient_score', lang) or '积分不足，无法发送红包'}), 400
+            sender['score'] = sender.get('score', 0) - rp_amount
+            save_user(from_username, sender)
+            red_packet = {
+                'amount': rp_amount,
+                'count': rp_count,
+                'remaining': rp_amount,
+                'claimed': [],
+                'claimed_by': [],
+                'total_claimed': 0
+            }
 
         if not isinstance(recipients, list):
             recipients = [recipients]
@@ -117,6 +144,7 @@ def send_message(user):
             'to': valid_recipients,
             'content': content,
             'image': image,
+            'red_packet': red_packet,
             'timestamp': int(time.time()),
             'read_by': []
         }
@@ -249,3 +277,74 @@ def get_user_list(user):
     except Exception as e:
         logger.error(f'获取用户列表错误: {str(e)}')
         return jsonify({'error': get_text('get_user_list_error', lang)}), 500
+
+
+@message_bp.route('/api/messages/red-packet/claim', methods=['POST'])
+@require_auth
+def claim_red_packet(user):
+    lang = get_user_language(user)
+    try:
+        body = request.get_json()
+        if not body:
+            return jsonify({'error': get_text('invalid_request_data', lang)}), 400
+
+        message_id = body.get('message_id')
+        if not message_id:
+            return jsonify({'error': '缺少消息ID'}), 400
+
+        all_msgs = _get_messages()
+        msg = None
+        for m in all_msgs:
+            if str(m['id']) == str(message_id):
+                msg = m
+                break
+
+        if not msg:
+            return jsonify({'error': get_text('message_not_found', lang)}), 404
+
+        rp = msg.get('red_packet')
+        if not rp:
+            return jsonify({'error': '该消息不包含红包'}), 400
+
+        username = user['username']
+
+        if username in rp.get('claimed_by', []):
+            return jsonify({'error': '你已经领取过该红包了'}), 400
+
+        if rp.get('total_claimed', 0) >= rp.get('count', 1):
+            return jsonify({'error': '红包已被领完'}), 400
+
+        remaining = rp.get('remaining', 0)
+        count_left = rp.get('count', 1) - rp.get('total_claimed', 0)
+
+        if count_left == 1:
+            claimed_amount = remaining
+        else:
+            max_single = int(remaining / count_left * 2)
+            claimed_amount = random.randint(1, max(1, max_single))
+
+        claimed_amount = min(claimed_amount, remaining)
+
+        rp['claimed'].append(claimed_amount)
+        rp['claimed_by'].append(username)
+        rp['remaining'] = remaining - claimed_amount
+        rp['total_claimed'] = rp.get('total_claimed', 0) + 1
+
+        msg['red_packet'] = rp
+        update_message(msg['id'], msg)
+
+        current_user = get_user(username)
+        if current_user:
+            current_user['score'] = current_user.get('score', 0) + claimed_amount
+            save_user(username, current_user)
+
+        logger.info(f'用户 {username} 领取了 {msg["from"]} 的红包 {claimed_amount} 积分')
+
+        return jsonify({
+            'success': True,
+            'claimed_amount': claimed_amount,
+            'red_packet': rp
+        })
+    except Exception as e:
+        logger.error(f'领取红包错误: {str(e)}')
+        return jsonify({'error': get_text('claim_red_packet_error', lang) or '领取红包失败'}), 500

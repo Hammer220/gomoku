@@ -195,20 +195,49 @@
         }
     };
 
-    // 封禁倒计时
+    // 封禁倒计时 - 本地更新，不重新请求服务器
     G.startBannedCountdown = function() {
         if (G.bannedCountdownTimer) clearInterval(G.bannedCountdownTimer);
         G.bannedCountdownTimer = setInterval(function() {
             var hasBanned = false;
             if (G.adminAllUsers) {
                 G.adminAllUsers.forEach(function(u) {
-                    if (u.isBanned && u.remainingMinutes > 0) { hasBanned = true; }
+                    if (u.isBanned && u.remainingMinutes > 0) {
+                        u.remainingMinutes = Math.max(0, u.remainingMinutes - 1);
+                        if (u.remainingMinutes <= 0) {
+                            u.isBanned = false;
+                            u.bannedUntil = null;
+                            hasBanned = true;
+                        }
+                    }
                 });
             }
-            if (hasBanned || (document.getElementById('adminContent') && !document.getElementById('adminContent').classList.contains('hidden'))) {
+            var adminContent = document.getElementById('adminContent');
+            var isAdminVisible = adminContent && !adminContent.classList.contains('hidden');
+            if (hasBanned || isAdminVisible) {
+                G.refreshBannedDisplay();
+            }
+            if (hasBanned) {
                 G.loadAdminUsers();
             }
         }, 60000);
+    };
+
+    G.refreshBannedDisplay = function() {
+        var rows = document.querySelectorAll('.admin-user-row');
+        if (!rows.length) return;
+        rows.forEach(function(row) {
+            var username = row.dataset.username;
+            var user = G.adminAllUsers.find(function(u) { return u.username === username; });
+            if (!user) return;
+            var bannedCell = row.querySelector('td:nth-child(6)');
+            if (!bannedCell) return;
+            if (user.isBanned) {
+                bannedCell.innerHTML = '<span class="text-red-600">封禁中 (' + user.remainingMinutes + '分钟)</span>';
+            } else {
+                bannedCell.innerHTML = '正常';
+            }
+        });
     };
 
     // ==================== 搜索/分页事件 ====================

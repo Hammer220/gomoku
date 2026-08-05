@@ -289,6 +289,12 @@ def init_db():
         if 'duplicate column' in str(e).lower():
             pass
 
+    try:
+        c.execute("ALTER TABLE messages ADD COLUMN red_packet TEXT DEFAULT ''")
+    except sqlite3.OperationalError as e:
+        if 'duplicate column' in str(e).lower():
+            pass
+
     connection.commit()
     logger.info('SQLite 数据库初始化完成')
 

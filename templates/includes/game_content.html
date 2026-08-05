@@ -4,52 +4,80 @@
         <div class="aspect-square bg-board rounded-lg shadow-lg relative">
             <canvas id="gameCanvas" class="w-full h-full cursor-pointer relative" style="z-index: 2;"></canvas>
         </div>
-        <div id="gameStatus" class="mt-4 p-3 bg-amber-50 rounded-lg text-center border border-amber-200">
+        <div id="gameStatus" class="game-status-bar info mt-4">
             <p id="statusText" class="font-medium">游戏开始! 黑棋先行</p>
             <p id="undoCountText" class="text-sm text-gray-600">悔棋次数: 0/3</p>
             <p class="text-sm"><span id="gameTimeDisplay">00:00</span> · 步数: <span id="moveCount">0</span></p>
         </div>
     </div>
     <div class="w-full lg:w-80 space-y-4">
-        <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
-            <h3 class="font-semibold mb-3"><i class="fa-solid fa-gamepad mr-2 text-primary"></i>游戏模式</h3>
-            <div class="grid grid-cols-3 gap-2">
-                <button id="modeAI" class="py-2 rounded-lg border-2 border-primary bg-primary text-white font-medium">人机</button>
-                <button id="modePVP" class="py-2 rounded-lg border-2 border-gray-300 text-gray-700 font-medium">双人对战</button>
-                <button id="modeOnline" class="py-2 rounded-lg border-2 border-gray-300 text-gray-700 font-medium">联机对战</button>
+        <div class="card-padded hover-lift">
+            <div class="panel-title"><i class="fa-solid fa-gamepad"></i><span>游戏模式</span></div>
+            <div class="mode-btn-group">
+                <button id="modeAI" class="mode-btn active">人机对战</button>
+                <button id="modePVP" class="mode-btn">双人对战</button>
+                <button id="modeOnline" class="mode-btn">联机对战</button>
             </div>
         </div>
-        <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
-            <h3 class="font-semibold mb-3"><i class="fa-solid fa-sliders mr-2 text-primary"></i>设置</h3>
+        <div class="card-padded hover-lift">
+            <div class="panel-title"><i class="fa-solid fa-sliders"></i><span>设置</span></div>
             <div class="space-y-3">
                 <div id="aiSettings">
-                    <div><label class="block text-sm mb-1">你的棋子</label><div class="flex"><button id="playerColorBlack" class="flex-1 py-2 border rounded-l-lg bg-primary text-white">黑棋</button><button id="playerColorWhite" class="flex-1 py-2 border rounded-r-lg">白棋</button></div></div>
-                    <div><label class="block text-sm mb-1">AI难度</label><div class="grid grid-cols-4 gap-1"><button id="aiEasy" class="py-2 border rounded-lg">简单</button><button id="aiMedium" class="py-2 border rounded-lg bg-primary text-white">中等</button><button id="aiHard" class="py-2 border rounded-lg">困难</button><button id="aiMaster" class="py-2 border rounded-lg">大师</button></div></div>
-                    <div class="mt-2"><label class="block text-sm mb-1">禁手规则</label><div class="flex items-center gap-2"><input type="checkbox" id="aiForbidden" class="w-4 h-4 rounded" checked><span class="text-sm">启用禁手（三三、四四、长连）</span></div></div>
+                    <div>
+                        <label class="form-label">你的棋子</label>
+                        <div class="flex">
+                            <button id="playerColorBlack" class="color-btn active rounded-l-lg"><i class="fa-solid fa-circle text-black mr-1"></i>黑棋</button>
+                            <button id="playerColorWhite" class="color-btn rounded-r-lg"><i class="fa-solid fa-circle text-gray-300 mr-1"></i>白棋</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="form-label">AI难度</label>
+                        <div class="difficulty-group">
+                            <button id="aiEasy" class="difficulty-btn">简单</button>
+                            <button id="aiMedium" class="difficulty-btn active">中等</button>
+                            <button id="aiHard" class="difficulty-btn">困难</button>
+                            <button id="aiMaster" class="difficulty-btn">大师</button>
+                        </div>
+                    </div>
+                    <div class="mt-2 info-row">
+                        <input type="checkbox" id="aiForbidden" class="form-checkbox" checked>
+                        <span class="text-sm">启用禁手（三三、四四、长连）</span>
+                    </div>
                 </div>
                 <div id="pvpSettings" class="hidden">
-                    <div><label class="block text-sm mb-1">禁手规则</label><div class="flex items-center gap-2"><input type="checkbox" id="pvpForbidden" class="w-4 h-4 rounded" checked><span class="text-sm">启用禁手（三三、四四、长连）</span></div></div>
-                    <div><label class="block text-sm mb-1 mt-2">时间限制</label><div class="grid grid-cols-4 gap-1"><button id="timeNone" class="py-2 border rounded-lg bg-primary text-white text-xs">无限制</button><button id="time5min" class="py-2 border rounded-lg text-xs">5分钟</button><button id="time10min" class="py-2 border rounded-lg text-xs">10分钟</button><button id="time30min" class="py-2 border rounded-lg text-xs">30分钟</button></div></div>
-                    <div id="pvpTimerDisplay" class="mt-2 p-2 bg-yellow-50 rounded text-xs text-yellow-600 hidden"><i class="fa-solid fa-clock mr-1"></i>每步限时: <span id="pvpTimeLimitText">无限制</span></div>
+                    <div class="info-row">
+                        <input type="checkbox" id="pvpForbidden" class="form-checkbox" checked>
+                        <span class="text-sm">启用禁手（三三、四四、长连）</span>
+                    </div>
+                    <div>
+                        <label class="form-label mt-2">时间限制</label>
+                        <div class="time-group">
+                            <button id="timeNone" class="time-btn active">无限制</button>
+                            <button id="time5min" class="time-btn">5分钟</button>
+                            <button id="time10min" class="time-btn">10分钟</button>
+                            <button id="time30min" class="time-btn">30分钟</button>
+                        </div>
+                    </div>
+                    <div id="pvpTimerDisplay" class="mt-2 settings-hint warning hidden"><i class="fa-solid fa-clock mr-1"></i>每步限时: <span id="pvpTimeLimitText">无限制</span></div>
                 </div>
                 <div id="onlineSettingsHint" class="hidden">
-                    <div class="p-2 bg-green-50 rounded text-xs text-green-600"><i class="fa-solid fa-info-circle mr-1"></i>联机对战强制启用禁手规则</div>
+                    <div class="settings-hint info"><i class="fa-solid fa-info-circle mr-1"></i>联机对战强制启用禁手规则</div>
                 </div>
             </div>
         </div>
-        <div class="flex gap-3">
-            <button id="restartBtn" class="flex-1 bg-primary text-white py-3 rounded-lg font-medium"><i class="fa-solid fa-rotate-right mr-1"></i>重开</button>
-            <button id="undoBtn" class="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-medium"><i class="fa-solid fa-undo mr-1"></i>悔棋</button>
+        <div class="game-action-row">
+            <button id="restartBtn" class="game-action-btn primary"><i class="fa-solid fa-rotate-right mr-1"></i>重开</button>
+            <button id="undoBtn" class="game-action-btn secondary"><i class="fa-solid fa-undo mr-1"></i>悔棋</button>
         </div>
-        <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
-            <h3 class="font-semibold mb-3"><i class="fa-solid fa-floppy-disk mr-2 text-primary"></i>存档</h3>
+        <div class="card-padded hover-lift">
+            <div class="panel-title"><i class="fa-solid fa-floppy-disk"></i><span>存档</span></div>
             <div class="grid grid-cols-2 gap-2 mb-3">
-                <button id="saveGameBtn" class="bg-white border hover:bg-gray-100 py-2 rounded-lg text-sm"><i class="fa-solid fa-save mr-1"></i>保存</button>
-                <button id="exportGameBtn" class="bg-white border hover:bg-gray-100 py-2 rounded-lg text-sm"><i class="fa-solid fa-file-export mr-1"></i>导出</button>
+                <button id="saveGameBtn" class="btn-secondary btn-sm btn-ripple w-full"><i class="fa-solid fa-save mr-1"></i>保存</button>
+                <button id="exportGameBtn" class="btn-secondary btn-sm btn-ripple w-full"><i class="fa-solid fa-file-export mr-1"></i>导出</button>
             </div>
             <div class="grid grid-cols-2 gap-2 mb-3">
-                <button id="importGameBtn" class="bg-white border hover:bg-gray-100 py-2 rounded-lg text-sm"><i class="fa-solid fa-file-import mr-1"></i>导入棋谱</button>
-                <button id="importSaveBtn" class="bg-white border hover:bg-gray-100 py-2 rounded-lg text-sm"><i class="fa-solid fa-cloud-arrow-up mr-1"></i>导入存档</button>
+                <button id="importGameBtn" class="btn-secondary btn-sm btn-ripple w-full"><i class="fa-solid fa-file-import mr-1"></i>导入棋谱</button>
+                <button id="importSaveBtn" class="btn-secondary btn-sm btn-ripple w-full"><i class="fa-solid fa-cloud-arrow-up mr-1"></i>导入存档</button>
             </div>
             <input type="file" id="importFileInput" accept=".json" class="hidden">
             <div id="savedGamesList" class="max-h-48 overflow-y-auto space-y-2 text-sm"></div>

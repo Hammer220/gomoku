@@ -165,9 +165,9 @@
             G.pvpTimeLimit = timeLimits[index];
             timeButtons.forEach(function(btnId) {
                 var b = $(btnId);
-                if (b) b.classList.remove('bg-primary', 'text-white');
+                if (b) b.classList.remove('active');
             });
-            btn.classList.add('bg-primary', 'text-white');
+            btn.classList.add('active');
             var display = $('pvpTimerDisplay');
             var text = $('pvpTimeLimitText');
             if (G.pvpTimeLimit > 0) {

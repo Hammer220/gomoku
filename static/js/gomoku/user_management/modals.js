@@ -56,7 +56,8 @@
             const passwordFree = !(user.passwordFree === true);
             const maxAttempts = user.passwordFreeMaxAttempts || 0;
             G.apiCall('/api/admin/set_password_free', 'POST', { username, passwordFree, maxAttempts: maxAttempts })
-                .then(data => { G.showToast(data.message); G.loadAdminUsers(); G.selectAdminUser(username); })
+                .then(data => { G.showToast(data.message); return G.loadAdminUsers(); })
+                .then(() => { G.selectAdminUser(username); })
                 .catch(err => G.showToast(G.i18n.t('operationFailed') + ': ' + err.message, true));
         }
 

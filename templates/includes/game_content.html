@@ -43,7 +43,15 @@
         </div>
         <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
             <h3 class="font-semibold mb-3"><i class="fa-solid fa-floppy-disk mr-2 text-primary"></i>存档</h3>
-            <button id="saveGameBtn" class="w-full bg-white border hover:bg-gray-100 py-2 rounded-lg mb-3"><i class="fa-solid fa-save mr-1"></i>保存</button>
+            <div class="grid grid-cols-2 gap-2 mb-3">
+                <button id="saveGameBtn" class="bg-white border hover:bg-gray-100 py-2 rounded-lg text-sm"><i class="fa-solid fa-save mr-1"></i>保存</button>
+                <button id="exportGameBtn" class="bg-white border hover:bg-gray-100 py-2 rounded-lg text-sm"><i class="fa-solid fa-file-export mr-1"></i>导出</button>
+            </div>
+            <div class="grid grid-cols-2 gap-2 mb-3">
+                <button id="importGameBtn" class="bg-white border hover:bg-gray-100 py-2 rounded-lg text-sm"><i class="fa-solid fa-file-import mr-1"></i>导入棋谱</button>
+                <button id="importSaveBtn" class="bg-white border hover:bg-gray-100 py-2 rounded-lg text-sm"><i class="fa-solid fa-cloud-arrow-up mr-1"></i>导入存档</button>
+            </div>
+            <input type="file" id="importFileInput" accept=".json" class="hidden">
             <div id="savedGamesList" class="max-h-48 overflow-y-auto space-y-2 text-sm"></div>
         </div>
     </div>

@@ -22,7 +22,7 @@ def require_permission(permission_field):
         @wraps(f)
         def decorated(admin_user, *args, **kwargs):
             if not admin_user.get('isSuperAdmin'):
-                if not admin_user.get(permission_field, True):
+                if not admin_user.get(permission_field, False):
                     return jsonify({'error': '权限不足，请联系超级管理员'}), 403
             return f(admin_user, *args, **kwargs)
         return decorated

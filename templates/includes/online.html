@@ -17,12 +17,14 @@
     <div class="max-w-7xl mx-auto">
         <div class="sidebar-layout">
             <!-- 主区域：棋盘 -->
-            <div class="sidebar-main">
-                <div class="aspect-square bg-board rounded-lg shadow-lg relative card-3d-hover">
-                    <canvas id="onlineCanvas" class="w-full h-full cursor-pointer relative" style="z-index: 2;"></canvas>
+            <div id="onlineBoardContainer" class="sidebar-main hidden">
+                <div class="online-board-wrapper">
+                    <div class="aspect-square bg-board rounded-xl shadow-2xl relative board-frame">
+                        <canvas id="onlineCanvas" class="w-full h-full cursor-pointer relative" style="z-index: 2;"></canvas>
+                    </div>
                 </div>
                 <div class="online-status-bar">
-                    <p id="onlineStatusText" class="online-status-title">等待加入房间...</p>
+                    <p id="onlineStatusText" class="online-status-title"><span id="onlineStatusLight" class="inline-block w-3 h-3 bg-gray-400 rounded-full mr-2"></span><span id="onlineStatusLabel">等待加入房间...</span></p>
                     <div class="online-status-info">
                         <span><i class="fa-solid fa-list-numbered mr-1"></i>步数: <span id="onlineMoveCount">0</span></span>
                         <span><i class="fa-solid fa-clock mr-1"></i>时间: <span id="onlineGameTimeDisplay">00:00</span></span>
@@ -44,6 +46,62 @@
             <!-- 侧边栏 -->
             <div class="sidebar-aside">
                 <div class="aside-cards">
+                    <!-- 房间大厅面板（未进入棋局时显示） -->
+                    <div id="onlineLobbyPanel">
+                        <div class="card-padded hover-lift">
+                            <div class="panel-title">
+                                <i class="fa-solid fa-door-open"></i><span>房间大厅</span>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label"><i class="fa-solid fa-clock mr-1"></i>计时模式</label>
+                                <select id="timeModeSelect" class="form-select input-focus-animate">
+                                    <option value="untimed">无计时</option>
+                                    <option value="move">每步限时 (30秒)</option>
+                                    <option value="total">总时间 (10分钟)</option>
+                                    <option value="both">每步限时 + 总时间</option>
+                                </select>
+                            </div>
+                            <div class="mb-3 space-y-2">
+                                <label class="info-row">
+                                    <input type="checkbox" id="allowSpectateCheck" checked class="form-checkbox">
+                                    <span class="text-sm text-gray-600"><i class="fa-solid fa-eye mr-1"></i>允许观战</span>
+                                </label>
+                                <div>
+                                    <label class="form-label"><i class="fa-solid fa-key mr-1"></i>房间密码（可选）</label>
+                                    <input type="text" id="roomPasswordInput" placeholder=" " class="form-input input-focus-animate">
+                                </div>
+                            </div>
+                            <button id="onlineCreateBtn" class="btn-primary btn-ripple w-full mb-3">
+                                <i class="fa-solid fa-plus mr-2"></i>创建房间
+                            </button>
+                            <div class="room-join-group">
+                                <input type="text" id="onlineMatchIdInput" placeholder=" " class="form-input input-focus-animate">
+                                <input type="password" id="joinPasswordInput" placeholder="房间密码" class="form-input w-24 input-focus-animate">
+                                <button id="onlineJoinBtn" class="btn-primary btn-sm btn-ripple">
+                                    <i class="fa-solid fa-right-to-bracket mr-1"></i>加入
+                                </button>
+                            </div>
+                            <div class="pt-3 border-t">
+                                <div class="panel-title-sm"><i class="fa-solid fa-list mr-1"></i>可用房间</div>
+                                <div id="availableMatchesContainer" class="room-list"></div>
+                                <button id="refreshAvailableBtn" class="btn-secondary btn-ripple w-full mt-2 text-sm">
+                                    <i class="fa-solid fa-refresh mr-1"></i>刷新列表
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card-padded hover-lift">
+                            <div class="panel-title">
+                                <i class="fa-solid fa-eye"></i><span>观战大厅</span>
+                                <span id="spectateCount" class="text-xs text-gray-400 ml-1"></span>
+                            </div>
+                            <div id="spectatableMatchesContainer" class="room-list h-36 mb-3"></div>
+                            <button id="refreshSpectateBtn" class="btn-secondary btn-ripple w-full text-sm">
+                                <i class="fa-solid fa-refresh mr-1"></i>刷新列表
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- 房间聊天面板 -->
                     <div id="roomChatPanel" class="card-padded hidden">
                         <div class="panel-title">
@@ -71,11 +129,9 @@
                         </div>
                         <div id="roomActions" class="mt-3 hidden">
                             <div class="action-btn-group">
-                                <!-- 聊天切换按钮 -->
-                                <button id="roomChatToggle" onclick="Gomoku.toggleRoomChat()" class="chat-toggle-btn">
-                                    <i class="fa-solid fa-comments mr-2"></i>显示聊天
+                                <button id="shareSpectateBtn" class="action-btn-full action-btn-spectate btn-ripple">
+                                    <i class="fa-solid fa-link mr-1"></i>复制观战链接
                                 </button>
-                                <!-- 悔棋/和棋/认输按钮 -->
                                 <div id="undoDrawActions" class="action-btn-group hidden">
                                     <div class="action-btn-row">
                                         <button id="requestUndoBtn" class="action-btn action-btn-undo btn-ripple">
@@ -85,7 +141,7 @@
                                             <i class="fa-solid fa-handshake mr-1"></i>求和
                                         </button>
                                     </div>
-                                    <button id="resignBtn" class="action-btn-full bg-red-500 hover:bg-red-600 btn-ripple">
+                                    <button id="resignBtn" class="action-btn-full action-btn-resign btn-ripple">
                                         <i class="fa-solid fa-flag mr-1"></i>认输
                                     </button>
                                 </div>
@@ -94,63 +150,6 @@
                                 </button>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- 房间大厅 -->
-                    <div class="card-padded hover-lift">
-                        <div class="panel-title">
-                            <i class="fa-solid fa-door-open"></i><span>房间大厅</span>
-                        </div>
-                        <!-- 计时模式选择 -->
-                        <div class="mb-3">
-                            <label class="form-label"><i class="fa-solid fa-clock mr-1"></i>计时模式</label>
-                            <select id="timeModeSelect" class="form-select input-focus-animate">
-                                <option value="untimed">无计时</option>
-                                <option value="move">每步限时 (30秒)</option>
-                                <option value="total">总时间 (10分钟)</option>
-                                <option value="both">每步限时 + 总时间</option>
-                            </select>
-                        </div>
-                        <!-- 房间设置 -->
-                        <div class="mb-3 space-y-2">
-                            <label class="info-row">
-                                <input type="checkbox" id="allowSpectateCheck" checked class="form-checkbox">
-                                <span class="text-sm text-gray-600"><i class="fa-solid fa-eye mr-1"></i>允许观战</span>
-                            </label>
-                            <div>
-                                <label class="form-label"><i class="fa-solid fa-key mr-1"></i>房间密码（可选）</label>
-                                <input type="text" id="roomPasswordInput" placeholder=" " class="form-input input-focus-animate">
-                            </div>
-                        </div>
-                        <button id="onlineCreateBtn" class="btn-primary btn-ripple w-full mb-3">
-                            <i class="fa-solid fa-plus mr-2"></i>创建房间
-                        </button>
-                        <div class="room-join-group">
-                            <input type="text" id="onlineMatchIdInput" placeholder=" " class="form-input input-focus-animate">
-                            <input type="password" id="joinPasswordInput" placeholder=" " class="form-input w-24 input-focus-animate">
-                            <button id="onlineJoinBtn" class="btn-primary btn-sm btn-ripple">
-                                <i class="fa-solid fa-right-to-bracket mr-1"></i>加入
-                            </button>
-                        </div>
-                        <div class="pt-3 border-t">
-                            <div class="panel-title-sm"><i class="fa-solid fa-list mr-1"></i>可用房间</div>
-                            <div id="availableMatchesContainer" class="room-list"></div>
-                            <button id="refreshAvailableBtn" class="btn-secondary btn-ripple w-full mt-2 text-sm">
-                                <i class="fa-solid fa-refresh mr-1"></i>刷新列表
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- 观战面板 -->
-                    <div class="card-padded hover-lift">
-                        <div class="panel-title">
-                            <i class="fa-solid fa-eye"></i><span>观战大厅</span>
-                            <span id="spectateCount" class="text-xs text-gray-400 ml-1"></span>
-                        </div>
-                        <div id="spectatableMatchesContainer" class="room-list h-36 mb-3"></div>
-                        <button id="refreshSpectateBtn" class="btn-secondary btn-ripple w-full text-sm">
-                            <i class="fa-solid fa-refresh mr-1"></i>刷新列表
-                        </button>
                     </div>
 
                     <!-- 离开按钮 -->

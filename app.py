@@ -30,7 +30,7 @@ if __name__ == '__main__':
     local_ip = get_local_ip()
     logger.info(f'五子棋服务启动在端口 {PORT}')
     print(f'\n========================================')
-    print(f'本机访问: http://localhost:{PORT}')
+    print(f'本机访问: http://localhost:{PORT} 或 http://127.0.0.1:{PORT}')
     print(f'局域网访问: http://{local_ip}:{PORT}')
     print(f'========================================\n')
     socketio.run(app, host='0.0.0.0', port=PORT,debug=True)

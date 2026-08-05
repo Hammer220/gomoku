@@ -23,15 +23,6 @@
     var exportGameBtn = $('exportGameBtn');
     if (exportGameBtn) exportGameBtn.addEventListener('click', G.exportCurrentGame);
 
-    // 导入棋局（加载到前端）
-    var importGameBtn = $('importGameBtn');
-    if (importGameBtn) {
-        importGameBtn.addEventListener('click', function() {
-            var fileInput = $('importFileInput');
-            if (fileInput) fileInput.click();
-        });
-    }
-
     // 导入棋局文件选择处理
     var importFileInput = $('importFileInput');
     var importAction = 'frontend';
@@ -130,6 +121,21 @@
 
     // 关闭房间处理
     if (G.attachCloseRoomHandler) G.attachCloseRoomHandler();
+
+    // 观战链接分享
+    if (G.attachShareSpectateHandler) G.attachShareSpectateHandler();
+
+    // 联机房间：悔棋按钮
+    var requestUndoBtn = $('requestUndoBtn');
+    if (requestUndoBtn) requestUndoBtn.addEventListener('click', G.requestOnlineUndo);
+
+    // 联机房间：求和按钮
+    var requestDrawBtn = $('requestDrawBtn');
+    if (requestDrawBtn) requestDrawBtn.addEventListener('click', G.requestOnlineDraw);
+
+    // 联机房间：认输按钮
+    var resignBtn = $('resignBtn');
+    if (resignBtn) resignBtn.addEventListener('click', G.resignOnline);
 
     // 监控画布强制落子（超级管理员）
     var monitorCanvas = $('monitorCanvas');

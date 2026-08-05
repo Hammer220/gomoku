@@ -11,20 +11,31 @@ var Gomoku = window.Gomoku || {};
     var G = Gomoku;
 
     // 检查指定位置是否形成五连（胜利判定）
-    G.checkWin = function(row, col, player) {
+    // 支持两种调用方式：checkWin(row, col, player) 或 checkWin(board, row, col, player)
+    G.checkWin = function(row, col, player, board) {
         var dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
+        var checkBoard = G.gameBoard;
+        if (Array.isArray(row)) {
+            checkBoard = row;
+            row = col;
+            col = player;
+            player = board;
+        }
+        if (board !== undefined && Array.isArray(board)) {
+            checkBoard = board;
+        }
         for (var d = 0; d < dirs.length; d++) {
             var dx = dirs[d][0], dy = dirs[d][1];
             var count = 1, cells = [{ row: row, col: col }];
             for (var i = 1; i < 5; i++) {
                 var nr = row + i * dy, nc = col + i * dx;
-                if (nr < 0 || nr >= G.BOARD_SIZE || nc < 0 || nc >= G.BOARD_SIZE || G.gameBoard[nr][nc] !== player) break;
+                if (nr < 0 || nr >= G.BOARD_SIZE || nc < 0 || nc >= G.BOARD_SIZE || checkBoard[nr][nc] !== player) break;
                 count++;
                 cells.push({ row: nr, col: nc });
             }
             for (var i = 1; i < 5; i++) {
                 var nr = row - i * dy, nc = col - i * dx;
-                if (nr < 0 || nr >= G.BOARD_SIZE || nc < 0 || nc >= G.BOARD_SIZE || G.gameBoard[nr][nc] !== player) break;
+                if (nr < 0 || nr >= G.BOARD_SIZE || nc < 0 || nc >= G.BOARD_SIZE || checkBoard[nr][nc] !== player) break;
                 count++;
                 cells.push({ row: nr, col: nc });
             }

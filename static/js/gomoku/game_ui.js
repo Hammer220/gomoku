@@ -14,38 +14,43 @@ var Gomoku = window.Gomoku || {};
     };
 
     G.hashToContent = {
-        'game': 'gameContent',
-        'online': 'onlineContent',
-        'profile': 'profileContent',
-        'history': 'historyContent',
-        'stats': 'statsContent',
-        'leaderboard': 'leaderboardContent',
-        'admin': 'adminContent',
-        'board': 'boardColorContent'
+        '/game': 'gameContent',
+        '/online': 'onlineContent',
+        '/profile': 'profileContent',
+        '/history': 'historyContent',
+        '/stats': 'statsContent',
+        '/leaderboard': 'leaderboardContent',
+        '/admin': 'adminContent',
+        '/board': 'boardColorContent'
     };
 
     G.contentToHash = {
-        'gameContent': 'game',
-        'onlineContent': 'online',
-        'profileContent': 'profile',
-        'historyContent': 'history',
-        'statsContent': 'stats',
-        'leaderboardContent': 'leaderboard',
-        'adminContent': 'admin',
-        'boardColorContent': 'board'
+        'gameContent': '/game',
+        'onlineContent': '/online',
+        'profileContent': '/profile',
+        'historyContent': '/history',
+        'statsContent': '/stats',
+        'leaderboardContent': '/leaderboard',
+        'adminContent': '/admin',
+        'boardColorContent': '/board'
     };
 
-    G.handleHashChange = function() {
-        var hash = window.location.hash.replace('#', '');
-        var contentId = G.hashToContent[hash];
+    G.handleRouteChange = function() {
+        var path = window.location.pathname;
+        // 处理带参数的路径 /online/<matchId> 和 /game/<matchId>
+        if (path.startsWith('/online/')) {
+            path = '/online';
+        }
+        if (path.startsWith('/game/')) {
+            path = '/game';
+        }
+        var contentId = G.hashToContent[path];
         if (contentId && $(contentId)) {
-            G.showTab(contentId);
-        } else if (!hash && $('gameContainer') && !$('gameContainer').classList.contains('hidden')) {
-            G.showTab('gameContent');
+            G.showTab(contentId, true);
         }
     };
 
-    window.addEventListener('hashchange', G.handleHashChange);
+    window.addEventListener('popstate', G.handleRouteChange);
 
     // 更新游戏界面显示（状态文本、步数、悔棋次数、时间）
     G.updateUI = function() {
@@ -144,7 +149,7 @@ var Gomoku = window.Gomoku || {};
 
         var hash = G.contentToHash[tabId];
         if (hash && !skipHashUpdate) {
-            history.replaceState(null, '', '#' + hash);
+            history.replaceState(null, '', hash);
         }
 
         if (tabId === 'adminContent' && G.loadAdminUsers) {
@@ -168,10 +173,14 @@ var Gomoku = window.Gomoku || {};
             }
             if (G.calcOnlineCanvasSize) G.calcOnlineCanvasSize();
             if (!G.onlineBoard || !G.onlineBoard[0]) G.initOnlineBoard();
-            if (G.onlineMatchId) {
-                var boardContainer = $('onlineBoardContainer');
+            var boardContainer = $('onlineBoardContainer');
+            if (G.onlineMatchId && G.onlineGameActive) {
                 if (boardContainer) boardContainer.classList.remove('hidden');
+                if (G.hideOnlineLobby) G.hideOnlineLobby();
                 if (G.drawOnlineBoard) G.drawOnlineBoard();
+            } else {
+                if (boardContainer) boardContainer.classList.add('hidden');
+                if (G.showOnlineLobby) G.showOnlineLobby();
             }
             if (G.isGuest) {
                 var guestOverlay = $('guestOnlineOverlay');

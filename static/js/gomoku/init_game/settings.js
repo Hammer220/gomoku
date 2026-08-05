@@ -215,6 +215,7 @@
         if (window.INITIAL_MATCH_ID) {
             G.autoJoinMatchById(window.INITIAL_MATCH_ID);
         }
+        if (G.handleRouteChange) G.handleRouteChange();
     } else if (G.token) {
         (async function() {
             try {
@@ -231,6 +232,7 @@
                 if (window.INITIAL_MATCH_ID) {
                     G.autoJoinMatchById(window.INITIAL_MATCH_ID);
                 }
+                if (G.handleRouteChange) G.handleRouteChange();
             } catch (e) {
                 G.token = '';
                 localStorage.removeItem('token');

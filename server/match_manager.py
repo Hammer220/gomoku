@@ -26,5 +26,6 @@ from .match import (
     # 交互
     request_undo, accept_undo, decline_undo,
     request_draw, accept_draw, decline_draw,
+    resign,
     get_spectatable_matches, spectate_match, leave_spectate, get_spectate_status
 )

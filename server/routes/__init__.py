@@ -48,6 +48,18 @@ def register_routes(app):
     def game_page_with_match(match_id):
         return render_template('game.html', match_id=match_id)
 
+    # 联机页面（无房间号）
+    @login_required
+    @app.route('/online')
+    def online_page():
+        return render_template('game.html')
+
+    # 联机页面（带房间号，直接访问链接进入房间）
+    @login_required
+    @app.route('/online/<match_id>')
+    def online_page_with_match(match_id):
+        return render_template('game.html', match_id=match_id)
+
     # 个人中心页面
     @login_required
     @app.route('/user')
@@ -71,6 +83,11 @@ def register_routes(app):
     @app.route('/settings')
     def settings_page():
         return render_template('settings.html')
+
+    # 观战页面（公开访问，通过 room + token 验证）
+    @app.route('/spectate')
+    def spectate_page():
+        return render_template('spectate.html')
 
     # 404 错误处理：返回登录页面
     @app.errorhandler(404)

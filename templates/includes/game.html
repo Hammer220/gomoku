@@ -2,8 +2,8 @@
 <div id="gameContainer" class="max-w-7xl w-full bg-white rounded-2xl shadow-xl overflow-hidden hidden relative main-container">
     <div class="header-bar">
         <div>
-            <h1 class="text-2xl font-bold text-white">五子棋</h1>
-            <p class="text-sm opacity-80">经典对弈 · 双人/人机</p>
+            <h1 class="text-2xl font-bold text-white" data-i18n="appName">五子棋</h1>
+            <p class="text-sm opacity-80" data-i18n="gameSubtitle">经典对弈 · 双人/人机</p>
         </div>
         <div class="flex items-center gap-4">
             <div class="flex items-center">
@@ -12,23 +12,23 @@
                 </div>
                 <div>
                     <p id="userNameDisplay" class="font-semibold"></p>
-                    <p class="text-xs">积分: <span id="userScoreDisplay">0</span> · 段位: <span id="userRankDisplay">无段位</span> · 胜: <span id="userWinsDisplay">0</span></p>
+                    <p class="text-xs"><span data-i18n="points">积分</span>: <span id="userScoreDisplay">0</span> · <span data-i18n="rank">段位</span>: <span id="userRankDisplay" data-i18n="noRank">无段位</span> · <span data-i18n="wins">胜</span>: <span id="userWinsDisplay">0</span></p>
                 </div>
             </div>
             <button id="logoutBtn" class="btn-secondary btn-sm btn-ripple">
-                <i class="fa-solid fa-right-from-bracket mr-1"></i>退出
+                <i class="fa-solid fa-right-from-bracket mr-1"></i><span data-i18n="logout">退出</span>
             </button>
         </div>
     </div>
 
     <div class="bg-gray-50 border-b flex overflow-x-auto p-2">
         <div class="tab-group">
-            <button id="gameTab" class="tab-btn tab-active"><i class="fa-solid fa-chess-board mr-1"></i>游戏</button>
-            <button id="onlineTab" class="tab-btn"><i class="fa-solid fa-globe mr-1"></i>联机对战</button>
-            <button id="profileTab" class="tab-btn"><i class="fa-solid fa-user mr-1"></i>个人资料</button>
-            <button id="historyTab" class="tab-btn"><i class="fa-solid fa-clock-rotate-left mr-1"></i>游戏记录</button>
-            <button id="statsTab" class="tab-btn"><i class="fa-solid fa-chart-pie mr-1"></i>数据统计</button>
-            <button id="leaderboardTab" class="tab-btn"><i class="fa-solid fa-trophy mr-1"></i>积分排行榜</button>
+            <button id="gameTab" class="tab-btn tab-active"><i class="fa-solid fa-chess-board mr-1"></i><span data-i18n="game">游戏</span></button>
+            <button id="onlineTab" class="tab-btn"><i class="fa-solid fa-globe mr-1"></i><span data-i18n="onlineBattle">联机对战</span></button>
+            <button id="profileTab" class="tab-btn"><i class="fa-solid fa-user mr-1"></i><span data-i18n="personalInfo">个人资料</span></button>
+            <button id="historyTab" class="tab-btn"><i class="fa-solid fa-clock-rotate-left mr-1"></i><span data-i18n="gameRecords">游戏记录</span></button>
+            <button id="statsTab" class="tab-btn"><i class="fa-solid fa-chart-pie mr-1"></i><span data-i18n="statistics">数据统计</span></button>
+            <button id="leaderboardTab" class="tab-btn"><i class="fa-solid fa-trophy mr-1"></i><span data-i18n="leaderboard">积分排行榜</span></button>
         </div>
     </div>
 
@@ -52,13 +52,13 @@
             <div class="inline-flex items-center justify-center w-16 h-16 mx-auto mb-4 rounded-full bg-red-100">
                 <i class="fa-solid fa-exclamation-triangle text-red-500 text-2xl animate-pulse"></i>
             </div>
-            <h3 class="text-xl font-bold text-gray-800 mb-2">服务器连接已断开</h3>
-            <p class="text-gray-500 mb-4">服务器已关闭，请稍后刷新页面重试</p>
+            <h3 class="text-xl font-bold text-gray-800 mb-2" data-i18n="serverDisconnected">服务器连接已断开</h3>
+            <p class="text-gray-500 mb-4" data-i18n="serverClosedMessage">服务器已关闭，请稍后刷新页面重试</p>
             <button onclick="location.reload()" class="w-full btn-primary btn-ripple py-3 rounded-xl font-medium">
-                <i class="fa-solid fa-rotate mr-2"></i>刷新页面
+                <i class="fa-solid fa-rotate mr-2"></i><span data-i18n="refreshPage">刷新页面</span>
             </button>
         </div>
     </div>
 
-    <div class="footer-bar">© 2026 五子棋 · 实时状态同步版</div>
+    <div class="footer-bar">© 2026 <span data-i18n="appName">五子棋</span></div>
 </div>

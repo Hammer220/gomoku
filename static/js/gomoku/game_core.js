@@ -251,14 +251,20 @@ var Gomoku = window.Gomoku || {};
         };
         await G.apiCall('/api/records/add', 'POST', record);
         if (result !== 'draw') {
-            var scoreConfig = {
-                easy: { win: 10, lose: -50 },
-                medium: { win: 50, lose: -25 },
-                hard: { win: 100, lose: -5 }
-            };
-            var diff = G.aiDifficulty || 'medium';
-            var diffConfig = scoreConfig[diff] || scoreConfig.medium;
-            var scoreChange = result === 'win' ? diffConfig.win : diffConfig.lose;
+            var scoreChange = 0;
+            if (mode === 'ai') {
+                var scoreConfig = {
+                    easy: { win: 10, lose: -50 },
+                    medium: { win: 50, lose: -25 },
+                    hard: { win: 100, lose: -5 },
+                    master: { win: 500, lose: -5 }
+                };
+                var diff = G.aiDifficulty || 'medium';
+                var diffConfig = scoreConfig[diff] || scoreConfig.medium;
+                scoreChange = result === 'win' ? diffConfig.win : diffConfig.lose;
+            } else if (mode === 'online') {
+                scoreChange = result === 'win' ? 30 : -30;
+            }
             G.currentUser.score = (G.currentUser.score || 0) + scoreChange;
             if (result === 'win') G.currentUser.wins = (G.currentUser.wins || 0) + 1;
             G.currentUser.games = (G.currentUser.games || 0) + 1;

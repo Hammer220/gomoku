@@ -26,7 +26,14 @@ def check_win(board, row, col, player):
             return True
     return False
 
-def check_forbidden(board, row, col):
+RULE_MODE_STANDARD = 'standard'
+RULE_MODE_RENJU = 'renju'
+RULE_MODE_FREE = 'free'
+
+
+def check_forbidden(board, row, col, rule_mode=RULE_MODE_RENJU):
+    if rule_mode != RULE_MODE_RENJU:
+        return {'forbidden': False, 'reason': ''}
     if board[row][col] != 1:
         return {'forbidden': False, 'reason': ''}
 
@@ -113,10 +120,6 @@ def analyze_line(board, row, col, dr, dc):
         result['live_three'] = True
 
     return result
-
-RULE_MODE_STANDARD = 'standard'
-RULE_MODE_RENJU = 'renju'
-RULE_MODE_FREE = 'free'
 
 SCORE_FIVE = 100000
 SCORE_LIVE_FOUR = 10000
@@ -305,7 +308,7 @@ class MCTSNode:
         if self.parent:
             self.parent.backpropagate(result)
 
-def find_master_move(board, player, simulations=10000):
+def find_master_move(board, player, simulations=5000):
     opponent = 3 - player
     root = MCTSNode(board, player)
 

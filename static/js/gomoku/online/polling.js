@@ -85,7 +85,14 @@ var Gomoku = window.Gomoku || {};
             G.stopOnlineTimer();
             G.stopTimedCountdown();
             G.stopHeartbeat();
-            var message = res.status === 'closed' ? '房间已被关闭，已自动返回大厅' : '对局已结束，已自动关闭';
+            var message = '对局已结束';
+            if (res.finishedReason === 'opponent_left') {
+                message = '对手已离开，' + (res.winner === G.onlineMyColor ? '你获胜了！' : '你输了');
+            } else if (res.status === 'closed') {
+                message = '房间已被关闭，已自动返回大厅';
+            } else if (res.winner) {
+                message = '游戏结束，' + (res.winner === G.onlineMyColor ? '你获胜了！' : '你输了');
+            }
             var matchIdDisplay = $('onlineMatchIdDisplay');
             var roomInfo = $('roomInfo');
             var roomActions = $('roomActions');
@@ -99,6 +106,9 @@ var Gomoku = window.Gomoku || {};
             if (onlineCreateBtn) onlineCreateBtn.classList.remove('hidden');
             if (onlineJoinBtn) onlineJoinBtn.parentElement.classList.remove('hidden');
 
+            var boardContainer = $('onlineBoardContainer');
+            if (boardContainer) boardContainer.classList.add('hidden');
+
             if (G.WebSocketManager && G.onlineMatchId) {
                 G.WebSocketManager.leaveRoom(G.onlineMatchId);
             }
@@ -108,15 +118,17 @@ var Gomoku = window.Gomoku || {};
             G.onlineOpponent = null;
             G.gameMode = 'ai';
             G.initOnlineBoard();
+            G.showOnlineLobby();
             if (G.drawOnlineBoard) G.drawOnlineBoard();
             G.updateOnlineUI();
             G.startMatchListRefresh();
             G.showToast(message, true);
+            history.replaceState(null, '', '/online');
             return;
         }
 
         if (res.status === 'waiting_for_reconnect') {
-            G.showReconnectPrompt();
+            G.showToast('对手已离开，等待重连...', true);
             return;
         }
 
@@ -211,10 +223,13 @@ var Gomoku = window.Gomoku || {};
             G.onlineGameActive = false;
             G.stopOnlineTimer();
             G.stopTimedCountdown();
-            var statusText = $('onlineStatusText');
-            if (statusText) {
-                statusText.textContent = '和棋';
-                statusText.className = 'text-xl font-semibold text-gray-400';
+            var statusLabel = $('onlineStatusLabel');
+            if (statusLabel) {
+                statusLabel.textContent = '和棋';
+            }
+            var statusLight = $('onlineStatusLight');
+            if (statusLight) {
+                statusLight.className = 'inline-block w-3 h-3 bg-gray-400 rounded-full mr-2';
             }
             G.showRestartRequestUI();
             G.showToast('双方同意和棋');

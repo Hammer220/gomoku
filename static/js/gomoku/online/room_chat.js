@@ -111,10 +111,13 @@ var Gomoku = window.Gomoku || {};
         G.stopOnlineTimer();
         G.stopTimedCountdown();
 
-        var statusText = $('onlineStatusText');
-        if (statusText) {
-            statusText.textContent = '对手已离开，你获得胜利！';
-            statusText.className = 'text-xl font-semibold text-green-600';
+        var statusLabel = $('onlineStatusLabel');
+        if (statusLabel) {
+            statusLabel.textContent = '对手已离开，你获得胜利！';
+        }
+        var statusLight = $('onlineStatusLight');
+        if (statusLight) {
+            statusLight.className = 'inline-block w-3 h-3 bg-green-500 rounded-full mr-2';
         }
 
         G.showRestartRequestUI();
@@ -128,15 +131,12 @@ var Gomoku = window.Gomoku || {};
 
     G.toggleRoomChat = function() {
         var panel = $('roomChatPanel');
-        var toggle = $('roomChatToggle');
-        if (!panel || !toggle) return;
+        if (!panel) return;
 
         if (panel.classList.contains('hidden')) {
             panel.classList.remove('hidden');
-            toggle.innerHTML = '<i class="fa-solid fa-comments"></i> 隐藏聊天';
         } else {
             panel.classList.add('hidden');
-            toggle.innerHTML = '<i class="fa-solid fa-comments"></i> 显示聊天';
         }
     };
 })();

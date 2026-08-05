@@ -80,6 +80,11 @@ var Gomoku = window.Gomoku || {};
                         console.log('重连后自动加入房间:', self.currentRoomId);
                         self.joinRoom(self.currentRoomId);
                     }
+
+                    // 重连后重新注册用户（如果有已登录用户）
+                    if (G && G.currentUser && G.currentUser.username) {
+                        self.registerUser(G.currentUser.username);
+                    }
                 });
 
                 this.socket.on('disconnect', function() {
@@ -147,6 +152,22 @@ var Gomoku = window.Gomoku || {};
 
                 this.socket.on('room_chat_message', function(data) {
                     self.emit('room_chat_message', data);
+                });
+
+                this.socket.on('user_status_update', function(data) {
+                    self.emit('user_status_update', data);
+                });
+
+                this.socket.on('unread_count_update', function(data) {
+                    self.emit('unread_count_update', data);
+                });
+
+                this.socket.on('message_read_update', function(data) {
+                    self.emit('message_read_update', data);
+                });
+
+                this.socket.on('banned_notification', function(data) {
+                    self.emit('banned_notification', data);
                 });
 
                 this.connecting = false;
@@ -308,6 +329,14 @@ var Gomoku = window.Gomoku || {};
                 });
             } else {
                 console.log('轮询模式：房间聊天消息暂不支持');
+            }
+        },
+
+        // 注册用户到WebSocket（用于接收个人消息推送）
+        registerUser: function(username) {
+            if (this.usingWebSocket && this.socket) {
+                this.socket.emit('register_user', {username: username});
+                console.log('WebSocket用户注册:', username);
             }
         },
 

@@ -178,9 +178,6 @@
 
     document.getElementById('restartBtn').addEventListener('click', G.resetGame);
     document.getElementById('undoBtn').addEventListener('click', G.undoMove);
-    if (document.getElementById('resignBtn')) {
-        document.getElementById('resignBtn').addEventListener('click', G.confirmResign);
-    }
 
     document.getElementById('gameCanvas').addEventListener('click', function(e) {
         if (!G.gameActive) return;

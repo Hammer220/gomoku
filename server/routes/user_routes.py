@@ -13,7 +13,7 @@ from ..config import SCRIPT_DIR
 from ..models import (get_user, save_user, save_plain_password, get_plain_password,
                       load_records, save_record, load_saves, save_save, delete_save,
                       load_settings, save_settings)
-from ..auth import require_auth
+from ..auth import require_auth, require_admin
 from ..logger import logger
 from .auth_routes import calculate_rank
 
@@ -380,7 +380,7 @@ def get_backgrounds():
 
 
 @user_bp.route('/api/backgrounds/upload', methods=['POST'])
-@require_auth
+@require_admin
 def upload_background(user):
     """上传自定义棋盘背景图片到服务器"""
     try:

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>五子棋 - 个人中心</title>
+    <title data-i18n-title="userPage">五子棋 - 个人中心</title>
     <script src="/static/js/tailwind.min.js"></script>
     <link href="/static/css/font-awesome.min.css" rel="stylesheet">
     <link href="/static/css/style.css" rel="stylesheet">
@@ -14,8 +14,8 @@
     <div id="gameContainer" class="max-w-7xl w-full bg-white rounded-2xl shadow-xl overflow-hidden relative card-3d-hover">
         <div class="header-bar">
             <div>
-                <h1 id="gameTitle" class="text-2xl md:text-3xl font-bold text-white">五子棋</h1>
-                <p class="text-sm opacity-80">个人中心</p>
+                <h1 id="gameTitle" class="text-2xl md:text-3xl font-bold text-white" data-i18n="appName">五子棋</h1>
+                <p class="text-sm opacity-80" data-i18n="userPage">个人中心</p>
             </div>
             <div class="flex items-center space-x-3 md:space-x-6">
                 <div class="flex items-center">
@@ -24,31 +24,31 @@
                     </div>
                     <div>
                         <p id="userNameDisplay" class="font-semibold"></p>
-                        <p class="text-xs">积分: <span id="userScoreDisplay">0</span> · 段位: <span id="userRankDisplay">无段位</span> · 胜: <span id="userWinsDisplay">0</span></p>
+                        <p class="text-xs"><span data-i18n="points">积分</span>: <span id="userScoreDisplay">0</span> · <span data-i18n="rank">段位</span>: <span id="userRankDisplay" data-i18n="noRank">无段位</span> · <span data-i18n="wins">胜</span>: <span id="userWinsDisplay">0</span></p>
                     </div>
                 </div>
                 <button id="logoutBtn" class="btn-secondary btn-sm btn-ripple">
-                    <i class="fa-solid fa-right-from-bracket"></i> <span class="hidden sm:inline">退出</span>
+                    <i class="fa-solid fa-right-from-bracket"></i> <span class="hidden sm:inline" data-i18n="logout">退出</span>
                 </button>
             </div>
         </div>
 
         <div class="bg-gray-50 border-b flex overflow-x-auto p-2">
             <div class="tab-group">
-                <a href="/game" class="tab-btn"><i class="fa-solid fa-chess-board mr-1"></i>游戏大厅</a>
-                <span class="tab-btn tab-active"><i class="fa-solid fa-user mr-1"></i>个人中心</span>
-                <a href="/messages" class="tab-btn"><i class="fa-solid fa-envelope mr-1"></i>消息中心 <span id="unreadBadge" class="bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 ml-1 hidden animate-pulse">0</span></a>
-                <a href="/settings" class="tab-btn"><i class="fa-solid fa-gear mr-1"></i>设置</a>
-                <a href="/admin" id="adminNavLink" class="tab-btn text-red-600 hidden"><i class="fa-solid fa-crown mr-1"></i>管理后台</a>
+                <a href="/game" class="tab-btn"><i class="fa-solid fa-chess-board mr-1"></i><span data-i18n="gameHall">游戏大厅</span></a>
+                <span class="tab-btn tab-active"><i class="fa-solid fa-user mr-1"></i><span data-i18n="userCenter">个人中心</span></span>
+                <a href="/messages" class="tab-btn"><i class="fa-solid fa-envelope mr-1"></i><span data-i18n="messageCenter">消息中心</span> <span id="unreadBadge" class="bg-red-500 text-white text-xs rounded-full px-1.5 py-0.5 ml-1 hidden animate-pulse">0</span></a>
+                <a href="/settings" class="tab-btn"><i class="fa-solid fa-gear mr-1"></i><span data-i18n="settings">设置</span></a>
+                <a href="/admin" id="adminNavLink" class="tab-btn text-red-600 hidden"><i class="fa-solid fa-crown mr-1"></i><span data-i18n="adminPanel">管理后台</span></a>
             </div>
         </div>
 
         <div class="bg-gray-50 border-b flex overflow-x-auto p-2">
             <div class="tab-group">
-                <button id="profileTab" class="tab-btn tab-active"><i class="fa-solid fa-user mr-1"></i>个人资料</button>
-                <button id="historyTab" class="tab-btn"><i class="fa-solid fa-clock-rotate-left mr-1"></i>游戏记录</button>
-                <button id="statsTab" class="tab-btn"><i class="fa-solid fa-chart-pie mr-1"></i>数据统计</button>
-                <button id="leaderboardTab" class="tab-btn"><i class="fa-solid fa-trophy mr-1"></i>积分排行榜</button>
+                <button id="profileTab" class="tab-btn tab-active"><i class="fa-solid fa-user mr-1"></i><span data-i18n="personalInfo">个人资料</span></button>
+                <button id="historyTab" class="tab-btn"><i class="fa-solid fa-clock-rotate-left mr-1"></i><span data-i18n="gameRecords">游戏记录</span></button>
+                <button id="statsTab" class="tab-btn"><i class="fa-solid fa-chart-pie mr-1"></i><span data-i18n="statistics">数据统计</span></button>
+                <button id="leaderboardTab" class="tab-btn"><i class="fa-solid fa-trophy mr-1"></i><span data-i18n="leaderboard">积分排行榜</span></button>
             </div>
         </div>
 
@@ -59,7 +59,7 @@
         {% include 'includes/stats.html' %}
         {% include 'includes/leaderboard.html' %}
 
-        <div class="bg-gray-50 p-3 text-center text-sm text-gray-500 border-t">&copy; 2026 五子棋 · 实时状态同步版</div>
+        <div class="bg-gray-50 p-3 text-center text-sm text-gray-500 border-t">&copy; 2026 <span data-i18n="appName">五子棋</span> · <span data-i18n="userPage">个人中心</span></div>
     </div>
 
     {% include 'includes/components.html' %}
@@ -69,8 +69,8 @@
     <script src="/static/js/socket.io.min.js"></script>
     <script src="/static/js/chart.min.js"></script>
     <script src="/static/js/gomoku/core.js"></script>
-    <script src="/static/js/gomoku/i18n.js"></script>
     <script src="/static/js/gomoku/utils.js"></script>
+    <script src="/static/js/gomoku/i18n.js"></script>
     <script src="/static/js/gomoku/websocket_manager.js"></script>
     <script src="/static/js/gomoku/board_render.js"></script>
 <script src="/static/js/gomoku/board_rules.js"></script>

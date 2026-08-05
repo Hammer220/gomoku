@@ -107,11 +107,17 @@
             const resultLabel = r.result || '未知';
             const resultClass = resultLabel === '胜利' ? 'text-green-600' : (resultLabel === '失败' ? 'text-red-600' : 'text-yellow-600');
             const opponent = r.opponent || '-';
-            const scoreConfig = { easy: { win: '+10', lose: '-50' }, medium: { win: '+50', lose: '-25' }, hard: { win: '+100', lose: '-5' } };
-            const diff = (r.aiDifficulty || 'medium');
-            const diffConfig = scoreConfig[diff] || scoreConfig.medium;
-            const scoreChange = resultLabel === '胜利' ? diffConfig.win : (resultLabel === '失败' ? diffConfig.lose : '0');
-            const scoreClass = resultLabel === '胜利' ? 'text-green-600' : (resultLabel === '失败' ? 'text-red-600' : 'text-gray-500');
+            var scoreChange = '0';
+            var scoreClass = 'text-gray-500';
+            if (r.mode === 'ai') {
+                const scoreConfig = { easy: { win: '+10', lose: '-50' }, medium: { win: '+50', lose: '-25' }, hard: { win: '+100', lose: '-5' }, master: { win: '+500', lose: '-5' } };
+                const diff = (r.aiDifficulty || 'medium');
+                const diffConfig = scoreConfig[diff] || scoreConfig.medium;
+                scoreChange = resultLabel === '胜利' ? diffConfig.win : (resultLabel === '失败' ? diffConfig.lose : '0');
+            } else if (r.mode === 'online') {
+                scoreChange = resultLabel === '胜利' ? '+30' : (resultLabel === '失败' ? '-30' : '0');
+            }
+            scoreClass = resultLabel === '胜利' ? 'text-green-600' : (resultLabel === '失败' ? 'text-red-600' : 'text-gray-500');
             const hasMoves = r.moveHistory && r.moveHistory.length > 0;
             return `<tr class="border-b hover:bg-gray-50">
                 <td class="border px-4 py-2.5 text-sm">${r.date || '-'}</td>

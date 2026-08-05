@@ -121,13 +121,17 @@ def admin_ban_user(admin_user, username):
 def admin_set_score(admin_user, username):
     try:
         data = request.get_json()
-        score = data.get('score', 0)
+        score_input = data.get('score', 0)
 
         user = get_user(username)
         if not user:
             return jsonify({'error': '用户不存在'}), 404
 
-        user['score'] = int(score)
+        if isinstance(score_input, str) and score_input and score_input[0] in ('+', '-'):
+            delta = int(score_input)
+            user['score'] = user['score'] + delta
+        else:
+            user['score'] = int(score_input)
         save_user(username, user)
         return jsonify({'success': True, 'message': '积分修改成功'})
     except Exception as e:
@@ -284,6 +288,14 @@ def admin_ban(admin_user):
             user['bannedUntil'] = None
 
         save_user(username, user)
+
+        from ... import socketio
+        if minutes > 0:
+            socketio.push_ban_notification(username, user['bannedUntil'])
+            socketio.push_user_status_update(username, {
+                'bannedUntil': user['bannedUntil']
+            })
+
         logger.info(f'管理员 {admin_user["username"]} 封禁了 {username}，时长: {minutes}分钟')
         return jsonify({'success': True, 'message': '操作成功'})
     except Exception as e:
@@ -308,6 +320,13 @@ def admin_unban(admin_user):
 
         user['bannedUntil'] = None
         save_user(username, user)
+
+        from ... import socketio
+        socketio.push_ban_notification(username, None)
+        socketio.push_user_status_update(username, {
+            'bannedUntil': None
+        })
+
         logger.info(f'管理员 {admin_user["username"]} 解封了 {username}')
         return jsonify({'success': True, 'message': '操作成功'})
     except Exception as e:

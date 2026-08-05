@@ -64,72 +64,20 @@ var Gomoku = window.Gomoku || {};
     };
 
     G.clickAvailableMatch = function(matchId, hasPassword) {
-        if (hasPassword) {
-            G.showPasswordDialog(matchId);
-        } else {
-            G.onlineMatchIdInput = G.onlineMatchIdInput || $('onlineMatchIdInput');
-            if (G.onlineMatchIdInput) {
-                G.onlineMatchIdInput.value = matchId;
+        G.onlineMatchIdInput = G.onlineMatchIdInput || $('onlineMatchIdInput');
+        if (G.onlineMatchIdInput) {
+            G.onlineMatchIdInput.value = matchId;
+        }
+        var joinPwdInput = $('joinPasswordInput');
+        if (joinPwdInput) {
+            joinPwdInput.value = '';
+            if (hasPassword) {
+                joinPwdInput.focus();
             }
-            var joinPwdInput = $('joinPasswordInput');
-            if (joinPwdInput) joinPwdInput.value = '';
+        }
+        if (!hasPassword) {
             G.onlineJoinMatch();
         }
-    };
-
-    G.showPasswordDialog = function(matchId) {
-        var existingDialog = document.getElementById('passwordDialog');
-        if (existingDialog) {
-            existingDialog.remove();
-        }
-
-        var dialog = document.createElement('div');
-        dialog.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-        dialog.id = 'passwordDialog';
-        dialog.innerHTML = '\
-            <div class="bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl">\
-                <h3 class="text-lg font-bold text-gray-800 mb-2">私人房间</h3>\
-                <p class="text-gray-600 mb-4">房间号: <span class="font-mono font-bold">' + matchId + '</span></p>\
-                <input type="password" id="passwordInput" placeholder="请输入房间密码" class="w-full px-3 py-2 border rounded-lg mb-4">\
-                <div class="flex gap-3">\
-                    <button id="cancelPassword" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">取消</button>\
-                    <button id="confirmPassword" class="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors">确认</button>\
-                </div>\
-            </div>\
-        ';
-        document.body.appendChild(dialog);
-
-        var cancelBtn = dialog.querySelector('#cancelPassword');
-        var confirmBtn = dialog.querySelector('#confirmPassword');
-        var passwordInput = dialog.querySelector('#passwordInput');
-
-        cancelBtn.addEventListener('click', function() {
-            document.body.removeChild(dialog);
-        });
-
-        confirmBtn.addEventListener('click', function() {
-            var password = passwordInput.value.trim();
-            if (!password) {
-                G.showToast('请输入密码', true);
-                return;
-            }
-            G.onlineMatchIdInput = G.onlineMatchIdInput || $('onlineMatchIdInput');
-            if (G.onlineMatchIdInput) {
-                G.onlineMatchIdInput.value = matchId;
-            }
-            var joinPwdInput = $('joinPasswordInput');
-            if (joinPwdInput) joinPwdInput.value = password;
-            G.onlineJoinMatch();
-            document.body.removeChild(dialog);
-        });
-
-        passwordInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                confirmBtn.click();
-            }
-        });
-
-        passwordInput.focus();
     };
 
     G.spectateFromList = function(matchId, hasPassword) {
@@ -154,8 +102,8 @@ var Gomoku = window.Gomoku || {};
             }
             var html = '<div class="space-y-2 max-h-48 overflow-y-auto">';
             matches.forEach(function(match) {
-                var lockIcon = match.hasPassword ? '<i class="fa-solid fa-lock text-amber-500 mr-1" title="私人房间"></i>' : '';
-                var spectateIcon = match.allowSpectate ? '<button onclick="Gomoku.spectateFromList(\'' + match.id + '\', ' + (match.hasPassword ? 'true' : 'false') + ')" class="text-blue-500 hover:text-blue-700 transition-colors" title="观战"><i class="fa-solid fa-eye"></i></button>' : '';
+                var lockIcon = match.hasPassword ? '<i class="fa-solid fa-lock text-amber-500 mr-1"></i>' : '';
+                var spectateIcon = match.allowSpectate ? '<button onclick="Gomoku.spectateFromList(\'' + match.id + '\', ' + (match.hasPassword ? 'true' : 'false') + ')" class="text-blue-500 hover:text-blue-700 transition-colors"><i class="fa-solid fa-eye"></i></button>' : '';
                 
                 if (match.hasPassword) {
                     html += '\

@@ -137,6 +137,22 @@ def save_json(file_path, data):
 def _row_to_user(row):
     if row is None:
         return None
+    def safe_bool(val):
+        if val is None:
+            return False
+        return bool(val)
+    def safe_int(val, default=0):
+        if val is None:
+            return default
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return default
+    def get_row_val(row, key, default=None):
+        try:
+            return row[key]
+        except (KeyError, IndexError, TypeError):
+            return default
     return {
         'username': row['username'],
         'password': row['password'],
@@ -156,7 +172,10 @@ def _row_to_user(row):
         'canSetPasswordFree': bool(row['can_set_password_free']),
         'canMonitorMatches': bool(row['can_monitor_matches']),
         'canManageMatches': bool(row['can_manage_matches']),
-        'language': row['language'] if 'language' in row.keys() else 'zh-CN',
+        'passwordFree': safe_bool(get_row_val(row, 'password_free')),
+        'passwordFreeMaxAttempts': safe_int(get_row_val(row, 'password_free_max_attempts')),
+        'passwordFreeRemainingAttempts': safe_int(get_row_val(row, 'password_free_remaining_attempts')),
+        'language': get_row_val(row, 'language', 'zh-CN'),
     }
 
 
@@ -198,14 +217,26 @@ def save_user(username, data):
     from .db import get_connection
     conn = get_connection()
     c = conn.cursor()
+    
+    for col, col_type, default in [
+        ('password_free', 'INTEGER', 0),
+        ('password_free_max_attempts', 'INTEGER', 0),
+        ('password_free_remaining_attempts', 'INTEGER', 0)
+    ]:
+        try:
+            c.execute(f'ALTER TABLE users ADD COLUMN {col} {col_type} DEFAULT {default}')
+        except:
+            pass
+    
     c.execute('''
         INSERT OR REPLACE INTO users (
             username, password, score, wins, games, join_date, last_login,
             is_admin, is_super_admin, banned_until, can_ban_user,
             can_kick_user, can_delete_user, can_change_password,
             can_modify_score, can_set_password_free, can_monitor_matches,
-            can_manage_matches, language, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            can_manage_matches, password_free, password_free_max_attempts,
+            password_free_remaining_attempts, language, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         username,
         data.get('password', ''),
@@ -225,6 +256,9 @@ def save_user(username, data):
         1 if data.get('canSetPasswordFree') else 0,
         1 if data.get('canMonitorMatches') else 0,
         1 if data.get('canManageMatches') else 0,
+        1 if data.get('passwordFree') else 0,
+        data.get('passwordFreeMaxAttempts', 0),
+        data.get('passwordFreeRemainingAttempts', 0),
         data.get('language', 'zh-CN'),
         time.time()
     ))
@@ -569,6 +603,13 @@ def load_messages():
         except (json.JSONDecodeError, TypeError):
             read_by_list = []
 
+        image_val = ''
+        try:
+            if 'image' in row.keys():
+                image_val = row['image'] or ''
+        except Exception:
+            pass
+
         messages[str(row['id'])] = {
             'id': row['id'],
             'from': row['from_user'],
@@ -576,6 +617,7 @@ def load_messages():
             'content': row['content'],
             'timestamp': row['timestamp'],
             'read_by': read_by_list,
+            'image': image_val,
         }
     return messages
 
@@ -591,8 +633,8 @@ def save_message(message):
     if isinstance(read_by, list):
         read_by = json.dumps(read_by, ensure_ascii=False)
     c.execute('''
-        INSERT INTO messages (from_user, to_user, content, timestamp, read, read_by)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO messages (from_user, to_user, content, timestamp, read, read_by, image)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     ''', (
         message.get('from', ''),
         to_val,
@@ -600,6 +642,7 @@ def save_message(message):
         message.get('timestamp', time.time()),
         1 if message.get('read') else 0,
         read_by,
+        message.get('image', ''),
     ))
     conn.commit()
 
@@ -616,7 +659,7 @@ def update_message(message_id, message):
         read_by = json.dumps(read_by, ensure_ascii=False)
     c.execute('''
         UPDATE messages SET from_user = ?, to_user = ?, content = ?, timestamp = ?,
-            read = ?, read_by = ?
+            read = ?, read_by = ?, image = ?
         WHERE id = ?
     ''', (
         message.get('from', ''),
@@ -625,6 +668,7 @@ def update_message(message_id, message):
         message.get('timestamp', time.time()),
         1 if message.get('read') else 0,
         read_by,
+        message.get('image', ''),
         int(message_id),
     ))
     conn.commit()

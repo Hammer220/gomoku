@@ -19,6 +19,7 @@ from ..match_manager import (create_match, join_match, make_move,
                              restart_match, decline_restart, get_my_match, list_available_matches,
                              heartbeat, request_undo, accept_undo, decline_undo,
                              request_draw, accept_draw, decline_draw,
+                             resign,
                              get_spectatable_matches, spectate_match, leave_spectate,
                              get_spectate_status)
 from ..logger import logger
@@ -346,6 +347,19 @@ def api_decline_draw(user):
         logger.error(f'Decline draw error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
+@match_bp.route('/api/match/resign', methods=['POST'])
+@require_auth
+def api_resign(user):
+    try:
+        data = request.get_json()
+        match_id = data.get('matchId', '')
+        result = resign(user, match_id)
+        _emit_match_update(match_id)
+        return result
+    except Exception as e:
+        logger.error(f'Resign error: {e}')
+        return jsonify({'error': 'Internal server error'}), 500
+
 # ==================== 观战 ====================
 
 @match_bp.route('/api/match/spectate/list', methods=['GET'])
@@ -388,6 +402,63 @@ def api_spectate_status(user):
         return get_spectate_status(user, match_id)
     except Exception as e:
         logger.error(f'Spectate status error: {e}')
+        return jsonify({'error': 'Internal server error'}), 500
+
+@match_bp.route('/api/spectate/token', methods=['GET'])
+@require_auth
+def api_get_spectate_token(user):
+    try:
+        match_id = request.args.get('matchId', '')
+        with active_matches_lock:
+            if match_id not in active_matches:
+                return jsonify({'error': '房间不存在'}), 404
+            match = active_matches[match_id]
+            username = user['username']
+            if match['creator'] != username and match.get('opponent') != username:
+                return jsonify({'error': '您不在这个房间中'}), 403
+            token = match.get('spectateToken', '')
+        return jsonify({'success': True, 'token': token, 'matchId': match_id})
+    except Exception as e:
+        logger.error(f'Get spectate token error: {e}')
+        return jsonify({'error': 'Internal server error'}), 500
+
+@match_bp.route('/api/spectate/public', methods=['GET'])
+def api_public_spectate():
+    try:
+        match_id = request.args.get('room', '')
+        token = request.args.get('token', '')
+        with active_matches_lock:
+            if match_id not in active_matches:
+                return jsonify({'error': '房间不存在'}), 404
+            match = active_matches[match_id]
+            if match.get('spectateToken') != token:
+                return jsonify({'error': '无效的观战链接'}), 403
+            if match['status'] not in ['playing', 'waiting_for_reconnect']:
+                return jsonify({'error': '该对局不可观看'}), 400
+            if not match.get('allowSpectate', True):
+                return jsonify({'error': '该房间不允许观战'}), 403
+            spectators = match.setdefault('spectators', [])
+            return {
+                'id': match_id,
+                'creator': match['creator'],
+                'opponent': match.get('opponent'),
+                'status': match['status'],
+                'board': [row[:] for row in match['board']],
+                'currentPlayer': match['currentPlayer'],
+                'moves': match['moves'][:],
+                'winner': match.get('winner'),
+                'creatorColor': match['creatorColor'],
+                'startTime': match['startTime'],
+                'moveCount': len(match.get('moves', [])),
+                'spectatorCount': len(spectators),
+                'timeMode': match.get('timeMode', 'untimed'),
+                'blackTime': match.get('blackTime', 600),
+                'whiteTime': match.get('whiteTime', 600),
+                'moveDeadline': match.get('moveDeadline', 0),
+                'restartVersion': match.get('restartVersion', 0)
+            }, 200
+    except Exception as e:
+        logger.error(f'Public spectate error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
 @match_bp.route('/api/match/<match_id>/invite-friends', methods=['POST'])
@@ -467,6 +538,65 @@ def api_get_match_invites(user, match_id):
     except Exception as e:
         logger.error(f'Get match invites error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
+
+@match_bp.route('/api/poll/events', methods=['POST'])
+@require_auth
+def api_poll_events(user):
+    try:
+        data = request.get_json() or {}
+        requested_events = data.get('events', [])
+        result_events = []
+        username = user['username']
+
+        with active_matches_lock:
+            for match_id, match in active_matches.items():
+                is_player = match.get('creator') == username or match.get('opponent') == username
+                is_spectator = username in match.get('spectators', [])
+
+                if not is_player and not is_spectator:
+                    continue
+
+                if 'match_updated' in requested_events:
+                    result_events.append({
+                        'type': 'match_updated',
+                        'data': _build_match_event(match)
+                    })
+
+                if 'move_made' in requested_events and len(match['moves']) > 0:
+                    last_move = match['moves'][-1]
+                    result_events.append({
+                        'type': 'move_made',
+                        'data': {
+                            'match_id': match_id,
+                            'row': last_move['row'],
+                            'col': last_move['col'],
+                            'player': last_move['player'],
+                            'currentPlayer': match['currentPlayer']
+                        }
+                    })
+
+                if 'undo_requested' in requested_events and match.get('undoRequested') and match.get('undoRequestedBy') != username:
+                    result_events.append({
+                        'type': 'undo_requested',
+                        'data': {
+                            'match_id': match_id,
+                            'undoRequestedBy': match.get('undoRequestedBy')
+                        }
+                    })
+
+                if 'draw_requested' in requested_events and match.get('drawRequested') and match.get('drawRequestedBy') != username:
+                    result_events.append({
+                        'type': 'draw_requested',
+                        'data': {
+                            'match_id': match_id,
+                            'drawRequestedBy': match.get('drawRequestedBy')
+                        }
+                    })
+
+        return jsonify({'events': result_events})
+    except Exception as e:
+        logger.error(f'Poll events error: {e}')
+        return jsonify({'events': []})
 
 @match_bp.route('/api/match/<match_id>/set-invite-only', methods=['POST'])
 @require_auth

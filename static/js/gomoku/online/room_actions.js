@@ -14,6 +14,75 @@ var Gomoku = window.Gomoku || {};
         return document.getElementById(id);
     };
 
+    G.hideOnlineLobby = function() {
+        var lobbyPanel = $('onlineLobbyPanel');
+        if (lobbyPanel) lobbyPanel.classList.add('hidden');
+    };
+
+    G.showOnlineLobby = function() {
+        var lobbyPanel = $('onlineLobbyPanel');
+        if (lobbyPanel) lobbyPanel.classList.remove('hidden');
+    };
+
+    G.autoJoinMatchById = async function(matchId) {
+        if (!matchId) return;
+        G.showTab('onlineContent', true);
+        try {
+            var res = await G.apiCall('/api/match/join', 'POST', { matchId: matchId });
+            G.onlineMatchId = matchId;
+            G.onlineMyColor = res.yourColor;
+            G.onlineOpponent = res.opponent;
+            G.gameMode = 'online';
+            G.initOnlineBoard();
+            G.onlineMoveHistory = [];
+            G.onlineGameActive = true;
+            G.onlineGameTime = 0;
+            G.onlineCurrentPlayer = 1;
+            G.lastRestartVersion = 0;
+            G.reconnectAttempts = 0;
+            G.currentPollingInterval = G.basePollingInterval;
+            G.stopMatchListRefresh();
+
+            if (G.WebSocketManager) {
+                G.WebSocketManager.joinRoom(matchId);
+            }
+
+            G.hideOnlineLobby();
+
+            var matchIdDisplay = $('onlineMatchIdDisplay');
+            var roomInfo = $('roomInfo');
+            var roomActions = $('roomActions');
+            var onlineLeaveBtn = $('onlineLeaveBtn');
+            var onlineCreateBtn = $('onlineCreateBtn');
+            var onlineJoinBtn = $('onlineJoinBtn');
+            if (matchIdDisplay) matchIdDisplay.textContent = matchId;
+            if (roomInfo) {
+                roomInfo.innerHTML =
+                    '<p>房间号: <span class="font-mono font-bold text-lg">' + matchId + '</span></p>' +
+                    '<p>你的棋子: <span class="font-bold">' + (res.yourColor === 1 ? '黑棋' : '白棋') + '</span></p>' +
+                    '<p>对手: <span class="font-bold">' + res.opponent + '</span></p>';
+            }
+            if (roomActions) roomActions.classList.add('hidden');
+            if (onlineLeaveBtn) onlineLeaveBtn.classList.remove('hidden');
+            if (onlineCreateBtn) onlineCreateBtn.classList.add('hidden');
+            if (onlineJoinBtn) onlineJoinBtn.parentElement.classList.add('hidden');
+            G.showToast('已加入房间，对手: ' + res.opponent);
+            if (G.calcOnlineCanvasSize) G.calcOnlineCanvasSize();
+            var boardContainer = $('onlineBoardContainer');
+            if (boardContainer) boardContainer.classList.remove('hidden');
+            if (G.drawOnlineBoard) G.drawOnlineBoard();
+            G.updateOnlineUI();
+            G.startOnlinePolling();
+            G.startOnlineTimer();
+            G.startTimedCountdown();
+            G.startHeartbeat();
+            history.replaceState(null, '', '/online/' + matchId);
+        } catch (err) {
+            G.showToast(err.message, true);
+            G.showOnlineLobby();
+        }
+    };
+
     G.recoverOnlineMatch = async function() {
         try {
             var res = await G.apiCall('/api/match/my', 'GET');
@@ -51,16 +120,22 @@ var Gomoku = window.Gomoku || {};
             if (onlineJoinBtn) onlineJoinBtn.parentElement.classList.add('hidden');
             if (onlineLeaveBtn) onlineLeaveBtn.classList.remove('hidden');
 
+            var boardContainer = $('onlineBoardContainer');
+            if (boardContainer) boardContainer.classList.remove('hidden');
+            G.hideOnlineLobby();
             if (G.drawOnlineBoard) G.drawOnlineBoard();
             G.updateOnlineUI();
             G.startOnlinePolling();
 
             if (match.status === 'waiting') {
                 G.showToast('已恢复到之前的房间，等待对手...');
+                history.replaceState(null, '', '/online/' + match.id);
             } else if (match.status === 'playing') {
                 G.showToast('已恢复到房间 ' + match.id + '，对手: ' + match.opponent);
+                history.replaceState(null, '', '/online/' + match.id);
             } else if (match.status === 'waiting_for_reconnect') {
                 G.showToast('已恢复到房间，对手暂时离开，等待重连...', true);
+                history.replaceState(null, '', '/online/' + match.id);
             } else if (match.status === 'closed' || match.status === 'finished') {
                 G.onlineMatchId = null;
                 G.onlineMyColor = null;
@@ -72,8 +147,11 @@ var Gomoku = window.Gomoku || {};
                 if (onlineCreateBtn) onlineCreateBtn.classList.remove('hidden');
                 if (onlineJoinBtn) onlineJoinBtn.parentElement.classList.remove('hidden');
                 if (onlineLeaveBtn) onlineLeaveBtn.classList.add('hidden');
+                if (boardContainer) boardContainer.classList.add('hidden');
+                G.showOnlineLobby();
                 if (G.drawOnlineBoard) G.drawOnlineBoard();
                 G.updateOnlineUI();
+                history.replaceState(null, '', '/online');
                 var message = match.status === 'closed' ? '房间已被关闭' : '对局已结束，已自动关闭';
                 G.showToast(message, true);
             } else {
@@ -87,8 +165,11 @@ var Gomoku = window.Gomoku || {};
                 if (onlineCreateBtn) onlineCreateBtn.classList.remove('hidden');
                 if (onlineJoinBtn) onlineJoinBtn.parentElement.classList.remove('hidden');
                 if (onlineLeaveBtn) onlineLeaveBtn.classList.add('hidden');
+                if (boardContainer) boardContainer.classList.add('hidden');
+                G.showOnlineLobby();
                 if (G.drawOnlineBoard) G.drawOnlineBoard();
                 G.updateOnlineUI();
+                history.replaceState(null, '', '/online');
                 G.showToast('未知房间状态 "' + match.status + '"，已自动关闭', true);
             }
         } catch (e) {
@@ -151,14 +232,21 @@ var Gomoku = window.Gomoku || {};
             if (onlineLeaveBtn) onlineLeaveBtn.classList.remove('hidden');
             if (onlineCreateBtn) onlineCreateBtn.classList.add('hidden');
             if (onlineJoinBtn) onlineJoinBtn.parentElement.classList.add('hidden');
+            G.hideOnlineLobby();
             G.showToast('房间已创建: ' + res.matchId);
             if (G.calcOnlineCanvasSize) G.calcOnlineCanvasSize();
+            var boardContainer = $('onlineBoardContainer');
+            if (boardContainer) boardContainer.classList.remove('hidden');
             if (G.drawOnlineBoard) G.drawOnlineBoard();
             G.updateOnlineUI();
+            // 自动显示房间聊天
+            var roomChatPanel = $('roomChatPanel');
+            if (roomChatPanel) roomChatPanel.classList.remove('hidden');
             G.startOnlinePolling();
             G.startOnlineTimer();
             G.startTimedCountdown();
             G.startHeartbeat();
+            history.replaceState(null, '', '/online/' + res.matchId);
         } catch (err) {
             G.showToast(err.message, true);
         }
@@ -211,18 +299,27 @@ var Gomoku = window.Gomoku || {};
                     '<p>你的棋子: <span class="font-bold">' + (res.yourColor === 1 ? '黑棋' : '白棋') + '</span></p>' +
                     '<p>对手: <span class="font-bold">' + res.opponent + '</span></p>';
             }
-            if (roomActions) roomActions.classList.add('hidden');
+            if (roomActions) roomActions.classList.remove('hidden');
+            if (closeRoomBtn) closeRoomBtn.classList.add('hidden');
             if (onlineLeaveBtn) onlineLeaveBtn.classList.remove('hidden');
             if (onlineCreateBtn) onlineCreateBtn.classList.add('hidden');
             if (onlineJoinBtn) onlineJoinBtn.parentElement.classList.add('hidden');
             if (matchIdInput) matchIdInput.value = '';
+            G.hideOnlineLobby();
             G.showToast('已加入房间，对手: ' + res.opponent);
+            if (G.calcOnlineCanvasSize) G.calcOnlineCanvasSize();
+            var boardContainer = $('onlineBoardContainer');
+            if (boardContainer) boardContainer.classList.remove('hidden');
             if (G.drawOnlineBoard) G.drawOnlineBoard();
             G.updateOnlineUI();
+            // 自动显示房间聊天
+            var roomChatPanel = $('roomChatPanel');
+            if (roomChatPanel) roomChatPanel.classList.remove('hidden');
             G.startOnlinePolling();
             G.startOnlineTimer();
             G.startTimedCountdown();
             G.startHeartbeat();
+            history.replaceState(null, '', '/online/' + matchId);
         } catch (err) {
             G.showToast(err.message, true);
         }
@@ -244,16 +341,57 @@ var Gomoku = window.Gomoku || {};
         btn.addEventListener('click', G.closeRoomBtnHandler);
     };
 
+    G.shareSpectateLink = async function() {
+        if (!G.onlineMatchId) {
+            G.showToast('请先创建或加入房间', true);
+            return;
+        }
+        try {
+            var res = await G.apiCall('/api/spectate/token?matchId=' + G.onlineMatchId, 'GET');
+            if (res.token) {
+                var link = window.location.origin + '/spectate?room=' + G.onlineMatchId + '&token=' + res.token;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    await navigator.clipboard.writeText(link);
+                    G.showToast('观战链接已复制到剪贴板');
+                } else {
+                    var textarea = document.createElement('textarea');
+                    textarea.value = link;
+                    textarea.style.position = 'fixed';
+                    textarea.style.opacity = '0';
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    G.showToast('观战链接已复制到剪贴板');
+                }
+            } else {
+                G.showToast('获取观战链接失败', true);
+            }
+        } catch (err) {
+            G.showToast(err.message, true);
+        }
+    };
+
+    G.attachShareSpectateHandler = function() {
+        var btn = $('shareSpectateBtn');
+        if (!btn) return;
+        if (G.shareSpectateBtnHandler) btn.removeEventListener('click', G.shareSpectateBtnHandler);
+        G.shareSpectateBtnHandler = G.shareSpectateLink;
+        btn.addEventListener('click', G.shareSpectateBtnHandler);
+    };
+
     G.showRestartRequestUI = function() {
         var roomActions = $('roomActions');
         if (!roomActions) return;
         roomActions.classList.remove('hidden');
         roomActions.innerHTML =
+            '<button id="shareSpectateBtn" class="action-btn-full action-btn-spectate btn-ripple"><i class="fa-solid fa-link mr-1"></i>复制观战链接</button>' +
             '<button id="requestRestartBtn" class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 rounded-lg text-sm mb-2 font-medium shadow-md transition-all">重新开始</button>' +
             '<button id="closeRoomBtn" class="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-3 rounded-lg text-sm font-medium shadow-md transition-all">关闭房间</button>';
         var requestRestartBtn = $('requestRestartBtn');
         requestRestartBtn.addEventListener('click', G.requestOnlineRestart);
         G.attachCloseRoomHandler();
+        G.attachShareSpectateHandler();
     };
 
     G.requestOnlineRestart = async function() {
@@ -349,15 +487,24 @@ var Gomoku = window.Gomoku || {};
             if (onlineCreateBtn) onlineCreateBtn.classList.remove('hidden');
             if (onlineJoinBtn) onlineJoinBtn.parentElement.classList.remove('hidden');
 
+            // 隐藏聊天面板
+            var roomChatPanel = $('roomChatPanel');
+            if (roomChatPanel) roomChatPanel.classList.add('hidden');
+            G.clearRoomChatUI();
+
             G.onlineMatchId = null;
             G.onlineMyColor = null;
             G.onlineOpponent = null;
             G.gameMode = 'ai';
             G.initOnlineBoard();
+            var boardContainer = $('onlineBoardContainer');
+            if (boardContainer) boardContainer.classList.add('hidden');
+            G.showOnlineLobby();
             if (G.drawOnlineBoard) G.drawOnlineBoard();
             G.updateOnlineUI();
             G.startMatchListRefresh();
             G.showToast('房间已关闭');
+            history.replaceState(null, '', '/online');
         } catch (err) {
             G.showToast(err.message, true);
         }
@@ -390,15 +537,24 @@ var Gomoku = window.Gomoku || {};
             if (onlineCreateBtn) onlineCreateBtn.classList.remove('hidden');
             if (onlineJoinBtn) onlineJoinBtn.parentElement.classList.remove('hidden');
 
+            // 隐藏聊天面板
+            var roomChatPanel = $('roomChatPanel');
+            if (roomChatPanel) roomChatPanel.classList.add('hidden');
+            G.clearRoomChatUI();
+
             G.onlineMatchId = null;
             G.onlineMyColor = null;
             G.onlineOpponent = null;
             G.gameMode = 'ai';
             G.initOnlineBoard();
+            var boardContainer = $('onlineBoardContainer');
+            if (boardContainer) boardContainer.classList.add('hidden');
+            G.showOnlineLobby();
             if (G.drawOnlineBoard) G.drawOnlineBoard();
             G.updateOnlineUI();
             G.startMatchListRefresh();
             G.showToast('已离开房间');
+            history.replaceState(null, '', '/online');
         } catch (err) {
             G.showToast(err.message, true);
         }

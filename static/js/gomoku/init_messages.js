@@ -39,6 +39,10 @@ var Gomoku = window.Gomoku || {};
             G.showMessageTab('inbox');
         }
         G.updateUnreadBadge();
+
+        if (G.WebSocketManager) {
+            G.WebSocketManager.on('message_read_update', G.handleMessageReadUpdate);
+        }
     };
 
     G.autoLogin = async function() {

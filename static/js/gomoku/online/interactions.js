@@ -234,7 +234,7 @@ var Gomoku = window.Gomoku || {};
             }
             var html = '';
             matches.forEach(function(match) {
-                var lockIcon = match.hasPassword ? '<i class="fa-solid fa-lock text-amber-500 mr-1" title="私人房间"></i>' : '';
+                var lockIcon = match.hasPassword ? '<i class="fa-solid fa-lock text-amber-500 mr-1"></i>' : '';
                 var statusBadge = match.hasPassword ? 
                     '<span class="text-xs px-2 py-1 bg-amber-200 text-amber-800 rounded-full">私人</span>' :
                     '<span class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">公共</span>';
@@ -246,7 +246,7 @@ var Gomoku = window.Gomoku || {};
                                 ' + lockIcon + '<span class="font-mono font-bold text-gray-800">' + match.id + '</span>\
                             </div>\
                             <div class="flex items-center gap-2">\
-                                <button onclick="Gomoku.spectateMatch(\'' + match.id + '\', ' + (match.hasPassword ? 'true' : 'false') + ')" class="text-blue-500 hover:text-blue-700 transition-colors" title="观战">\
+                                <button onclick="Gomoku.spectateMatch(\'' + match.id + '\', ' + (match.hasPassword ? 'true' : 'false') + ')" class="text-blue-500 hover:text-blue-700 transition-colors">\
                                     <i class="fa-solid fa-eye text-lg"></i>\
                                 </button>\
                                 ' + statusBadge + '\

@@ -84,7 +84,7 @@ var Gomoku = window.Gomoku || {};
     // 启动定期状态检查
     G.startStatusCheck = function() {
         G.stopStatusCheck();
-        G.statusCheckInterval = setInterval(G.checkUserStatus, 1000);
+        G.statusCheckInterval = setInterval(G.checkUserStatus, 10000);
     };
 
     // 停止定期状态检查
@@ -175,9 +175,29 @@ var Gomoku = window.Gomoku || {};
         setTimeout(function() { toast.remove(); }, 5000);
     };
 
-    G.updateUnreadBadge = async function() {
-        try {
-            var data = await G.apiCall('/api/messages/unread-count');
+    G.updateUnreadBadge = function(count) {
+        if (count !== undefined && count !== null) {
+            var cnt = count || 0;
+
+            if (cnt > G._lastUnreadCount && G._lastUnreadCount >= 0) {
+                var newMsgs = cnt - G._lastUnreadCount;
+                G.showMessageNotification(newMsgs);
+            }
+            G._lastUnreadCount = cnt;
+
+            var badge = document.getElementById('unreadBadge');
+            if (badge) {
+                if (cnt > 0) {
+                    badge.textContent = cnt;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+            return;
+        }
+
+        G.apiCall('/api/messages/unread-count').then(function(data) {
             var count = data.unreadCount || 0;
 
             if (count > G._lastUnreadCount && G._lastUnreadCount >= 0) {
@@ -195,9 +215,9 @@ var Gomoku = window.Gomoku || {};
                     badge.classList.add('hidden');
                 }
             }
-        } catch (err) {
+        }).catch(function(err) {
             console.error(G.i18n.t('fetchUnreadFailed') + ':', err);
-        }
+        });
     };
 
     // ==================== 登录 ====================
@@ -421,6 +441,11 @@ var Gomoku = window.Gomoku || {};
             var userData = await G.apiCall('/api/current_user', 'GET', null, true);
             G.currentUser = userData;
             G.updateUserDisplay();
+
+            if (G.WebSocketManager && G.WebSocketManager.usingWebSocket && G.currentUser) {
+                G.WebSocketManager.registerUser(G.currentUser.username);
+            }
+
             // 管理员界面元素显示
             if (G.currentUser && G.currentUser.isAdmin) {
                 var adminTab = document.getElementById('adminTab');
@@ -477,5 +502,42 @@ var Gomoku = window.Gomoku || {};
             G.showToast(err.message, true);
         }
     };
+
+    // ==================== WebSocket 推送事件处理 ====================
+
+    if (G.WebSocketManager) {
+        G.WebSocketManager.on('user_status_update', function(data) {
+            if (!G.currentUser) return;
+            if (data.bannedUntil !== undefined) {
+                G.currentUser.bannedUntil = data.bannedUntil;
+            }
+            if (data.score !== undefined) {
+                G.currentUser.score = data.score;
+            }
+            if (data.rank !== undefined) {
+                G.currentUser.rank = data.rank;
+            }
+            G.updateUserDisplay();
+        });
+
+        G.WebSocketManager.on('unread_count_update', function(data) {
+            if (G.updateUnreadBadge) {
+                G.updateUnreadBadge(data.unreadCount);
+            }
+        });
+
+        G.WebSocketManager.on('banned_notification', function(data) {
+            if (data && data.bannedUntil) {
+                var bannedUntil = new Date(data.bannedUntil * 1000);
+                var now = new Date();
+                if (now < bannedUntil) {
+                    var remainMinutes = Math.ceil((bannedUntil - now) / 60000);
+                    G.handleForceLogout(G.i18n.t('accountBanned') + ', ' + G.i18n.t('remaining') + ' ' + remainMinutes + ' ' + G.i18n.t('minutes'));
+                }
+            } else {
+                G.currentUser.bannedUntil = null;
+            }
+        });
+    }
 
 })();

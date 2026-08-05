@@ -81,11 +81,15 @@ def send_message(user):
 
         recipients = body.get('to', [])
         content = body.get('content', '').strip()
+        image = body.get('image', '').strip()
 
-        if not content:
+        if not content and not image:
             return jsonify({'error': get_text('message_content_empty', lang)}), 400
         if not recipients:
             return jsonify({'error': get_text('please_select_recipient', lang)}), 400
+
+        if image and len(image) > 5 * 1024 * 1024:
+            return jsonify({'error': get_text('image_too_large', lang) or '图片大小不能超过5MB'}), 400
 
         if not isinstance(recipients, list):
             recipients = [recipients]
@@ -112,10 +116,18 @@ def send_message(user):
             'from': from_username,
             'to': valid_recipients,
             'content': content,
+            'image': image,
             'timestamp': int(time.time()),
             'read_by': []
         }
         save_message(msg)
+
+        from .. import socketio
+        for recipient in valid_recipients:
+            all_msgs = _get_messages()
+            unread_count = sum(1 for m in all_msgs
+                             if recipient in m.get('to', []) and recipient not in m.get('read_by', []))
+            socketio.push_unread_count_update(recipient, unread_count)
 
         logger.info(f'用户 {from_username} 发送消息给 {valid_recipients}')
         return jsonify({
@@ -144,11 +156,19 @@ def mark_as_read(user):
         username = user['username']
         all_msgs = _get_messages()
 
+        from .. import socketio
+
         for msg in all_msgs:
             if str(msg['id']) in [str(mid) for mid in message_ids] and username in msg.get('to', []):
                 if username not in msg.get('read_by', []):
                     msg['read_by'].append(username)
                     update_message(msg['id'], msg)
+                    socketio.push_message_read_update(msg['from'], msg['id'], msg['read_by'])
+
+        all_msgs = _get_messages()
+        unread_count = sum(1 for m in all_msgs
+                         if username in m.get('to', []) and username not in m.get('read_by', []))
+        socketio.push_unread_count_update(username, unread_count)
 
         return jsonify({'success': True})
     except Exception as e:

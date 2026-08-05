@@ -5,12 +5,14 @@
 import time
 import uuid
 import random
+import secrets
 
 from .storage import (
     active_matches, active_matches_lock, save_matches,
     get_active_matches_lock, get_active_matches
 )
 from ..game_logic import check_win, check_forbidden, RULE_MODE_STANDARD, RULE_MODE_RENJU, RULE_MODE_FREE
+from ..logger import logger
 
 
 def create_match(user, time_mode='untimed', move_time=30, total_time=600, allow_spectate=True, password=None, rule_mode=RULE_MODE_STANDARD, invite_only=False, invited_friends=None):
@@ -65,6 +67,8 @@ def create_match(user, time_mode='untimed', move_time=30, total_time=600, allow_
             # 邀请制
             'inviteOnly': invite_only,
             'invitedFriends': invited_friends or [],
+            # 观战token（用于分享观战链接）
+            'spectateToken': secrets.token_hex(20),
         }
     save_matches()
     logger.info(f'Match created: {match_id} by {user["username"]}, time_mode={time_mode}, rule_mode={rule_mode}, allow_spectate={allow_spectate}, password={"yes" if password else "no"}')
@@ -294,8 +298,8 @@ def leave_match(user, match_id):
     """离开对局
     处理逻辑：
     - 等待中的房间：创建者离开则直接删除房间
-    - 进行中的房间：双方都离开或创建者离开且已结束则关闭房间
-    - 否则标记为等待重连
+    - 进行中的房间：一房离开直接通知对手并关闭房间
+    - 标记对手获胜
     """
     with active_matches_lock:
         if match_id not in active_matches:
@@ -304,7 +308,7 @@ def leave_match(user, match_id):
         match = active_matches[match_id]
         username = user['username']
 
-        if match['creator'] != username and match['opponent'] != username:
+        if match['creator'] != username and match.get('opponent') != username:
             return {'success': True}, 200
 
         # 标记离开状态
@@ -320,15 +324,22 @@ def leave_match(user, match_id):
             # 等待中的房间，创建者离开则删除
             del active_matches[match_id]
             save_matches()
-        elif (creator_left and opponent_left) or (creator_left and match['status'] == 'finished'):
-            # 双方都离开 或 创建者离开且游戏已结束
+        elif creator_left and opponent_left:
+            # 双方都离开，关闭房间
             match['status'] = 'closed'
             save_matches()
             del active_matches[match_id]
         else:
-            # 一方离开，标记为等待重连
+            # 一方离开，直接结束游戏，判对手获胜
             if match['status'] == 'playing':
-                match['status'] = 'waiting_for_reconnect'
+                # 确定对手颜色（获胜方）
+                winner = 2 if username == match['creator'] else 1
+                match['winner'] = winner
+                match['status'] = 'finished'
+                match['finishedReason'] = 'opponent_left'
+            elif match['status'] == 'waiting_for_reconnect':
+                # 已经是等待重连状态，直接关闭
+                match['status'] = 'closed'
             save_matches()
 
     return {'success': True}, 200

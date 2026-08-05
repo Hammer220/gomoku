@@ -115,7 +115,7 @@ def get_ai_move(board, current_player, difficulty='medium'):
     elif difficulty == 'hard':
         return find_hard_move(board, player, opponent)
     elif difficulty == 'master':
-        move = find_master_move(board, player, simulations=10000)
+        move = find_master_move(board, player, simulations=5000)
         return {'row': move[0], 'col': move[1]}
 
     return find_medium_move(board, player, opponent)

@@ -344,11 +344,6 @@ var Gomoku = window.Gomoku || {};
         return child;
     };
 
-    G.MCTSNode.prototype.isFullyExpanded = function() {
-        if (this.untriedMoves === null) return false;
-        return this.untriedMoves.length === 0 && this.children.length > 0;
-    };
-
     G.MCTSNode.prototype.simulate = function() {
         var simBoard = this.board.map(function(row) { return row.slice(); });
         var simPlayer = this.player;
@@ -382,54 +377,245 @@ var Gomoku = window.Gomoku || {};
         if (this.parent) this.parent.backpropagate(result);
     };
 
-    G.findMasterMove = function() {
-        var ai = G.getAIColor();
-        var root = new G.MCTSNode(G.gameBoard, ai, null, null);
-
-        for (var sim = 0; sim < 10000; sim++) {
-            var node = root;
-
-            while (node.children.length > 0) {
-                node = node.bestChild();
+    G.evaluatePositionForBoard = function(row, col, player, board) {
+        var dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
+        var score = 0;
+        for (var d = 0; d < dirs.length; d++) {
+            var dx = dirs[d][0], dy = dirs[d][1];
+            var count = 1, blocked = 0;
+            for (var i = 1; i < 5; i++) {
+                var nr = row + i * dy, nc = col + i * dx;
+                if (nr < 0 || nr >= G.BOARD_SIZE || nc < 0 || nc >= G.BOARD_SIZE) { blocked++; break; }
+                if (board[nr][nc] === player) count++;
+                else if (board[nr][nc] !== 0) { blocked++; break; }
+                else break;
             }
-
-            if (node.untriedMoves !== null || node.children.length === 0) {
-                node = node.expand();
+            for (var i = 1; i < 5; i++) {
+                var nr = row - i * dy, nc = col - i * dx;
+                if (nr < 0 || nr >= G.BOARD_SIZE || nc < 0 || nc >= G.BOARD_SIZE) { blocked++; break; }
+                if (board[nr][nc] === player) count++;
+                else if (board[nr][nc] !== 0) { blocked++; break; }
+                else break;
             }
+            if (count >= 5) return 100000;
+            if (count === 4 && blocked === 0) score += 10000;
+            else if (count === 4 && blocked === 1) score += 1000;
+            else if (count === 3 && blocked === 0) score += 500;
+            else if (count === 3 && blocked === 1) score += 100;
+            else if (count === 2 && blocked === 0) score += 10;
+        }
+        return score;
+    };
 
-            if (!node) {
-                node = root;
-                while (node.children.length > 0 && node.isFullyExpanded()) {
-                    node = node.bestChild();
+    G.findThreats = function(board, player) {
+        var threats = [];
+        var dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
+        for (var r = 0; r < G.BOARD_SIZE; r++) {
+            for (var c = 0; c < G.BOARD_SIZE; c++) {
+                if (board[r][c] === 0) {
+                    for (var d = 0; d < dirs.length; d++) {
+                        var dx = dirs[d][0], dy = dirs[d][1];
+                        var count = 0, open0 = 0, open1 = 0;
+                        var nr, nc;
+                        for (var i = 1; i < 5; i++) {
+                            nr = r + i * dy; nc = c + i * dx;
+                            if (nr < 0 || nr >= G.BOARD_SIZE || nc < 0 || nc >= G.BOARD_SIZE) break;
+                            if (board[nr][nc] === player) count++;
+                            else if (board[nr][nc] === 0) { open1 = 1; break; }
+                            else { break; }
+                        }
+                        for (var i = 1; i < 5; i++) {
+                            nr = r - i * dy; nc = c - i * dx;
+                            if (nr < 0 || nr >= G.BOARD_SIZE || nc < 0 || nc >= G.BOARD_SIZE) break;
+                            if (board[nr][nc] === player) count++;
+                            else if (board[nr][nc] === 0) { open0 = 1; break; }
+                            else { break; }
+                        }
+                        var openEnds = 0;
+                        if (open0 > 0) openEnds++;
+                        if (open1 > 0) openEnds++;
+                        if (count === 4 && openEnds >= 1) threats.push({ row: r, col: c, type: 'four', priority: 10000 });
+                        else if (count === 3 && openEnds === 2) threats.push({ row: r, col: c, type: 'live3', priority: 5000 });
+                        else if (count === 3 && openEnds === 1) threats.push({ row: r, col: c, type: 'sleep3', priority: 1000 });
+                        else if (count === 2 && openEnds === 2) threats.push({ row: r, col: c, type: 'live2', priority: 100 });
+                    }
                 }
-                if (!node || node.isFullyExpanded()) {
+            }
+        }
+        return threats;
+    };
+
+    G.findSmartMove = function(board, player, opponent, radius) {
+        var threats = G.findThreats(board, opponent);
+        if (threats.length > 0) {
+            threats.sort(function(a, b) { return b.priority - a.priority; });
+            return threats[0];
+        }
+        var myThreats = G.findThreats(board, player);
+        if (myThreats.length > 0) {
+            myThreats.sort(function(a, b) { return b.priority - a.priority; });
+            return myThreats[0];
+        }
+        var candidates = G.findCandidateMovesForSim(player, radius, board);
+        if (candidates.length === 0) return null;
+        var scores = [];
+        for (var i = 0; i < candidates.length; i++) {
+            scores.push({
+                move: candidates[i],
+                score: G.evaluatePositionForBoard(candidates[i].row, candidates[i].col, player, board)
+            });
+        }
+        scores.sort(function(a, b) { return b.score - a.score; });
+        if (Math.random() < 0.8 && scores.length > 0) {
+            return scores[0].move;
+        }
+        return candidates[Math.floor(Math.random() * candidates.length)];
+    };
+
+    G.findMasterMove = function() {
+        try {
+            var ai = G.getAIColor();
+            var hu = ai === 1 ? 2 : 1;
+
+            if (!G.gameBoard || !Array.isArray(G.gameBoard) || G.gameBoard.length !== 15) {
+                return { row: 7, col: 7 };
+            }
+
+            var rootMoves = G.findCandidateMoves(ai, 2);
+
+            if (!rootMoves || rootMoves.length === 0) {
+                return { row: 7, col: 7 };
+            }
+
+            for (var i = 0; i < rootMoves.length; i++) {
+                var testBoard = G.gameBoard.map(function(row) { return row.slice(); });
+                testBoard[rootMoves[i].row][rootMoves[i].col] = ai;
+                if (G.checkWin(testBoard, rootMoves[i].row, rootMoves[i].col, ai)) {
+                    return rootMoves[i];
+                }
+            }
+            for (var i = 0; i < rootMoves.length; i++) {
+                var testBoard = G.gameBoard.map(function(row) { return row.slice(); });
+                testBoard[rootMoves[i].row][rootMoves[i].col] = hu;
+                if (G.checkWin(testBoard, rootMoves[i].row, rootMoves[i].col, hu)) {
+                    return rootMoves[i];
+                }
+            }
+
+            var scores = {};
+            for (var i = 0; i < rootMoves.length; i++) {
+                scores[i] = { wins: 0, visits: 0 };
+            }
+
+            for (var sim = 0; sim < 2000; sim++) {
+                var moveIdx = sim % rootMoves.length;
+                var move = rootMoves[moveIdx];
+
+                var simBoard = [];
+                for (var r = 0; r < 15; r++) {
+                    simBoard[r] = [];
+                    for (var c = 0; c < 15; c++) {
+                        simBoard[r][c] = G.gameBoard[r][c];
+                    }
+                }
+
+                simBoard[move.row][move.col] = ai;
+                var simPlayer = ai === 1 ? 2 : 1;
+
+                if (G.checkWin(simBoard, move.row, move.col, ai)) {
+                    scores[moveIdx].wins += 1;
+                    scores[moveIdx].visits += 1;
                     continue;
                 }
-                node = node.expand();
+
+                var passes = 0;
+                for (var step = 0; step < 50 && passes < 2; step++) {
+                    var smartMove = G.findSmartMove(simBoard, simPlayer, simPlayer === ai ? hu : ai, 2);
+                    if (!smartMove) {
+                        passes++;
+                        simPlayer = simPlayer === 1 ? 2 : 1;
+                        continue;
+                    }
+
+                    simBoard[smartMove.row][smartMove.col] = simPlayer;
+
+                    if (G.checkWin(simBoard, smartMove.row, smartMove.col, simPlayer)) {
+                        var win = (simPlayer === ai) ? 1 : 0;
+                        scores[moveIdx].wins += win;
+                        scores[moveIdx].visits += 1;
+                        break;
+                    }
+
+                    simPlayer = simPlayer === 1 ? 2 : 1;
+                }
+
+                if (passes >= 2) {
+                    var aiScore = 0, huScore = 0;
+                    for (var r = 0; r < 15; r++) {
+                        for (var c = 0; c < 15; c++) {
+                            if (simBoard[r][c] === ai) aiScore += G.evaluatePositionForBoard(r, c, ai, simBoard);
+                            else if (simBoard[r][c] === hu) huScore += G.evaluatePositionForBoard(r, c, hu, simBoard);
+                        }
+                    }
+                    var result = aiScore > huScore ? 1 : (aiScore < huScore ? 0 : 0.5);
+                    scores[moveIdx].wins += result;
+                    scores[moveIdx].visits += 1;
+                }
             }
 
-            if (!node) {
-                continue;
+            var bestIdx = 0;
+            var bestScore = -Infinity;
+            for (var i = 0; i < rootMoves.length; i++) {
+                if (scores[i] && scores[i].visits > 0) {
+                    var ucb = (scores[i].wins / scores[i].visits) + Math.sqrt(2 * Math.log(2000) / scores[i].visits);
+                    if (ucb > bestScore) {
+                        bestScore = ucb;
+                        bestIdx = i;
+                    }
+                }
             }
 
-            if (node.move && G.checkWin(node.board, node.move.row, node.move.col, node.player)) {
-                node.backpropagate(1);
-                continue;
-            }
-
-            var result = node.simulate();
-            node.backpropagate(result);
+            var result = rootMoves[bestIdx];
+            return result || { row: 7, col: 7 };
+        } catch (e) {
+            console.error('Master move error:', e);
+            return { row: 7, col: 7 };
         }
+    };
 
-        var bestChild = null, bestVisits = -1;
-        for (var i = 0; i < root.children.length; i++) {
-            if (root.children[i].visitCount > bestVisits) {
-                bestVisits = root.children[i].visitCount;
-                bestChild = root.children[i];
+    G.findCandidateMovesForSim = function(player, radius, board) {
+        var candidates = [];
+        var hasNeighbor = {};
+        for (var i = 0; i < 15; i++) {
+            for (var j = 0; j < 15; j++) {
+                if (board[i][j] === 0) {
+                    for (var dr = -radius; dr <= radius; dr++) {
+                        for (var dc = -radius; dc <= radius; dc++) {
+                            var nr = i + dr, nc = j + dc;
+                            if (nr >= 0 && nr < 15 && nc >= 0 && nc < 15 && board[nr][nc] !== 0) {
+                                hasNeighbor[i + ',' + j] = true;
+                                break;
+                            }
+                        }
+                        if (hasNeighbor[i + ',' + j]) break;
+                    }
+                }
             }
         }
-
-        return bestChild ? bestChild.move : { row: 7, col: 7 };
+        for (var key in hasNeighbor) {
+            var parts = key.split(',');
+            candidates.push({ row: parseInt(parts[0]), col: parseInt(parts[1]) });
+        }
+        if (candidates.length === 0) {
+            for (var i = 0; i < 15; i++) {
+                for (var j = 0; j < 15; j++) {
+                    if (board[i][j] === 0) {
+                        candidates.push({ row: i, col: j });
+                    }
+                }
+            }
+        }
+        return candidates;
     };
 
     // AI 执行落子（根据当前难度选择策略）

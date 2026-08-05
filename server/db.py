@@ -69,6 +69,9 @@ def init_db():
             can_set_password_free INTEGER DEFAULT 0,
             can_monitor_matches INTEGER DEFAULT 0,
             can_manage_matches INTEGER DEFAULT 0,
+            password_free INTEGER DEFAULT 0,
+            password_free_max_attempts INTEGER DEFAULT 0,
+            password_free_remaining_attempts INTEGER DEFAULT 0,
             created_at REAL DEFAULT (strftime('%s', 'now')),
             updated_at REAL DEFAULT (strftime('%s', 'now'))
         )
@@ -92,6 +95,19 @@ def init_db():
             FOREIGN KEY (username) REFERENCES users(username)
         )
     ''')
+
+    try:
+        c.execute('ALTER TABLE users ADD COLUMN password_free INTEGER DEFAULT 0')
+    except:
+        pass
+    try:
+        c.execute('ALTER TABLE users ADD COLUMN password_free_max_attempts INTEGER DEFAULT 0')
+    except:
+        pass
+    try:
+        c.execute('ALTER TABLE users ADD COLUMN password_free_remaining_attempts INTEGER DEFAULT 0')
+    except:
+        pass
 
     c.execute('''
         CREATE TABLE IF NOT EXISTS matches (
@@ -263,6 +279,12 @@ def init_db():
 
     try:
         c.execute("ALTER TABLE messages ADD COLUMN read_by TEXT DEFAULT '[]'")
+    except sqlite3.OperationalError as e:
+        if 'duplicate column' in str(e).lower():
+            pass
+
+    try:
+        c.execute("ALTER TABLE messages ADD COLUMN image TEXT DEFAULT ''")
     except sqlite3.OperationalError as e:
         if 'duplicate column' in str(e).lower():
             pass

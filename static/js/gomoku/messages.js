@@ -15,11 +15,13 @@ var Gomoku = window.Gomoku || {};
     G.currentMessageTab = 'inbox';
     G.allUsers = [];
     G.isAdminUser = false;
+    G.selectedImage = null;
+    G.selectedImageData = '';
 
     G.messageHashToTab = {
-        'inbox': 'inbox',
-        'sent': 'sent',
-        'compose': 'compose'
+        '/inbox': 'inbox',
+        '/sent': 'sent',
+        '/compose': 'compose'
     };
 
     G.handleMessagesHashChange = function() {
@@ -58,7 +60,7 @@ var Gomoku = window.Gomoku || {};
         if (detailPanel) detailPanel.classList.add('hidden');
 
         if (!skipHashUpdate) {
-            history.replaceState(null, '', '#' + tab);
+            history.replaceState(null, '', '#/' + tab);
         }
 
         if (tab === 'inbox') G.loadInbox();
@@ -136,8 +138,9 @@ var Gomoku = window.Gomoku || {};
     G.sendMessage = async function() {
         var content = ($('messageContent') || {}).value || '';
         content = content.trim();
-        if (!content) {
-            G.showToast('请输入消息内容', true);
+        var image = G.selectedImageData || '';
+        if (!content && !image) {
+            G.showToast('请输入消息内容或选择图片', true);
             return;
         }
         if (G.selectedRecipients.length === 0) {
@@ -150,14 +153,19 @@ var Gomoku = window.Gomoku || {};
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>发送中';
         }
         try {
-            await G.apiCall('/api/messages/send', 'POST', {
+            var payload = {
                 to: G.selectedRecipients.slice(),
                 content: content
-            });
+            };
+            if (image) {
+                payload.image = image;
+            }
+            await G.apiCall('/api/messages/send', 'POST', payload);
             G.showToast('消息发送成功');
             if ($('messageContent')) $('messageContent').value = '';
             G.selectedRecipients = [];
             G.renderRecipientTags();
+            G.clearImageSelection();
             G.showMessageTab('sent');
         } catch (err) {
             G.showToast('发送失败: ' + err.message, true);
@@ -203,6 +211,30 @@ var Gomoku = window.Gomoku || {};
 
     // ==================== 加载已发送 ====================
 
+    G._buildReadStatusHtml = function(readBy, recipients) {
+        readBy = readBy || [];
+        var readList = [];
+        var unreadList = [];
+        for (var j = 0; j < recipients.length; j++) {
+            if (readBy.indexOf(recipients[j]) !== -1) {
+                readList.push(recipients[j]);
+            } else {
+                unreadList.push(recipients[j]);
+            }
+        }
+        var html = '';
+        if (readList.length > 0) {
+            html += '<div class="text-green-600 text-xs"><i class="fa-solid fa-check-circle mr-1"></i>已读: ' + readList.join(', ') + '</div>';
+        }
+        if (unreadList.length > 0) {
+            html += '<div class="text-orange-500 text-xs"><i class="fa-solid fa-clock mr-1"></i>未读: ' + unreadList.join(', ') + '</div>';
+        }
+        if (readList.length === 0 && unreadList.length === 0) {
+            html = '<span class="text-gray-400 text-xs"><i class="fa-solid fa-clock mr-1"></i>未读</span>';
+        }
+        return html;
+    };
+
     G.loadSent = async function() {
         var container = $('sentMessages');
         if (!container) return;
@@ -216,12 +248,14 @@ var Gomoku = window.Gomoku || {};
             }
             container.innerHTML = messages.map(function(m) {
                 var time = new Date(m.timestamp * 1000).toLocaleString('zh-CN');
+                var readStatusHtml = G._buildReadStatusHtml(m.read_by, m.to);
                 return '<div class="p-3 bg-white rounded-lg border cursor-pointer hover:shadow-md transition-shadow message-item" data-id="' + m.id + '" data-type="sent">' +
                     '<div class="flex justify-between items-start">' +
                         '<span class="font-medium">发送给: ' + m.to.join(', ') + '</span>' +
                         '<span class="text-xs text-gray-400">' + time + '</span>' +
                     '</div>' +
                     '<div class="text-sm text-gray-600 mt-1 truncate">' + m.content + '</div>' +
+                    '<div class="mt-1 message-read-status">' + readStatusHtml + '</div>' +
                 '</div>';
             }).join('');
         } catch (err) {
@@ -255,7 +289,7 @@ var Gomoku = window.Gomoku || {};
 
         var msg = null;
         for (var i = 0; i < messages.length; i++) {
-            if (messages[i].id === messageId) { msg = messages[i]; break; }
+            if (String(messages[i].id) === String(messageId)) { msg = messages[i]; break; }
         }
         if (!msg) {
             G.showToast('消息不存在', true);
@@ -344,9 +378,22 @@ var Gomoku = window.Gomoku || {};
 
     // ==================== 未读消息数 ====================
 
-    G.updateUnreadBadge = async function() {
-        try {
-            var data = await G.apiCall('/api/messages/unread-count');
+    G.updateUnreadBadge = function(count) {
+        if (count !== undefined && count !== null) {
+            var cnt = count || 0;
+            var badge = $('unreadBadge');
+            if (badge) {
+                if (cnt > 0) {
+                    badge.textContent = cnt;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            }
+            return;
+        }
+
+        G.apiCall('/api/messages/unread-count').then(function(data) {
             var count = data.unreadCount || 0;
             var badge = $('unreadBadge');
             if (badge) {
@@ -357,8 +404,38 @@ var Gomoku = window.Gomoku || {};
                     badge.classList.add('hidden');
                 }
             }
-        } catch (err) {
+        }).catch(function(err) {
             console.error('获取未读消息数失败:', err);
+        });
+    };
+
+    // ==================== 实时消息已读状态更新 ====================
+
+    G.handleMessageReadUpdate = function(data) {
+        var messageId = data.messageId;
+        var readBy = data.readBy || [];
+        if (G.currentMessageTab === 'sent') {
+            G.updateSentMessageReadStatus(messageId, readBy);
+        }
+    };
+
+    G.updateSentMessageReadStatus = function(messageId, readBy) {
+        var container = $('sentMessages');
+        if (!container) return;
+        var items = container.querySelectorAll('.message-item');
+        for (var i = 0; i < items.length; i++) {
+            if (String(items[i].dataset.id) === String(messageId)) {
+                var readStatusEl = items[i].querySelector('.message-read-status');
+                if (!readStatusEl) return;
+                var toText = items[i].querySelector('.font-medium');
+                var recipients = [];
+                if (toText) {
+                    var match = toText.textContent.match(/发送给:\s*(.+)/);
+                    if (match) recipients = match[1].split(',').map(function(s) { return s.trim(); });
+                }
+                readStatusEl.innerHTML = G._buildReadStatusHtml(readBy, recipients);
+                break;
+            }
         }
     };
 

@@ -113,22 +113,27 @@ var Gomoku = window.Gomoku || {};
     };
 
     G.updateOnlineUI = function() {
-        var statusText = $('onlineStatusText');
+        var statusLabel = $('onlineStatusLabel');
         var statusLight = $('onlineStatusLight');
-        if (!statusText || !statusLight) return;
+        if (!statusLabel) return;
+
+        var undoDrawActions = $('undoDrawActions');
 
         if (!G.onlineMatchId || !G.onlineGameActive) {
-            statusText.textContent = '未在对局中';
-            statusLight.className = 'w-3 h-3 bg-gray-400 rounded-full';
+            statusLabel.textContent = '未在对局中';
+            if (statusLight) statusLight.className = 'inline-block w-3 h-3 bg-gray-400 rounded-full mr-2';
+            if (undoDrawActions) undoDrawActions.classList.add('hidden');
             return;
         }
 
+        if (undoDrawActions) undoDrawActions.classList.remove('hidden');
+
         if (G.onlineCurrentPlayer === G.onlineMyColor) {
-            statusText.textContent = '你的回合';
-            statusLight.className = 'w-3 h-3 bg-green-500 rounded-full animate-pulse';
+            statusLabel.textContent = '你的回合';
+            if (statusLight) statusLight.className = 'inline-block w-3 h-3 bg-green-500 rounded-full mr-2 animate-pulse';
         } else {
-            statusText.textContent = '等待对手';
-            statusLight.className = 'w-3 h-3 bg-yellow-500 rounded-full';
+            statusLabel.textContent = '等待对手';
+            if (statusLight) statusLight.className = 'inline-block w-3 h-3 bg-yellow-500 rounded-full mr-2';
         }
     };
 

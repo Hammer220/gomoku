@@ -176,8 +176,17 @@
         if (G.availableBackgrounds.length === 0) {
             var emptyDiv = document.createElement('div');
             emptyDiv.className = 'text-gray-500 text-sm text-center py-4 col-span-4';
-            emptyDiv.textContent = '暂无背景图片，可上传自定义背景';
+            emptyDiv.textContent = '暂无背景图片';
             grid.appendChild(emptyDiv);
+        }
+        // 仅管理员显示上传控件
+        var uploadInput = document.getElementById('uploadBackgroundInput');
+        var saveToServer = document.getElementById('saveUploadToServer');
+        if (uploadInput && uploadInput.parentElement) {
+            uploadInput.parentElement.style.display = (G.currentUser && G.currentUser.isAdmin) ? '' : 'none';
+        }
+        if (saveToServer && saveToServer.parentElement) {
+            saveToServer.parentElement.style.display = (G.currentUser && G.currentUser.isAdmin) ? '' : 'none';
         }
     };
 
@@ -185,6 +194,8 @@
     window.handleBackgroundUpload = function(input) {
         var file = input.files[0];
         if (!file) return;
+        // 仅管理员可上传到服务器
+        var isAdmin = G.currentUser && G.currentUser.isAdmin;
         var uploadProgress = document.getElementById('uploadProgress');
         var saveToServer = document.getElementById('saveUploadToServer');
         if (uploadProgress) uploadProgress.classList.remove('hidden');
@@ -202,8 +213,8 @@
             G.drawOnlineBoard();
             if (uploadProgress) uploadProgress.classList.add('hidden');
             G.showToast('背景图片已上传');
-            // 如果勾选保存到服务器，则上传到服务器
-            if (saveToServer && saveToServer.checked) {
+            // 仅管理员可上传到服务器
+            if (isAdmin && saveToServer && saveToServer.checked) {
                 G.uploadBackgroundToServer(dataUrl, file.name);
             }
         };
@@ -214,7 +225,7 @@
         reader.readAsDataURL(file);
     };
 
-    // 上传背景图片到服务器
+    // 上传背景图片到服务器（仅管理员可调用）
     G.uploadBackgroundToServer = async function(dataUrl, filename) {
         try {
             await G.apiCall('/api/backgrounds/upload', 'POST', {
@@ -223,7 +234,7 @@
             });
             G.showToast('背景已保存到服务器');
         } catch (err) {
-            // 服务器保存失败，仅本地存储
+            G.showToast('背景保存到服务器失败：需要管理员权限', true);
         }
     };
 

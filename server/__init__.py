@@ -2,38 +2,47 @@
 创建并配置 Flask 应用实例，注册路由蓝图，设置密钥和静态文件目录。
 """
 
-import os
 import json
-from flask import Flask, send_from_directory, request as socket_request
+import os
 import secrets
+
+from flask import Flask, send_from_directory
+from flask import request as socket_request
 from flask_socketio import SocketIO, emit, join_room, leave_room
 
-from .config import cfg, SCRIPT_DIR, STATIC_DIR, get_config
-from .logger import setup_logging, logger
+from .config import SCRIPT_DIR, STATIC_DIR, cfg, get_config
+from .logger import logger, setup_logging
 
 socketio = SocketIO()
 
+
 def create_app():
-    app = Flask(__name__, static_folder=STATIC_DIR, static_url_path='/static',
-                template_folder=os.path.join(SCRIPT_DIR, 'templates'))
+    app = Flask(
+        __name__,
+        static_folder=STATIC_DIR,
+        static_url_path='/static',
+        template_folder=os.path.join(SCRIPT_DIR, 'templates'),
+    )
     app.secret_key = secrets.token_hex(32)
 
     setup_logging()
 
     from .db import init_db, migrate_from_json
+
     init_db()
     migrate_from_json()
 
     from .routes import register_routes
+
     register_routes(app)
 
     from .match_manager import init_matches, start_cleanup_task
+
     init_matches()
     if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
         start_cleanup_task()
 
-    socketio.init_app(app, cors_allowed_origins="*",
-                      ping_timeout=30, ping_interval=25)
+    socketio.init_app(app, cors_allowed_origins='*', ping_timeout=30, ping_interval=25)
 
     register_socket_events(socketio)
 
@@ -87,6 +96,7 @@ def _emit_match_update(sio, match_id):
     """通过 Socket.IO 向房间广播赛事更新"""
     try:
         from .match.storage import active_matches, active_matches_lock
+
         with active_matches_lock:
             if match_id in active_matches:
                 match = active_matches[match_id]
@@ -109,6 +119,7 @@ def register_socket_events(sio):
         if not username:
             return None
         from .models import get_user
+
         return get_user(username)
 
     def _ws_error_response(sid, error_msg):
@@ -138,11 +149,11 @@ def register_socket_events(sio):
 
         if match_id and username:
             logger.info(f'断线客户端所在房间: {match_id}，用户: {username}，通知房间内其他用户')
-            emit('opponent_disconnected', {
-                'match_id': match_id,
-                'username': username,
-                'message': f'{username} 已断开连接'
-            }, room=match_id)
+            emit(
+                'opponent_disconnected',
+                {'match_id': match_id, 'username': username, 'message': f'{username} 已断开连接'},
+                room=match_id,
+            )
 
     @sio.on('register_user')
     def handle_register_user(data):
@@ -194,6 +205,7 @@ def register_socket_events(sio):
 
         try:
             from .match_manager import make_move
+
             result = make_move(user, match_id, row, col)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             if isinstance(result_data, dict) and result_data.get('error'):
@@ -219,6 +231,7 @@ def register_socket_events(sio):
 
         try:
             from .match_manager import request_undo
+
             result = request_undo(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _emit_match_update(sio, match_id)
@@ -241,6 +254,7 @@ def register_socket_events(sio):
 
         try:
             from .match_manager import accept_undo
+
             result = accept_undo(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _emit_match_update(sio, match_id)
@@ -263,6 +277,7 @@ def register_socket_events(sio):
 
         try:
             from .match_manager import decline_undo
+
             result = decline_undo(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _emit_match_update(sio, match_id)
@@ -285,6 +300,7 @@ def register_socket_events(sio):
 
         try:
             from .match_manager import request_draw
+
             result = request_draw(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _emit_match_update(sio, match_id)
@@ -307,6 +323,7 @@ def register_socket_events(sio):
 
         try:
             from .match_manager import accept_draw
+
             result = accept_draw(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _emit_match_update(sio, match_id)
@@ -329,6 +346,7 @@ def register_socket_events(sio):
 
         try:
             from .match_manager import decline_draw
+
             result = decline_draw(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _emit_match_update(sio, match_id)
@@ -351,6 +369,7 @@ def register_socket_events(sio):
 
         try:
             from .match_manager import resign
+
             result = resign(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _emit_match_update(sio, match_id)
@@ -373,6 +392,7 @@ def register_socket_events(sio):
 
         try:
             from .match_manager import restart_match
+
             result = restart_match(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _emit_match_update(sio, match_id)
@@ -395,6 +415,7 @@ def register_socket_events(sio):
 
         try:
             from .match_manager import decline_restart
+
             result = decline_restart(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _emit_match_update(sio, match_id)
@@ -417,6 +438,7 @@ def register_socket_events(sio):
 
         try:
             from .match_manager import close_match
+
             _emit_match_update(sio, match_id)
             result = close_match(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
@@ -439,6 +461,7 @@ def register_socket_events(sio):
 
         try:
             from .match_manager import leave_match
+
             result = leave_match(user, match_id)
             _emit_match_update(sio, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
@@ -458,6 +481,7 @@ def register_socket_events(sio):
         match_id = data.get('matchId') or data.get('match_id')
         try:
             from .match_manager import heartbeat
+
             heartbeat(user)
             _ws_success_response(sid, {'action': 'heartbeat', 'result': {'success': True}})
         except Exception as e:
@@ -521,10 +545,7 @@ def register_socket_events(sio):
         """向消息发送者推送消息已读状态更新"""
         if sender_username in username_to_sids:
             for sid in username_to_sids[sender_username]:
-                sio.emit('message_read_update', {
-                    'messageId': message_id,
-                    'readBy': read_by
-                }, room=sid)
+                sio.emit('message_read_update', {'messageId': message_id, 'readBy': read_by}, room=sid)
 
     def push_ban_notification(username, banned_until):
         """向指定用户推送封禁通知"""

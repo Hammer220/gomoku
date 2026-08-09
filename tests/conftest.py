@@ -4,14 +4,13 @@
 
 import os
 import sys
-import json
-import sqlite3
+
 import pytest
 
 SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, SCRIPT_DIR)
 
-from server import create_app
+from server import create_app  # noqa: E402
 
 
 @pytest.fixture
@@ -133,6 +132,7 @@ def super_admin_user():
 def banned_user():
     """返回一个被封禁的用户字典"""
     import time
+
     return {
         'username': 'banneduser',
         'password': 'hashed_password',

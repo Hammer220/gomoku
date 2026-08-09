@@ -36,8 +36,8 @@
             if (userFilterEl) {
                 const usernames = new Set();
                 G.historyAllRecords.forEach(r => {
-                    if (r.player && !isBuiltinUser(r.player)) usernames.add(r.player);
-                    if (r.opponent && !isBuiltinUser(r.opponent)) usernames.add(r.opponent);
+                    if (r.player1 && !isBuiltinUser(r.player1)) usernames.add(r.player1);
+                    if (r.player2 && !isBuiltinUser(r.player2)) usernames.add(r.player2);
                 });
                 const sortedUsernames = Array.from(usernames).sort();
                 userFilterEl.innerHTML = '<option value="self">自己</option><option value="all">所有人</option>';
@@ -62,19 +62,25 @@
         let filtered = G.historyAllRecords;
 
         if (userFilter === 'self') {
-            filtered = filtered.filter(r => r.player === G.currentUser.username || r.opponent === G.currentUser.username);
+            filtered = filtered.filter(r => r.player1 === G.currentUser.username || r.player2 === G.currentUser.username);
         } else if (userFilter !== 'all') {
-            filtered = filtered.filter(r => r.player === userFilter || r.opponent === userFilter);
+            filtered = filtered.filter(r => r.player1 === userFilter || r.player2 === userFilter);
         }
 
         if (modeFilter !== 'all') {
             filtered = filtered.filter(r => r.mode === modeFilter);
         }
         if (resultFilter !== 'all') {
-            filtered = filtered.filter(r => r.resultKey === resultFilter ||
-                (resultFilter === 'win' && r.result === '胜利') ||
-                (resultFilter === 'lose' && r.result === '失败') ||
-                (resultFilter === 'draw' && r.result === '平局'));
+            filtered = filtered.filter(r => {
+                var winner = r.winner || '';
+                var isWin = winner === G.currentUser.username;
+                var isLose = winner && winner !== G.currentUser.username && (r.player1 === G.currentUser.username || r.player2 === G.currentUser.username);
+                var isDraw = !winner;
+                if (resultFilter === 'win') return isWin;
+                if (resultFilter === 'lose') return isLose;
+                if (resultFilter === 'draw') return isDraw;
+                return false;
+            });
         }
         const totalPages = Math.max(1, Math.ceil(filtered.length / G.historyPageSize));
         if (G.historyCurrentPage > totalPages) G.historyCurrentPage = totalPages;
@@ -103,24 +109,29 @@
         }
 
         tbody.innerHTML = pageRecords.map(r => {
-            const modeLabel = r.modeLabel || r.mode || '未知';
-            const resultLabel = r.result || '未知';
-            const resultClass = resultLabel === '胜利' ? 'text-green-600' : (resultLabel === '失败' ? 'text-red-600' : 'text-yellow-600');
-            const opponent = r.opponent || '-';
+            const modeLabel = r.mode || '未知';
+            var winner = r.winner || '';
+            var isWin = winner === G.currentUser.username;
+            var isLose = winner && winner !== G.currentUser.username;
+            var resultLabel = winner ? (isWin ? '胜利' : '失败') : '平局';
+            const resultClass = isWin ? 'text-green-600' : (isLose ? 'text-red-600' : 'text-yellow-600');
+            const opponent = (r.player1 === G.currentUser.username) ? (r.player2 || '-') : (r.player1 || '-');
+            const timeStr = r.endTime || r.startTime;
+            const dateStr = timeStr ? new Date(timeStr * 1000).toLocaleDateString() : '-';
             var scoreChange = '0';
             var scoreClass = 'text-gray-500';
             if (r.mode === 'ai') {
                 const scoreConfig = { easy: { win: '+10', lose: '-50' }, medium: { win: '+50', lose: '-25' }, hard: { win: '+100', lose: '-5' }, master: { win: '+500', lose: '-5' } };
                 const diff = (r.aiDifficulty || 'medium');
                 const diffConfig = scoreConfig[diff] || scoreConfig.medium;
-                scoreChange = resultLabel === '胜利' ? diffConfig.win : (resultLabel === '失败' ? diffConfig.lose : '0');
+                scoreChange = isWin ? diffConfig.win : (isLose ? diffConfig.lose : '0');
             } else if (r.mode === 'online') {
-                scoreChange = resultLabel === '胜利' ? '+30' : (resultLabel === '失败' ? '-30' : '0');
+                scoreChange = isWin ? '+30' : (isLose ? '-30' : '0');
             }
-            scoreClass = resultLabel === '胜利' ? 'text-green-600' : (resultLabel === '失败' ? 'text-red-600' : 'text-gray-500');
-            const hasMoves = r.moveHistory && r.moveHistory.length > 0;
+            scoreClass = isWin ? 'text-green-600' : (isLose ? 'text-red-600' : 'text-gray-500');
+            const hasMoves = r.moves && r.moves.length > 0;
             return `<tr class="border-b hover:bg-gray-50">
-                <td class="border px-4 py-2.5 text-sm">${r.date || '-'}</td>
+                <td class="border px-4 py-2.5 text-sm">${dateStr}</td>
                 <td class="border px-4 py-2.5 text-sm">${modeLabel}</td>
                 <td class="border px-4 py-2.5 text-sm">${opponent}</td>
                 <td class="border px-4 py-2.5 text-sm font-medium ${resultClass}">${resultLabel}</td>
@@ -204,8 +215,11 @@
                 var mode = r.mode || 'ai';
                 if (!modeStats[mode]) modeStats[mode] = { wins: 0, losses: 0, draws: 0, total: 0 };
                 modeStats[mode].total++;
-                if (r.result === 'win' || r.result === '胜利') modeStats[mode].wins++;
-                else if (r.result === 'lose' || r.result === '失败') modeStats[mode].losses++;
+                var winner = r.winner || '';
+                var isWin = winner === G.currentUser.username;
+                var isLose = winner && winner !== G.currentUser.username;
+                if (isWin) modeStats[mode].wins++;
+                else if (isLose) modeStats[mode].losses++;
                 else modeStats[mode].draws++;
             });
             var modeLabels = { ai: '人机对战', pvp: '双人对战', online: '联机对战' };

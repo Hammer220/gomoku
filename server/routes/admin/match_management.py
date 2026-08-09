@@ -2,16 +2,19 @@
 负责：对局列表查看、详情、强制关闭、全部关闭、强制重启、强制落子
 """
 
-from flask import request, jsonify
+from flask import jsonify, request
 
-from ..admin_routes import admin_bp, require_permission
 from ...auth import require_admin
-from ...match_manager import (
-    get_all_matches, get_match_detail,
-    force_close_match, force_close_all_matches,
-    force_restart_match, force_move
-)
 from ...logger import logger
+from ...match_manager import (
+    force_close_all_matches,
+    force_close_match,
+    force_move,
+    force_restart_match,
+    get_all_matches,
+    get_match_detail,
+)
+from ..admin_routes import admin_bp, require_permission
 
 
 @admin_bp.route('/api/admin/matches', methods=['GET'])

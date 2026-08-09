@@ -2,10 +2,10 @@
 提供 SQLite 数据库操作、用户 CRUD 操作、密码管理等基础数据操作。
 """
 
-import os
 import json
-import time
+import os
 import threading
+import time
 
 from .config import SCRIPT_DIR
 
@@ -35,7 +35,7 @@ PERMISSION_FIELDS = {
 
 def get_admin_permissions(user):
     if user.get('isSuperAdmin'):
-        return {field: True for field in PERMISSION_FIELDS}
+        return dict.fromkeys(PERMISSION_FIELDS, True)
     if not user.get('isAdmin'):
         return {}
     perms = {}
@@ -52,14 +52,10 @@ file_locks = {
     TOKENS_FILE: threading.Lock(),
     SETTINGS_FILE: threading.Lock(),
     MATCHES_FILE: threading.Lock(),
-    MESSAGES_FILE: threading.Lock()
+    MESSAGES_FILE: threading.Lock(),
 }
 
-cache = {
-    'tokens': {'data': None, 'timestamp': 0, 'ttl': 10},
-    'user_info': {},
-    'matches': {}
-}
+cache = {'tokens': {'data': None, 'timestamp': 0, 'ttl': 10}, 'user_info': {}, 'matches': {}}
 
 
 def get_file_lock(file_path):
@@ -74,9 +70,9 @@ def load_json_with_lock(file_path, default=None):
         if not os.path.exists(file_path):
             return default
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, encoding='utf-8') as f:
                 return json.load(f)
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             return default
 
 
@@ -91,7 +87,7 @@ def save_json_with_lock(file_path, data):
             elif file_path == TOKENS_FILE:
                 cache['tokens']['data'] = None
             return True
-        except IOError:
+        except OSError:
             return False
 
 
@@ -104,11 +100,7 @@ def get_cached_data(cache_key, ttl=30):
 
 
 def set_cached_data(cache_key, data, ttl=30):
-    cache[cache_key] = {
-        'data': data,
-        'timestamp': time.time(),
-        'ttl': ttl
-    }
+    cache[cache_key] = {'data': data, 'timestamp': time.time(), 'ttl': ttl}
 
 
 def clear_cache(cache_key=None):
@@ -137,10 +129,12 @@ def save_json(file_path, data):
 def _row_to_user(row):
     if row is None:
         return None
+
     def safe_bool(val):
         if val is None:
             return False
         return bool(val)
+
     def safe_int(val, default=0):
         if val is None:
             return default
@@ -148,11 +142,13 @@ def _row_to_user(row):
             return int(val)
         except (ValueError, TypeError):
             return default
+
     def get_row_val(row, key, default=None):
         try:
             return row[key]
         except (KeyError, IndexError, TypeError):
             return default
+
     return {
         'username': row['username'],
         'password': row['password'],
@@ -188,13 +184,11 @@ def get_user(username):
             if user_data and user_data.get('bannedUntil') and time.time() >= user_data['bannedUntil']:
                 user_data['bannedUntil'] = None
                 save_user(username, user_data)
-                cache['user_info'][username] = {
-                    'data': user_data,
-                    'timestamp': time.time()
-                }
+                cache['user_info'][username] = {'data': user_data, 'timestamp': time.time()}
             return user_data
 
     from .db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
     c.execute('SELECT * FROM users WHERE username = ?', (username,))
@@ -206,31 +200,30 @@ def get_user(username):
         save_user(username, user_data)
 
     if user_data:
-        cache['user_info'][username] = {
-            'data': user_data,
-            'timestamp': time.time()
-        }
+        cache['user_info'][username] = {'data': user_data, 'timestamp': time.time()}
 
     return user_data
 
 
 def save_user(username, data):
     from .db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
-    
+
     for col, col_type, default in [
         ('password_free', 'INTEGER', 0),
         ('password_free_max_attempts', 'INTEGER', 0),
         ('password_free_remaining_attempts', 'INTEGER', 0),
-        ('is_guest', 'INTEGER', 0)
+        ('is_guest', 'INTEGER', 0),
     ]:
         try:
             c.execute(f'ALTER TABLE users ADD COLUMN {col} {col_type} DEFAULT {default}')
-        except:
+        except Exception:
             pass
-    
-    c.execute('''
+
+    c.execute(
+        """
         INSERT OR REPLACE INTO users (
             username, password, score, wins, games, join_date, last_login,
             is_admin, is_super_admin, banned_until, can_ban_user,
@@ -239,32 +232,34 @@ def save_user(username, data):
             can_manage_matches, password_free, password_free_max_attempts,
             password_free_remaining_attempts, is_guest, language, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (
-        username,
-        data.get('password', ''),
-        data.get('score', 1000),
-        data.get('wins', 0),
-        data.get('games', 0),
-        data.get('joinDate', ''),
-        data.get('lastLogin', ''),
-        1 if data.get('isAdmin') else 0,
-        1 if data.get('isSuperAdmin') else 0,
-        data.get('bannedUntil'),
-        1 if data.get('canBanUser') else 0,
-        1 if data.get('canKickUser') else 0,
-        1 if data.get('canDeleteUser') else 0,
-        1 if data.get('canChangePassword') else 0,
-        1 if data.get('canModifyScore') else 0,
-        1 if data.get('canSetPasswordFree') else 0,
-        1 if data.get('canMonitorMatches') else 0,
-        1 if data.get('canManageMatches') else 0,
-        1 if data.get('passwordFree') else 0,
-        data.get('passwordFreeMaxAttempts', 0),
-        data.get('passwordFreeRemainingAttempts', 0),
-        1 if data.get('isGuest') else 0,
-        data.get('language', 'zh-CN'),
-        time.time()
-    ))
+    """,
+        (
+            username,
+            data.get('password', ''),
+            data.get('score', 1000),
+            data.get('wins', 0),
+            data.get('games', 0),
+            data.get('joinDate', ''),
+            data.get('lastLogin', ''),
+            1 if data.get('isAdmin') else 0,
+            1 if data.get('isSuperAdmin') else 0,
+            data.get('bannedUntil'),
+            1 if data.get('canBanUser') else 0,
+            1 if data.get('canKickUser') else 0,
+            1 if data.get('canDeleteUser') else 0,
+            1 if data.get('canChangePassword') else 0,
+            1 if data.get('canModifyScore') else 0,
+            1 if data.get('canSetPasswordFree') else 0,
+            1 if data.get('canMonitorMatches') else 0,
+            1 if data.get('canManageMatches') else 0,
+            1 if data.get('passwordFree') else 0,
+            data.get('passwordFreeMaxAttempts', 0),
+            data.get('passwordFreeRemainingAttempts', 0),
+            1 if data.get('isGuest') else 0,
+            data.get('language', 'zh-CN'),
+            time.time(),
+        ),
+    )
     conn.commit()
     if username in cache['user_info']:
         del cache['user_info'][username]
@@ -298,6 +293,7 @@ def get_current_user_from_request(request):
         return user
 
     from .db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
     c.execute('SELECT username, turnstile_verified FROM tokens WHERE token = ?', (token,))
@@ -307,15 +303,11 @@ def get_current_user_from_request(request):
         return None
 
     username = row['username']
-    turnstile_verified = bool(row['turnstile_verified'])
 
     tokens = {}
     c.execute('SELECT token, username, turnstile_verified FROM tokens')
     for r in c.fetchall():
-        tokens[r['token']] = {
-            'username': r['username'],
-            'turnstile_verified': bool(r['turnstile_verified'])
-        }
+        tokens[r['token']] = {'username': r['username'], 'turnstile_verified': bool(r['turnstile_verified'])}
 
     set_cached_data('tokens', tokens.copy(), ttl=10)
 
@@ -326,9 +318,10 @@ def get_current_user_from_request(request):
 
 
 def init_admin():
-    from .logger import logger
     import hashlib
+
     from .db import get_connection
+    from .logger import logger
 
     conn = get_connection()
     c = conn.cursor()
@@ -339,43 +332,50 @@ def init_admin():
 
     import random
     import string
+
     admin_password = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
 
     save_plain_password('admin', admin_password)
 
-    c.execute('''
+    c.execute(
+        """
         INSERT INTO users (
             username, password, score, wins, games, join_date, last_login,
             is_admin, is_super_admin, banned_until
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (
-        'admin',
-        hashlib.sha256(admin_password.encode()).hexdigest(),
-        1000,
-        0,
-        0,
-        time.strftime('%Y-%m-%d'),
-        '',
-        1,
-        1,
-        None
-    ))
+    """,
+        (
+            'admin',
+            hashlib.sha256(admin_password.encode()).hexdigest(),
+            1000,
+            0,
+            0,
+            time.strftime('%Y-%m-%d'),
+            '',
+            1,
+            1,
+            None,
+        ),
+    )
     conn.commit()
     logger.info('管理员账户初始化完成')
 
 
 def add_token(token, username):
     from .db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
-    c.execute('INSERT OR REPLACE INTO tokens (token, username, created_at) VALUES (?, ?, ?)',
-              (token, username, time.time()))
+    c.execute(
+        'INSERT OR REPLACE INTO tokens (token, username, created_at) VALUES (?, ?, ?)', (token, username, time.time())
+    )
     conn.commit()
     clear_cache('tokens')
 
 
 def remove_token(token):
     from .db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
     c.execute('DELETE FROM tokens WHERE token = ?', (token,))
@@ -385,6 +385,7 @@ def remove_token(token):
 
 def remove_user_tokens(username):
     from .db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
     c.execute('DELETE FROM tokens WHERE username = ?', (username,))
@@ -394,6 +395,7 @@ def remove_user_tokens(username):
 
 def get_all_tokens():
     from .db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
     c.execute('SELECT token, username, created_at FROM tokens')
@@ -403,6 +405,7 @@ def get_all_tokens():
 
 def get_users():
     from .db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
     c.execute('SELECT * FROM users ORDER BY username')
@@ -412,6 +415,7 @@ def get_users():
 
 def delete_user(username):
     from .db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
     c.execute('DELETE FROM users WHERE username = ?', (username,))
@@ -428,6 +432,7 @@ def delete_user(username):
 
 def load_records():
     from .db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
     c.execute('SELECT * FROM records ORDER BY end_time DESC')
@@ -447,17 +452,17 @@ def load_records():
             'startTime': row['start_time'],
             'endTime': row['end_time'],
         }
-        if 'mode' in row.keys():
+        if 'mode' in row:
             record['mode'] = row['mode']
-        if 'ai_difficulty' in row.keys():
+        if 'ai_difficulty' in row:
             record['aiDifficulty'] = row['ai_difficulty']
-        if 'duration' in row.keys():
+        if 'duration' in row:
             record['duration'] = row['duration']
-        if 'board_size' in row.keys():
+        if 'board_size' in row:
             record['boardSize'] = row['board_size']
-        if 'player_color' in row.keys():
+        if 'player_color' in row:
             record['playerColor'] = row['player_color']
-        if 'move_count' in row.keys():
+        if 'move_count' in row:
             record['moveCount'] = row['move_count']
         records[str(row['id'])] = record
     return records
@@ -465,36 +470,41 @@ def load_records():
 
 def save_record(record):
     from .db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
-    c.execute('''
+    c.execute(
+        """
         INSERT INTO records (player1, player2, winner, moves, board,
             time_mode, move_time, total_time, start_time, end_time,
             mode, ai_difficulty, duration, board_size, player_color, move_count)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (
-        record.get('player1', record.get('player', '')),
-        record.get('player2', record.get('opponent', '')),
-        record.get('winner', ''),
-        json.dumps(record.get('moves', record.get('moveHistory', [])), ensure_ascii=False),
-        json.dumps(record.get('board', []), ensure_ascii=False),
-        record.get('timeMode', record.get('mode', 'ai')),
-        record.get('moveTime', 30),
-        record.get('totalTime', 600),
-        record.get('startTime', record.get('timestamp', time.time())),
-        record.get('endTime', record.get('timestamp', time.time())),
-        record.get('mode', 'ai'),
-        record.get('aiDifficulty', record.get('ai_difficulty', 'medium')),
-        record.get('duration', 0),
-        record.get('boardSize', record.get('board_size', 15)),
-        record.get('playerColor', record.get('player_color', 1)),
-        record.get('moveCount', len(record.get('moves', record.get('moveHistory', [])))),
-    ))
+    """,
+        (
+            record.get('player1', record.get('player', '')),
+            record.get('player2', record.get('opponent', '')),
+            record.get('winner', ''),
+            json.dumps(record.get('moves', record.get('moveHistory', [])), ensure_ascii=False),
+            json.dumps(record.get('board', []), ensure_ascii=False),
+            record.get('timeMode', record.get('mode', 'ai')),
+            record.get('moveTime', 30),
+            record.get('totalTime', 600),
+            record.get('startTime', record.get('timestamp', time.time())),
+            record.get('endTime', record.get('timestamp', time.time())),
+            record.get('mode', 'ai'),
+            record.get('aiDifficulty', record.get('ai_difficulty', 'medium')),
+            record.get('duration', 0),
+            record.get('boardSize', record.get('board_size', 15)),
+            record.get('playerColor', record.get('player_color', 1)),
+            record.get('moveCount', len(record.get('moves', record.get('moveHistory', [])))),
+        ),
+    )
     conn.commit()
 
 
 def load_saves():
     from .db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
     c.execute('SELECT * FROM saves ORDER BY saved_at DESC')
@@ -515,12 +525,12 @@ def load_saves():
             'whiteTime': row['white_time'],
             'savedAt': row['saved_at'],
         }
-        if 'mode' in row.keys():
+        if 'mode' in row:
             save['mode'] = row['mode']
             save['difficulty'] = row['mode']
-        if 'name' in row.keys():
+        if 'name' in row:
             save['name'] = row['name']
-        if 'timestamp' in row.keys():
+        if 'timestamp' in row:
             save['timestamp'] = row['timestamp']
         saves[str(row['id'])] = save
     return saves
@@ -528,30 +538,35 @@ def load_saves():
 
 def save_save(save_data):
     from .db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
-    c.execute('''
+    c.execute(
+        """
         INSERT INTO saves (username, match_id, board, moves, current_player,
             time_mode, black_time, white_time, mode, name, timestamp)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (
-        save_data.get('username', save_data.get('player', '')),
-        save_data.get('matchId'),
-        json.dumps(save_data.get('board', []), ensure_ascii=False),
-        json.dumps(save_data.get('moves', []), ensure_ascii=False),
-        save_data.get('currentPlayer', 1),
-        save_data.get('timeMode', save_data.get('mode', 'ai')),
-        save_data.get('blackTime', 600),
-        save_data.get('whiteTime', 600),
-        save_data.get('mode', 'ai'),
-        save_data.get('name', ''),
-        save_data.get('timestamp', time.time()),
-    ))
+    """,
+        (
+            save_data.get('username', save_data.get('player', '')),
+            save_data.get('matchId'),
+            json.dumps(save_data.get('board', []), ensure_ascii=False),
+            json.dumps(save_data.get('moves', []), ensure_ascii=False),
+            save_data.get('currentPlayer', 1),
+            save_data.get('timeMode', save_data.get('mode', 'ai')),
+            save_data.get('blackTime', 600),
+            save_data.get('whiteTime', 600),
+            save_data.get('mode', 'ai'),
+            save_data.get('name', ''),
+            save_data.get('timestamp', time.time()),
+        ),
+    )
     conn.commit()
 
 
 def delete_save(save_id):
     from .db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
     c.execute('DELETE FROM saves WHERE id = ?', (save_id,))
@@ -560,6 +575,7 @@ def delete_save(save_id):
 
 def load_settings():
     from .db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
     c.execute('SELECT key, value FROM settings')
@@ -575,16 +591,20 @@ def load_settings():
 
 def save_settings(settings):
     from .db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
     for key, value in settings.items():
-        c.execute('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)',
-                  (key, json.dumps(value, ensure_ascii=False), time.time()))
+        c.execute(
+            'INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)',
+            (key, json.dumps(value, ensure_ascii=False), time.time()),
+        )
     conn.commit()
 
 
 def load_messages():
     from .db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
     c.execute('SELECT * FROM messages ORDER BY timestamp DESC')
@@ -599,7 +619,7 @@ def load_messages():
 
         read_by_val = None
         try:
-            if 'read_by' in row.keys():
+            if 'read_by' in row:
                 read_by_val = row['read_by']
         except Exception:
             pass
@@ -610,14 +630,14 @@ def load_messages():
 
         image_val = ''
         try:
-            if 'image' in row.keys():
+            if 'image' in row:
                 image_val = row['image'] or ''
         except Exception:
             pass
 
         red_packet_val = None
         try:
-            if 'red_packet' in row.keys():
+            if 'red_packet' in row:
                 rp = row['red_packet']
                 if rp:
                     try:
@@ -642,6 +662,7 @@ def load_messages():
 
 def save_message(message):
     from .db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
     to_val = message.get('to', '')
@@ -650,24 +671,28 @@ def save_message(message):
     read_by = message.get('read_by', [])
     if isinstance(read_by, list):
         read_by = json.dumps(read_by, ensure_ascii=False)
-    c.execute('''
+    c.execute(
+        """
         INSERT INTO messages (from_user, to_user, content, timestamp, read, read_by, image, red_packet)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (
-        message.get('from', ''),
-        to_val,
-        message.get('content', ''),
-        message.get('timestamp', time.time()),
-        1 if message.get('read') else 0,
-        read_by,
-        message.get('image', ''),
-        json.dumps(message.get('red_packet'), ensure_ascii=False) if message.get('red_packet') else '',
-    ))
+    """,
+        (
+            message.get('from', ''),
+            to_val,
+            message.get('content', ''),
+            message.get('timestamp', time.time()),
+            1 if message.get('read') else 0,
+            read_by,
+            message.get('image', ''),
+            json.dumps(message.get('red_packet'), ensure_ascii=False) if message.get('red_packet') else '',
+        ),
+    )
     conn.commit()
 
 
 def update_message(message_id, message):
     from .db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
     to_val = message.get('to', '')
@@ -676,26 +701,30 @@ def update_message(message_id, message):
     read_by = message.get('read_by', [])
     if isinstance(read_by, list):
         read_by = json.dumps(read_by, ensure_ascii=False)
-    c.execute('''
+    c.execute(
+        """
         UPDATE messages SET from_user = ?, to_user = ?, content = ?, timestamp = ?,
             read = ?, read_by = ?, image = ?, red_packet = ?
         WHERE id = ?
-    ''', (
-        message.get('from', ''),
-        to_val,
-        message.get('content', ''),
-        message.get('timestamp', time.time()),
-        1 if message.get('read') else 0,
-        read_by,
-        message.get('image', ''),
-        json.dumps(message.get('red_packet'), ensure_ascii=False) if message.get('red_packet') else '',
-        int(message_id),
-    ))
+    """,
+        (
+            message.get('from', ''),
+            to_val,
+            message.get('content', ''),
+            message.get('timestamp', time.time()),
+            1 if message.get('read') else 0,
+            read_by,
+            message.get('image', ''),
+            json.dumps(message.get('red_packet'), ensure_ascii=False) if message.get('red_packet') else '',
+            int(message_id),
+        ),
+    )
     conn.commit()
 
 
 def delete_message_by_id(message_id):
     from .db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
     c.execute('DELETE FROM messages WHERE id = ?', (int(message_id),))
@@ -704,6 +733,7 @@ def delete_message_by_id(message_id):
 
 def get_all_users_from_db():
     from .db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
     c.execute('SELECT * FROM users')

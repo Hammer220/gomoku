@@ -4,11 +4,7 @@
 
 import time
 
-from .storage import (
-    active_matches, active_matches_lock, save_matches,
-    update_user_connection
-)
-from ..logger import logger
+from .storage import active_matches, active_matches_lock, update_user_connection
 
 
 def list_active_matches():
@@ -19,16 +15,18 @@ def list_active_matches():
         active_list = []
         for match_id, match in active_matches.items():
             if match['status'] in ['waiting', 'playing']:
-                active_list.append({
-                    'id': match_id,
-                    'creator': match['creator'],
-                    'opponent': match.get('opponent'),
-                    'status': match['status'],
-                    'creatorColor': match['creatorColor'],
-                    'currentPlayer': match['currentPlayer'],
-                    'startTime': match['startTime'],
-                    'moveCount': len(match.get('moves', []))
-                })
+                active_list.append(
+                    {
+                        'id': match_id,
+                        'creator': match['creator'],
+                        'opponent': match.get('opponent'),
+                        'status': match['status'],
+                        'creatorColor': match['creatorColor'],
+                        'currentPlayer': match['currentPlayer'],
+                        'startTime': match['startTime'],
+                        'moveCount': len(match.get('moves', [])),
+                    }
+                )
         active_list.sort(key=lambda x: x['startTime'], reverse=True)
     return active_list
 
@@ -39,9 +37,10 @@ def get_user_current_match(username):
     """
     with active_matches_lock:
         for match_id, match in active_matches.items():
-            if match['status'] in ['waiting', 'playing', 'waiting_for_reconnect']:
-                if match['creator'] == username or match.get('opponent') == username:
-                    return match_id
+            if match['status'] in ['waiting', 'playing', 'waiting_for_reconnect'] and (
+                match['creator'] == username or match.get('opponent') == username
+            ):
+                return match_id
     return None
 
 
@@ -53,10 +52,11 @@ def heartbeat(user):
     update_user_connection(username)
 
     with active_matches_lock:
-        for match_id, match in active_matches.items():
-            if match['status'] in ['waiting', 'playing', 'waiting_for_reconnect']:
-                if match['creator'] == username or match.get('opponent') == username:
-                    match['lastActivity'] = time.time()
+        for _match_id, match in active_matches.items():
+            if match['status'] in ['waiting', 'playing', 'waiting_for_reconnect'] and (
+                match['creator'] == username or match.get('opponent') == username
+            ):
+                match['lastActivity'] = time.time()
 
     return {'success': True}
 
@@ -67,48 +67,49 @@ def get_my_match(username):
     """
     with active_matches_lock:
         for match_id, match in active_matches.items():
-            if match['status'] in ['waiting', 'playing', 'waiting_for_reconnect']:
-                if match['creator'] == username or match.get('opponent') == username:
-                    my_color = None
-                    opponent_name = None
-                    if match['creator'] == username:
-                        my_color = match['creatorColor']
-                        opponent_name = match.get('opponent')
-                    else:
-                        my_color = 2 if match['creatorColor'] == 1 else 1
-                        opponent_name = match['creator']
+            if match['status'] in ['waiting', 'playing', 'waiting_for_reconnect'] and (
+                match['creator'] == username or match.get('opponent') == username
+            ):
+                my_color = None
+                opponent_name = None
+                if match['creator'] == username:
+                    my_color = match['creatorColor']
+                    opponent_name = match.get('opponent')
+                else:
+                    my_color = 2 if match['creatorColor'] == 1 else 1
+                    opponent_name = match['creator']
 
-                    return {
-                        'match': {
-                            'id': match_id,
-                            'status': match['status'],
-                            'board': [row[:] for row in match['board']],
-                            'currentPlayer': match['currentPlayer'],
-                            'moves': match['moves'][:],
-                            'winner': match.get('winner'),
-                            'myColor': my_color,
-                            'creatorColor': match['creatorColor'],
-                            'opponent': opponent_name,
-                            'creator': match['creator'],
-                            'startTime': match.get('startTime'),
-                            'restartRequested': match.get('restartRequested', False),
-                            'restartRequestedBy': match.get('restartRequestedBy'),
-                            'restartVersion': match.get('restartVersion', 0),
-                            # 计时相关
-                            'timeMode': match.get('timeMode', 'untimed'),
-                            'moveTime': match.get('moveTime', 30),
-                            'totalTime': match.get('totalTime', 600),
-                            'blackTime': match.get('blackTime', 600),
-                            'whiteTime': match.get('whiteTime', 600),
-                            'moveDeadline': match.get('moveDeadline', 0),
-                            # 悔棋
-                            'undoRequested': match.get('undoRequested', False),
-                            'undoRequestedBy': match.get('undoRequestedBy'),
-                            # 和棋
-                            'drawRequested': match.get('drawRequested', False),
-                            'drawRequestedBy': match.get('drawRequestedBy')
-                        }
+                return {
+                    'match': {
+                        'id': match_id,
+                        'status': match['status'],
+                        'board': [row[:] for row in match['board']],
+                        'currentPlayer': match['currentPlayer'],
+                        'moves': match['moves'][:],
+                        'winner': match.get('winner'),
+                        'myColor': my_color,
+                        'creatorColor': match['creatorColor'],
+                        'opponent': opponent_name,
+                        'creator': match['creator'],
+                        'startTime': match.get('startTime'),
+                        'restartRequested': match.get('restartRequested', False),
+                        'restartRequestedBy': match.get('restartRequestedBy'),
+                        'restartVersion': match.get('restartVersion', 0),
+                        # 计时相关
+                        'timeMode': match.get('timeMode', 'untimed'),
+                        'moveTime': match.get('moveTime', 30),
+                        'totalTime': match.get('totalTime', 600),
+                        'blackTime': match.get('blackTime', 600),
+                        'whiteTime': match.get('whiteTime', 600),
+                        'moveDeadline': match.get('moveDeadline', 0),
+                        # 悔棋
+                        'undoRequested': match.get('undoRequested', False),
+                        'undoRequestedBy': match.get('undoRequestedBy'),
+                        # 和棋
+                        'drawRequested': match.get('drawRequested', False),
+                        'drawRequestedBy': match.get('drawRequestedBy'),
                     }
+                }
     return {'match': None}
 
 
@@ -146,17 +147,19 @@ def get_all_matches():
     with active_matches_lock:
         all_list = []
         for match_id, match in active_matches.items():
-            all_list.append({
-                'id': match_id,
-                'creator': match['creator'],
-                'opponent': match.get('opponent'),
-                'status': match['status'],
-                'creatorColor': match['creatorColor'],
-                'currentPlayer': match['currentPlayer'],
-                'startTime': match['startTime'],
-                'moveCount': len(match.get('moves', [])),
-                'winner': match.get('winner')
-            })
+            all_list.append(
+                {
+                    'id': match_id,
+                    'creator': match['creator'],
+                    'opponent': match.get('opponent'),
+                    'status': match['status'],
+                    'creatorColor': match['creatorColor'],
+                    'currentPlayer': match['currentPlayer'],
+                    'startTime': match['startTime'],
+                    'moveCount': len(match.get('moves', [])),
+                    'winner': match.get('winner'),
+                }
+            )
         all_list.sort(key=lambda x: x['startTime'], reverse=True)
     return {'matches': all_list}
 
@@ -184,5 +187,5 @@ def get_match_detail(match_id):
             'lastActivity': match.get('lastActivity'),
             'restartRequested': match.get('restartRequested', False),
             'restartRequestedBy': match.get('restartRequestedBy'),
-            'restartVersion': match.get('restartVersion', 0)
+            'restartVersion': match.get('restartVersion', 0),
         }, 200

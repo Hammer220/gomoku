@@ -3,16 +3,24 @@
 验证码设置、免密登录设置、密码修改
 """
 
-import time
 import hashlib
-from flask import request, jsonify
+import time
 
-from ..admin_routes import admin_bp, require_permission
-from ...models import (get_user, save_user, delete_user, save_plain_password,
-                       get_admin_permissions, get_all_tokens, get_all_users_from_db,
-                       remove_user_tokens)
+from flask import jsonify, request
+
 from ...auth import require_admin, require_super_admin
 from ...logger import logger
+from ...models import (
+    delete_user,
+    get_admin_permissions,
+    get_all_tokens,
+    get_all_users_from_db,
+    get_user,
+    remove_user_tokens,
+    save_plain_password,
+    save_user,
+)
+from ..admin_routes import admin_bp, require_permission
 
 _admin_users_cache = {'data': None, 'timestamp': 0, 'ttl': 5}
 
@@ -30,7 +38,7 @@ def _build_admin_user_list():
     users = get_all_users_from_db()
     tokens = get_all_tokens()
     online_users = set()
-    for token, token_data in tokens.items():
+    for _token, token_data in tokens.items():
         if isinstance(token_data, dict) and now - token_data.get('createdAt', 0) < 3600:
             online_users.add(token_data.get('username'))
 
@@ -60,7 +68,7 @@ def _build_admin_user_list():
             'useCaptcha': user_data.get('useCaptcha', True),
             'passwordFree': user_data.get('passwordFree', False),
             'passwordFreeMaxAttempts': user_data.get('passwordFreeMaxAttempts', 0),
-            'passwordFreeRemainingAttempts': user_data.get('passwordFreeRemainingAttempts', 0)
+            'passwordFreeRemainingAttempts': user_data.get('passwordFreeRemainingAttempts', 0),
         }
         if user_data.get('isAdmin'):
             user_entry['permissions'] = get_admin_permissions(user_data)
@@ -89,17 +97,19 @@ def admin_get_user(admin_user, username):
         user = get_user(username)
         if not user:
             return jsonify({'error': '用户不存在'}), 404
-        return jsonify({
-            'username': username,
-            'score': user.get('score', 0),
-            'wins': user.get('wins', 0),
-            'games': user.get('games', 0),
-            'joinDate': user.get('joinDate', ''),
-            'lastLogin': user.get('lastLogin', ''),
-            'isAdmin': user.get('isAdmin', False),
-            'isSuperAdmin': user.get('isSuperAdmin', False),
-            'bannedUntil': user.get('bannedUntil')
-        })
+        return jsonify(
+            {
+                'username': username,
+                'score': user.get('score', 0),
+                'wins': user.get('wins', 0),
+                'games': user.get('games', 0),
+                'joinDate': user.get('joinDate', ''),
+                'lastLogin': user.get('lastLogin', ''),
+                'isAdmin': user.get('isAdmin', False),
+                'isSuperAdmin': user.get('isSuperAdmin', False),
+                'bannedUntil': user.get('bannedUntil'),
+            }
+        )
     except Exception as e:
         logger.error(f'获取用户详情错误: {str(e)}')
         return jsonify({'error': '获取用户详情失败'}), 500
@@ -315,11 +325,10 @@ def admin_ban(admin_user):
         save_user(username, user)
 
         from ... import socketio
+
         if minutes > 0:
             socketio.push_ban_notification(username, user['bannedUntil'])
-            socketio.push_user_status_update(username, {
-                'bannedUntil': user['bannedUntil']
-            })
+            socketio.push_user_status_update(username, {'bannedUntil': user['bannedUntil']})
 
         _invalidate_admin_users_cache()
         logger.info(f'管理员 {admin_user["username"]} 封禁了 {username}，时长: {minutes}分钟')
@@ -348,10 +357,9 @@ def admin_unban(admin_user):
         save_user(username, user)
 
         from ... import socketio
+
         socketio.push_ban_notification(username, None)
-        socketio.push_user_status_update(username, {
-            'bannedUntil': None
-        })
+        socketio.push_user_status_update(username, {'bannedUntil': None})
 
         _invalidate_admin_users_cache()
         logger.info(f'管理员 {admin_user["username"]} 解封了 {username}')

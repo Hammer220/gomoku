@@ -2,20 +2,27 @@
 负责：创建、加入、落子、离开、关闭、重开等核心对局操作
 """
 
-import time
-import uuid
 import random
 import secrets
+import time
+import uuid
 
-from .storage import (
-    active_matches, active_matches_lock, save_matches,
-    get_active_matches_lock, get_active_matches
-)
-from ..game_logic import check_win, check_forbidden, RULE_MODE_STANDARD, RULE_MODE_RENJU, RULE_MODE_FREE
+from ..game_logic import RULE_MODE_STANDARD, check_forbidden, check_win
 from ..logger import logger
+from .storage import active_matches, active_matches_lock, save_matches
 
 
-def create_match(user, time_mode='untimed', move_time=30, total_time=600, allow_spectate=True, password=None, rule_mode=RULE_MODE_STANDARD, invite_only=False, invited_friends=None):
+def create_match(
+    user,
+    time_mode='untimed',
+    move_time=30,
+    total_time=600,
+    allow_spectate=True,
+    password=None,
+    rule_mode=RULE_MODE_STANDARD,
+    invite_only=False,
+    invited_friends=None,
+):
     """创建新对局
     生成一个8位随机ID作为房间号，随机分配创建者颜色（黑/白），初始状态为等待中
     time_mode: 'untimed' | 'move' | 'total' | 'both'
@@ -71,7 +78,9 @@ def create_match(user, time_mode='untimed', move_time=30, total_time=600, allow_
             'spectateToken': secrets.token_hex(20),
         }
     save_matches()
-    logger.info(f'Match created: {match_id} by {user["username"]}, time_mode={time_mode}, rule_mode={rule_mode}, allow_spectate={allow_spectate}, password={"yes" if password else "no"}')
+    logger.info(
+        f'Match created: {match_id} by {user["username"]}, time_mode={time_mode}, rule_mode={rule_mode}, allow_spectate={allow_spectate}, password={"yes" if password else "no"}'
+    )
     return match_id, creator_color
 
 
@@ -117,7 +126,7 @@ def join_match(user, match_id, password=None):
         'matchId': match_id,
         'yourColor': 2 if creator_color == 1 else 1,  # 加入者与创建者颜色相反
         'opponent': match['creator'],
-        'currentPlayer': 1
+        'currentPlayer': 1,
     }, 200
 
 
@@ -129,8 +138,14 @@ def _handle_timeout(match, loser_color, reason):
     match['timeoutLoser'] = loser_color
     match['timeoutReason'] = reason
     logger.info(f'Timeout in match {match["id"]}, loser: {loser_color}, reason: {reason}')
-    return {'success': True, 'win': True, 'winner': winner_color, 'timeout': True,
-            'timeoutReason': reason, 'board': [row[:] for row in match['board']]}, 200
+    return {
+        'success': True,
+        'win': True,
+        'winner': winner_color,
+        'timeout': True,
+        'timeoutReason': reason,
+        'board': [row[:] for row in match['board']],
+    }, 200
 
 
 def make_move(user, match_id, row, col):
@@ -158,11 +173,7 @@ def make_move(user, match_id, row, col):
             return {'error': '您不在这个房间中'}, 403
 
         # 确定当前用户的棋子颜色
-        my_color = None
-        if match['creator'] == username:
-            my_color = match['creatorColor']
-        else:
-            my_color = 2 if match['creatorColor'] == 1 else 1
+        my_color = match['creatorColor'] if match['creator'] == username else (2 if match['creatorColor'] == 1 else 1)
 
         if match['currentPlayer'] != my_color:
             return {'error': '不是您的回合', 'currentPlayer': match['currentPlayer'], 'myColor': my_color}, 400
@@ -174,9 +185,8 @@ def make_move(user, match_id, row, col):
         now = time.time()
         time_out_result = None
         if time_mode != 'untimed':
-            if time_mode in ('move', 'both') and match.get('moveDeadline', 0) > 0:
-                if now > match['moveDeadline']:
-                    time_out_result = _handle_timeout(match, my_color, '走棋超时')
+            if time_mode in ('move', 'both') and match.get('moveDeadline', 0) > 0 and now > match['moveDeadline']:
+                time_out_result = _handle_timeout(match, my_color, '走棋超时')
             if not time_out_result and time_mode in ('total', 'both'):
                 my_time_key = 'blackTime' if my_color == 1 else 'whiteTime'
                 remaining = match.get(my_time_key, 0)
@@ -194,7 +204,11 @@ def make_move(user, match_id, row, col):
             rule_mode = match.get('ruleMode', RULE_MODE_STANDARD)
             forbidden_check = check_forbidden(temp_board, row, col, rule_mode)
             if forbidden_check['forbidden']:
-                return {'error': f"禁手: {forbidden_check['reason']}", 'forbidden': True, 'reason': forbidden_check['reason']}, 400
+                return {
+                    'error': f'禁手: {forbidden_check["reason"]}',
+                    'forbidden': True,
+                    'reason': forbidden_check['reason'],
+                }, 400
 
         # 计时模式：更新剩余时间
         if time_mode != 'untimed':
@@ -288,7 +302,7 @@ def get_match_status(user, match_id):
             # 观战者
             'spectatorCount': len(match.get('spectators', [])),
             # 规则模式
-            'ruleMode': match.get('ruleMode', RULE_MODE_STANDARD)
+            'ruleMode': match.get('ruleMode', RULE_MODE_STANDARD),
         }
 
     return match_data, 200
@@ -405,7 +419,7 @@ def restart_match(user, match_id):
                 'success': True,
                 'restartRequested': True,
                 'restartRequestedBy': username,
-                'message': '已请求重新开始，等待对手确认'
+                'message': '已请求重新开始，等待对手确认',
             }, 200
 
         if restart_requested_by == username:
@@ -419,7 +433,7 @@ def restart_match(user, match_id):
                 'success': True,
                 'restartRequested': False,
                 'restartCancelled': True,
-                'message': '已取消重新开始请求'
+                'message': '已取消重新开始请求',
             }, 200
 
         if restart_requested_by and restart_requested_by != username:
@@ -449,7 +463,7 @@ def restart_match(user, match_id):
                 'restartVersion': match['restartVersion'],
                 'creatorColor': match['creatorColor'],
                 'currentPlayer': match['currentPlayer'],
-                'message': '对局已重新开始！'
+                'message': '对局已重新开始！',
             }, 200
 
     return {'error': '未知错误'}, 500
@@ -483,5 +497,5 @@ def decline_restart(user, match_id):
         'success': True,
         'restartDeclined': True,
         'restartDeclinedBy': username,
-        'message': '已拒绝重新开始请求'
+        'message': '已拒绝重新开始请求',
     }, 200

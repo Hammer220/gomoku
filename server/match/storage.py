@@ -3,12 +3,9 @@
 """
 
 import json
-import os
-import time
 import threading
-import traceback
+import time
 
-from ..config import SCRIPT_DIR
 from ..logger import logger
 
 active_matches = {}
@@ -24,6 +21,7 @@ room_chats_lock = threading.Lock()
 
 def init_matches():
     from ..db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
 
@@ -42,6 +40,7 @@ def init_matches():
     else:
         try:
             from ..models import MATCHES_FILE, load_json_with_lock
+
             content = load_json_with_lock(MATCHES_FILE, {})
             if content:
                 for match_id, match in content.items():
@@ -56,22 +55,26 @@ def init_matches():
 
 def save_matches():
     from ..db import get_connection
+
     conn = get_connection()
     c = conn.cursor()
 
     try:
         for match_id, match in active_matches.items():
-            c.execute('''
+            c.execute(
+                """
                 INSERT OR REPLACE INTO matches (id, data, status, start_time, last_activity, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?)
-            ''', (
-                match_id,
-                json.dumps(match, ensure_ascii=False),
-                match.get('status', 'waiting'),
-                match.get('startTime', time.time()),
-                match.get('lastActivity', time.time()),
-                time.time()
-            ))
+            """,
+                (
+                    match_id,
+                    json.dumps(match, ensure_ascii=False),
+                    match.get('status', 'waiting'),
+                    match.get('startTime', time.time()),
+                    match.get('lastActivity', time.time()),
+                    time.time(),
+                ),
+            )
         conn.commit()
         logger.debug('Matches saved successfully to SQLite')
     except Exception as e:
@@ -81,10 +84,7 @@ def save_matches():
 def update_user_connection(username):
     try:
         with user_connections_lock:
-            user_connections[username] = {
-                'lastHeartbeat': time.time(),
-                'isOnline': True
-            }
+            user_connections[username] = {'lastHeartbeat': time.time(), 'isOnline': True}
         logger.debug(f'User connection updated: {username}')
     except Exception as e:
         logger.error(f'Error updating user connection for {username}: {e}')
@@ -121,7 +121,11 @@ def cleanup_expired_matches():
                     if 'startTime' in match and (current_time - match['startTime']) > 7200:
                         expired_matches.append(match_id)
                         logger.info(f'清理过期房间: {match_id}')
-                    elif match.get('status') in ['closed', 'finished'] and 'startTime' in match and (current_time - match['startTime']) > 3600:
+                    elif (
+                        match.get('status') in ['closed', 'finished']
+                        and 'startTime' in match
+                        and (current_time - match['startTime']) > 3600
+                    ):
                         expired_matches.append(match_id)
                         logger.info(f'清理已结束房间: {match_id}')
                 except Exception as e:
@@ -136,10 +140,12 @@ def cleanup_expired_matches():
         if expired_matches:
             save_matches()
             from ..db import get_connection
+
             conn = get_connection()
             c = conn.cursor()
-            c.execute('DELETE FROM matches WHERE id IN ({})'.format(','.join('?' * len(expired_matches))),
-                      expired_matches)
+            c.execute(
+                'DELETE FROM matches WHERE id IN ({})'.format(','.join('?' * len(expired_matches))), expired_matches
+            )
             conn.commit()
             logger.info(f'Cleaned up {len(expired_matches)} expired matches')
     except Exception as e:
@@ -195,6 +201,7 @@ def handle_player_disconnect_from_match(username):
                             save_matches()
                             logger.info(f'房间 {match_id} 创建者断开连接，房间已删除')
                             from .storage import clear_room_chat
+
                             clear_room_chat(match_id)
                         continue
 
@@ -223,6 +230,7 @@ def handle_player_disconnect_from_match(username):
                             save_matches()
                             logger.info(f'房间 {match_id} 双方都已离开或断开，房间已删除')
                             from .storage import clear_room_chat
+
                             clear_room_chat(match_id)
                         else:
                             match['lastActivity'] = time.time()
@@ -266,7 +274,7 @@ def add_room_chat_message(match_id, username, message):
                 'id': len(room_chats[match_id]) + 1,
                 'username': username,
                 'message': message,
-                'timestamp': int(time.time())
+                'timestamp': int(time.time()),
             }
             room_chats[match_id].append(chat_msg)
 

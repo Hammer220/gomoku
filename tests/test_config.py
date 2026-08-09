@@ -2,17 +2,23 @@
 测试范围：配置解析、验证码配置检测、get_config 函数
 """
 
-import sys
-import os
-import tempfile
 import configparser
+import os
+import sys
+
+import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from server.config import (
-    SCRIPT_DIR, STATIC_DIR, get_config,
-    has_valid_geetest_config, has_valid_geetest_login_config,
-    PORT, CAPTCHA_ENABLED, cfg,
+    CAPTCHA_ENABLED,
+    PORT,
+    SCRIPT_DIR,
+    STATIC_DIR,
+    cfg,
+    get_config,
+    has_valid_geetest_config,
+    has_valid_geetest_login_config,
 )
 
 
@@ -49,9 +55,14 @@ class TestGetConfig:
         """包含所有必需的键"""
         config = get_config()
         required_keys = [
-            'GT4_CAPTCHA_ID', 'GT4_CAPTCHA_KEY', 'VERIFY_URL',
-            'GT4_LOGIN_CAPTCHA_ID', 'GT4_LOGIN_CAPTCHA_KEY', 'LOGIN_VERIFY_URL',
-            'PORT', 'CAPTCHA_ENABLED'
+            'GT4_CAPTCHA_ID',
+            'GT4_CAPTCHA_KEY',
+            'VERIFY_URL',
+            'GT4_LOGIN_CAPTCHA_ID',
+            'GT4_LOGIN_CAPTCHA_KEY',
+            'LOGIN_VERIFY_URL',
+            'PORT',
+            'CAPTCHA_ENABLED',
         ]
         for key in required_keys:
             assert key in config, f'缺少配置键: {key}'
@@ -83,7 +94,7 @@ class TestGeetestConfig:
     def test_config_consistency(self):
         """两个配置函数的返回值与 CAPTCHA_ENABLED 一致"""
         expected = has_valid_geetest_config() and has_valid_geetest_login_config()
-        assert CAPTCHA_ENABLED == expected
+        assert expected == CAPTCHA_ENABLED
 
 
 class TestConfigParser:
@@ -109,14 +120,14 @@ debug = true
     def test_missing_option(self):
         """缺失配置项"""
         parser = configparser.ConfigParser()
-        parser.read_string("[APP]\nport = 8000\n")
+        parser.read_string('[APP]\nport = 8000\n')
         with pytest.raises(configparser.NoOptionError):
             parser.get('APP', 'nonexistent')
 
     def test_has_option(self):
         """检查配置项是否存在"""
         parser = configparser.ConfigParser()
-        parser.read_string("[APP]\nport = 8000\n")
+        parser.read_string('[APP]\nport = 8000\n')
         assert parser.has_option('APP', 'port') is True
         assert parser.has_option('APP', 'nonexistent') is False
 
@@ -146,6 +157,3 @@ class TestConfigFileParsing:
             assert captcha_key is not None
         except (configparser.NoSectionError, configparser.NoOptionError):
             pytest.skip('GEETEST 配置节不存在')
-
-
-import pytest

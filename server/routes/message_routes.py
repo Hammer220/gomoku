@@ -2,15 +2,23 @@
 处理用户间的消息发送、接收、标记已读等操作。
 """
 
-import time
 import random
-from flask import Blueprint, request, jsonify
+import time
 
-from ..models import (load_messages, save_message, update_message, delete_message_by_id,
-                      get_user, get_all_users_from_db, save_user)
+from flask import Blueprint, jsonify, request
+
 from ..auth import require_auth
-from ..logger import logger
 from ..i18n import get_text, get_user_language
+from ..logger import logger
+from ..models import (
+    delete_message_by_id,
+    get_all_users_from_db,
+    get_user,
+    load_messages,
+    save_message,
+    save_user,
+    update_message,
+)
 
 message_bp = Blueprint('message', __name__)
 
@@ -93,31 +101,6 @@ def send_message(user):
         if image and len(image) > 10 * 1024 * 1024:
             return jsonify({'error': get_text('image_too_large', lang) or '图片大小不能超过10MB'}), 400
 
-        if red_packet:
-            if not isinstance(red_packet, dict):
-                return jsonify({'error': get_text('invalid_red_packet', lang) or '红包数据格式无效'}), 400
-            rp_amount = red_packet.get('amount', 0)
-            rp_count = red_packet.get('count', 1)
-            if not isinstance(rp_amount, (int, float)) or rp_amount <= 0:
-                return jsonify({'error': get_text('invalid_red_packet_amount', lang) or '红包积分数量无效'}), 400
-            if not isinstance(rp_count, int) or rp_count < 1:
-                return jsonify({'error': get_text('invalid_red_packet_count', lang) or '红包个数无效'}), 400
-            if rp_count > len(valid_recipients):
-                rp_count = len(valid_recipients)
-            sender = get_user(from_username)
-            if not sender or sender.get('score', 0) < rp_amount:
-                return jsonify({'error': get_text('insufficient_score', lang) or '积分不足，无法发送红包'}), 400
-            sender['score'] = sender.get('score', 0) - rp_amount
-            save_user(from_username, sender)
-            red_packet = {
-                'amount': rp_amount,
-                'count': rp_count,
-                'remaining': rp_amount,
-                'claimed': [],
-                'claimed_by': [],
-                'total_claimed': 0
-            }
-
         if not isinstance(recipients, list):
             recipients = [recipients]
 
@@ -139,6 +122,30 @@ def send_message(user):
             if len(valid_recipients) > 1:
                 return jsonify({'error': get_text('normal_user_one_recipient', lang)}), 400
 
+        if red_packet:
+            if not isinstance(red_packet, dict):
+                return jsonify({'error': get_text('invalid_red_packet', lang) or '红包数据格式无效'}), 400
+            rp_amount = red_packet.get('amount', 0)
+            rp_count = red_packet.get('count', 1)
+            if not isinstance(rp_amount, (int, float)) or rp_amount <= 0:
+                return jsonify({'error': get_text('invalid_red_packet_amount', lang) or '红包积分数量无效'}), 400
+            if not isinstance(rp_count, int) or rp_count < 1:
+                return jsonify({'error': get_text('invalid_red_packet_count', lang) or '红包个数无效'}), 400
+            rp_count = min(rp_count, len(valid_recipients))
+            sender = get_user(from_username)
+            if not sender or sender.get('score', 0) < rp_amount:
+                return jsonify({'error': get_text('insufficient_score', lang) or '积分不足，无法发送红包'}), 400
+            sender['score'] = sender.get('score', 0) - rp_amount
+            save_user(from_username, sender)
+            red_packet = {
+                'amount': rp_amount,
+                'count': rp_count,
+                'remaining': rp_amount,
+                'claimed': [],
+                'claimed_by': [],
+                'total_claimed': 0,
+            }
+
         msg = {
             'from': from_username,
             'to': valid_recipients,
@@ -146,23 +153,21 @@ def send_message(user):
             'image': image,
             'red_packet': red_packet,
             'timestamp': int(time.time()),
-            'read_by': []
+            'read_by': [],
         }
         save_message(msg)
 
         from .. import socketio
+
         for recipient in valid_recipients:
             all_msgs = _get_messages()
-            unread_count = sum(1 for m in all_msgs
-                             if recipient in m.get('to', []) and recipient not in m.get('read_by', []))
+            unread_count = sum(
+                1 for m in all_msgs if recipient in m.get('to', []) and recipient not in m.get('read_by', [])
+            )
             socketio.push_unread_count_update(recipient, unread_count)
 
         logger.info(f'用户 {from_username} 发送消息给 {valid_recipients}')
-        return jsonify({
-            'success': True,
-            'message': get_text('message_sent_success', lang),
-            'data': msg
-        })
+        return jsonify({'success': True, 'message': get_text('message_sent_success', lang), 'data': msg})
     except Exception as e:
         logger.error(f'发送消息错误: {str(e)}')
         return jsonify({'error': get_text('send_message_error', lang)}), 500
@@ -187,15 +192,17 @@ def mark_as_read(user):
         from .. import socketio
 
         for msg in all_msgs:
-            if str(msg['id']) in [str(mid) for mid in message_ids] and username in msg.get('to', []):
-                if username not in msg.get('read_by', []):
-                    msg['read_by'].append(username)
-                    update_message(msg['id'], msg)
-                    socketio.push_message_read_update(msg['from'], msg['id'], msg['read_by'])
+            if (
+                str(msg['id']) in [str(mid) for mid in message_ids]
+                and username in msg.get('to', [])
+                and username not in msg.get('read_by', [])
+            ):
+                msg['read_by'].append(username)
+                update_message(msg['id'], msg)
+                socketio.push_message_read_update(msg['from'], msg['id'], msg['read_by'])
 
         all_msgs = _get_messages()
-        unread_count = sum(1 for m in all_msgs
-                         if username in m.get('to', []) and username not in m.get('read_by', []))
+        unread_count = sum(1 for m in all_msgs if username in m.get('to', []) and username not in m.get('read_by', []))
         socketio.push_unread_count_update(username, unread_count)
 
         return jsonify({'success': True})
@@ -267,11 +274,13 @@ def get_user_list(user):
         user_list = []
         for username, user_data in users.items():
             if username != current_username:
-                user_list.append({
-                    'username': username,
-                    'isAdmin': user_data.get('isAdmin', False),
-                    'isSuperAdmin': user_data.get('isSuperAdmin', False)
-                })
+                user_list.append(
+                    {
+                        'username': username,
+                        'isAdmin': user_data.get('isAdmin', False),
+                        'isSuperAdmin': user_data.get('isSuperAdmin', False),
+                    }
+                )
         user_list.sort(key=lambda x: x['username'])
         return jsonify({'users': user_list})
     except Exception as e:
@@ -340,11 +349,7 @@ def claim_red_packet(user):
 
         logger.info(f'用户 {username} 领取了 {msg["from"]} 的红包 {claimed_amount} 积分')
 
-        return jsonify({
-            'success': True,
-            'claimed_amount': claimed_amount,
-            'red_packet': rp
-        })
+        return jsonify({'success': True, 'claimed_amount': claimed_amount, 'red_packet': rp})
     except Exception as e:
         logger.error(f'领取红包错误: {str(e)}')
         return jsonify({'error': get_text('claim_red_packet_error', lang) or '领取红包失败'}), 500

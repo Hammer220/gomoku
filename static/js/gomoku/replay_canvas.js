@@ -87,7 +87,7 @@
             }
         });
 
-        const moves = G.replayRecord ? G.replayRecord.moveHistory || [] : [];
+        const moves = G.replayRecord ? G.replayRecord.moves || [] : [];
         for (let i = 0; i < G.replayStep && i < moves.length; i++) {
             const m = moves[i];
             const x = m.col * cellSize + margin;
@@ -170,7 +170,7 @@
     G.getReplayBoardState = function() {
         const boardSize = G.replayRecord ? (G.replayRecord.boardSize || 15) : 15;
         const board = Array(boardSize).fill().map(function() { return Array(boardSize).fill(0); });
-        const moves = G.replayRecord ? (G.replayRecord.moveHistory || []) : [];
+        const moves = G.replayRecord ? (G.replayRecord.moves || []) : [];
         for (let i = 0; i < G.replayStep && i < moves.length; i++) {
             const m = moves[i];
             board[m.row][m.col] = m.player;

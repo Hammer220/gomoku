@@ -237,7 +237,7 @@ initGeetest4({
 
     // 复盘下一步
     G.replayNext = function() {
-        const moves = G.replayRecord ? G.replayRecord.moveHistory || [] : [];
+        const moves = G.replayRecord ? G.replayRecord.moves || [] : [];
         if (G.replayStep < moves.length) {
             G.replayStep++;
             G.clearReplayLineHighlight();
@@ -267,7 +267,7 @@ initGeetest4({
 
     // 复盘自动播放
     G.replayAutoPlay = function() {
-        const moves = G.replayRecord ? G.replayRecord.moveHistory || [] : [];
+        const moves = G.replayRecord ? G.replayRecord.moves || [] : [];
         if (G.replayStep >= moves.length) {
             G.replayStep = 0;
             G.clearReplayLineHighlight();

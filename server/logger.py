@@ -10,12 +10,12 @@
 
 import logging
 import os
+import platform
 import re
 import sys
-import platform
 
-logger = None
-access_logger = None
+logger: logging.Logger
+access_logger: logging.Logger
 _logging_initialized = False
 
 IS_WINDOWS = platform.system() == 'Windows'
@@ -23,6 +23,7 @@ IS_WINDOWS = platform.system() == 'Windows'
 if IS_WINDOWS:
     try:
         import ctypes
+
         kernel32 = ctypes.windll.kernel32
         kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
     except Exception:
@@ -88,9 +89,7 @@ def _supports_color():
         return True
     if os.environ.get('COLORTERM'):
         return True
-    if platform.system() == 'Darwin':
-        return True
-    return False
+    return platform.system() == 'Darwin'
 
 
 class ColoredFormatter(logging.Formatter):

@@ -2,10 +2,9 @@
 测试范围：日志初始化、格式化器、颜色代码、ANSI 常量
 """
 
-import sys
-import os
 import logging
-import pytest
+import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -13,9 +12,17 @@ os.environ['NO_COLOR'] = '1'
 os.environ['TERM'] = 'dumb'
 
 from server.logger import (
-    ANSI, LEVEL_COLORS, STATUS_COLORS, METHOD_COLORS,
-    ColoredFormatter, AccessColoredFormatter, PlainFormatter,
-    setup_logging, logger, access_logger, _supports_color,
+    ANSI,
+    LEVEL_COLORS,
+    METHOD_COLORS,
+    STATUS_COLORS,
+    AccessColoredFormatter,
+    ColoredFormatter,
+    PlainFormatter,
+    _supports_color,
+    access_logger,
+    logger,
+    setup_logging,
 )
 
 
@@ -130,9 +137,7 @@ class TestFormatters:
     def test_colored_formatter_no_color(self):
         """无颜色模式格式化"""
         fmt = ColoredFormatter(use_color=False)
-        record = logging.LogRecord(
-            'test', logging.INFO, '', 0, 'test message', (), None
-        )
+        record = logging.LogRecord('test', logging.INFO, '', 0, 'test message', (), None)
         result = fmt.format(record)
         assert 'test message' in result
         assert 'INFO' in result
@@ -140,18 +145,14 @@ class TestFormatters:
     def test_colored_formatter_with_color(self):
         """有颜色模式格式化"""
         fmt = ColoredFormatter(use_color=True)
-        record = logging.LogRecord(
-            'test', logging.INFO, '', 0, 'test message', (), None
-        )
+        record = logging.LogRecord('test', logging.INFO, '', 0, 'test message', (), None)
         result = fmt.format(record)
         assert 'test message' in result
 
     def test_access_formatter_no_color(self):
         """访问日志无颜色模式"""
         fmt = AccessColoredFormatter(use_color=False)
-        record = logging.LogRecord(
-            'test', logging.INFO, '', 0, '"GET /api/test HTTP/1.1" 200 -', (), None
-        )
+        record = logging.LogRecord('test', logging.INFO, '', 0, '"GET /api/test HTTP/1.1" 200 -', (), None)
         result = fmt.format(record)
         assert 'GET' in result
         assert '200' in result
@@ -159,9 +160,7 @@ class TestFormatters:
     def test_access_formatter_with_color(self):
         """访问日志有颜色模式"""
         fmt = AccessColoredFormatter(use_color=True)
-        record = logging.LogRecord(
-            'test', logging.INFO, '', 0, '"POST /api/test HTTP/1.1" 404 -', (), None
-        )
+        record = logging.LogRecord('test', logging.INFO, '', 0, '"POST /api/test HTTP/1.1" 404 -', (), None)
         result = fmt.format(record)
         assert 'POST' in result
         assert '404' in result
@@ -169,9 +168,7 @@ class TestFormatters:
     def test_plain_formatter(self):
         """纯文本格式化器"""
         fmt = PlainFormatter()
-        record = logging.LogRecord(
-            'test', logging.INFO, '', 0, 'test message', (), None
-        )
+        record = logging.LogRecord('test', logging.INFO, '', 0, 'test message', (), None)
         result = fmt.format(record)
         assert 'test message' in result
 

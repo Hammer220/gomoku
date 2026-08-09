@@ -2,20 +2,33 @@
 测试范围：胜负判定、禁手规则、棋盘分析、位置评估、AI算法
 """
 
-import sys
 import os
-import pytest
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from server.game_logic import (
-    check_win, check_forbidden, check_overline, analyze_line, count_line,
-    evaluate_position_detailed, find_candidate_moves,
-    check_threat_four, check_live_three, check_live_two,
-    find_master_move, MCTSNode,
-    RULE_MODE_STANDARD, RULE_MODE_RENJU, RULE_MODE_FREE,
-    SCORE_FIVE, SCORE_LIVE_FOUR, SCORE_RUSH_FOUR,
-    SCORE_LIVE_THREE, SCORE_SLEEP_THREE, SCORE_LIVE_TWO,
+    RULE_MODE_FREE,
+    RULE_MODE_RENJU,
+    RULE_MODE_STANDARD,
+    SCORE_FIVE,
+    SCORE_LIVE_FOUR,
+    SCORE_LIVE_THREE,
+    SCORE_LIVE_TWO,
+    SCORE_RUSH_FOUR,
+    SCORE_SLEEP_THREE,
+    MCTSNode,
+    analyze_line,
+    check_forbidden,
+    check_live_three,
+    check_live_two,
+    check_overline,
+    check_threat_four,
+    check_win,
+    count_line,
+    evaluate_position_detailed,
+    find_candidate_moves,
+    find_master_move,
 )
 
 
@@ -339,9 +352,10 @@ class TestFindCandidateMoves:
     """find_candidate_moves 函数测试"""
 
     def test_empty_board(self, empty_board):
-        """空棋盘：返回空列表"""
+        """空棋盘：无邻居时返回所有空位（225个）"""
         candidates = find_candidate_moves(empty_board, 1, 2)
-        assert candidates == []
+        assert len(candidates) == 225
+        assert all(0 <= r < 15 and 0 <= c < 15 for r, c in candidates)
 
     def test_near_existing_piece(self, empty_board):
         """已有棋子时返回附近空位"""
@@ -388,8 +402,9 @@ class TestThreatDetection:
         assert check_live_three(board, 7, 5, 1) is True
 
     def test_not_live_three(self, empty_board):
-        """非活三"""
+        """非活三：一端被堵"""
         board = empty_board
+        board[7][4] = 2
         board[7][5] = 1
         board[7][6] = 1
         assert check_live_three(board, 7, 7, 1) is False
@@ -402,8 +417,9 @@ class TestThreatDetection:
         assert check_live_two(board, 7, 5, 1) is True
 
     def test_not_live_two(self, empty_board):
-        """非活二"""
+        """非活二：一端被堵"""
         board = empty_board
+        board[7][4] = 2
         board[7][5] = 1
         assert check_live_two(board, 7, 6, 1) is False
 

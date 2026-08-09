@@ -8,9 +8,9 @@
 - 数据库模式升级（动态添加新列）
 """
 
-import sqlite3
-import os
 import json
+import os
+import sqlite3
 import time
 
 from .config import SCRIPT_DIR
@@ -49,7 +49,7 @@ def init_db():
     connection = get_connection()
     c = connection.cursor()
 
-    c.execute('''
+    c.execute("""
         CREATE TABLE IF NOT EXISTS users (
             username TEXT PRIMARY KEY,
             password TEXT NOT NULL,
@@ -75,18 +75,18 @@ def init_db():
             created_at REAL DEFAULT (strftime('%s', 'now')),
             updated_at REAL DEFAULT (strftime('%s', 'now'))
         )
-    ''')
+    """)
 
-    c.execute('''
+    c.execute("""
         CREATE TABLE IF NOT EXISTS passwords (
             username TEXT PRIMARY KEY,
             password TEXT NOT NULL,
             created_at REAL DEFAULT (strftime('%s', 'now')),
             updated_at REAL DEFAULT (strftime('%s', 'now'))
         )
-    ''')
+    """)
 
-    c.execute('''
+    c.execute("""
         CREATE TABLE IF NOT EXISTS tokens (
             token TEXT PRIMARY KEY,
             username TEXT NOT NULL,
@@ -94,22 +94,22 @@ def init_db():
             created_at REAL DEFAULT (strftime('%s', 'now')),
             FOREIGN KEY (username) REFERENCES users(username)
         )
-    ''')
+    """)
 
     try:
         c.execute('ALTER TABLE users ADD COLUMN password_free INTEGER DEFAULT 0')
-    except:
+    except Exception:
         pass
     try:
         c.execute('ALTER TABLE users ADD COLUMN password_free_max_attempts INTEGER DEFAULT 0')
-    except:
+    except Exception:
         pass
     try:
         c.execute('ALTER TABLE users ADD COLUMN password_free_remaining_attempts INTEGER DEFAULT 0')
-    except:
+    except Exception:
         pass
 
-    c.execute('''
+    c.execute("""
         CREATE TABLE IF NOT EXISTS matches (
             id TEXT PRIMARY KEY,
             data TEXT NOT NULL,
@@ -119,9 +119,9 @@ def init_db():
             created_at REAL DEFAULT (strftime('%s', 'now')),
             updated_at REAL DEFAULT (strftime('%s', 'now'))
         )
-    ''')
+    """)
 
-    c.execute('''
+    c.execute("""
         CREATE TABLE IF NOT EXISTS records (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             player1 TEXT NOT NULL,
@@ -136,9 +136,9 @@ def init_db():
             end_time REAL NOT NULL,
             created_at REAL DEFAULT (strftime('%s', 'now'))
         )
-    ''')
+    """)
 
-    c.execute('''
+    c.execute("""
         CREATE TABLE IF NOT EXISTS saves (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT NOT NULL,
@@ -152,17 +152,17 @@ def init_db():
             saved_at REAL DEFAULT (strftime('%s', 'now')),
             FOREIGN KEY (username) REFERENCES users(username)
         )
-    ''')
+    """)
 
-    c.execute('''
+    c.execute("""
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL,
             updated_at REAL DEFAULT (strftime('%s', 'now'))
         )
-    ''')
+    """)
 
-    c.execute('''
+    c.execute("""
         CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             from_user TEXT NOT NULL,
@@ -173,9 +173,9 @@ def init_db():
             FOREIGN KEY (from_user) REFERENCES users(username),
             FOREIGN KEY (to_user) REFERENCES users(username)
         )
-    ''')
+    """)
 
-    c.execute('''
+    c.execute("""
         CREATE TABLE IF NOT EXISTS friends (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user1 TEXT NOT NULL,
@@ -184,9 +184,9 @@ def init_db():
             UNIQUE(user1, user2),
             CHECK(user1 < user2)
         )
-    ''')
+    """)
 
-    c.execute('''
+    c.execute("""
         CREATE TABLE IF NOT EXISTS friend_invitations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             from_user TEXT NOT NULL,
@@ -197,29 +197,29 @@ def init_db():
             FOREIGN KEY (from_user) REFERENCES users(username),
             FOREIGN KEY (to_user) REFERENCES users(username)
         )
-    ''')
+    """)
 
-    c.execute('''
+    c.execute("""
         CREATE INDEX IF NOT EXISTS idx_tokens_username ON tokens(username)
-    ''')
-    c.execute('''
+    """)
+    c.execute("""
         CREATE INDEX IF NOT EXISTS idx_matches_status ON matches(status)
-    ''')
-    c.execute('''
+    """)
+    c.execute("""
         CREATE INDEX IF NOT EXISTS idx_matches_start_time ON matches(start_time)
-    ''')
-    c.execute('''
+    """)
+    c.execute("""
         CREATE INDEX IF NOT EXISTS idx_records_player1 ON records(player1)
-    ''')
-    c.execute('''
+    """)
+    c.execute("""
         CREATE INDEX IF NOT EXISTS idx_records_player2 ON records(player2)
-    ''')
-    c.execute('''
+    """)
+    c.execute("""
         CREATE INDEX IF NOT EXISTS idx_messages_from_user ON messages(from_user)
-    ''')
-    c.execute('''
+    """)
+    c.execute("""
         CREATE INDEX IF NOT EXISTS idx_messages_to_user ON messages(to_user)
-    ''')
+    """)
 
     try:
         c.execute("ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'zh-CN'")
@@ -241,22 +241,22 @@ def init_db():
         if 'duplicate column' in str(e).lower():
             pass
     try:
-        c.execute("ALTER TABLE records ADD COLUMN duration INTEGER DEFAULT 0")
+        c.execute('ALTER TABLE records ADD COLUMN duration INTEGER DEFAULT 0')
     except sqlite3.OperationalError as e:
         if 'duplicate column' in str(e).lower():
             pass
     try:
-        c.execute("ALTER TABLE records ADD COLUMN board_size INTEGER DEFAULT 15")
+        c.execute('ALTER TABLE records ADD COLUMN board_size INTEGER DEFAULT 15')
     except sqlite3.OperationalError as e:
         if 'duplicate column' in str(e).lower():
             pass
     try:
-        c.execute("ALTER TABLE records ADD COLUMN player_color INTEGER DEFAULT 1")
+        c.execute('ALTER TABLE records ADD COLUMN player_color INTEGER DEFAULT 1')
     except sqlite3.OperationalError as e:
         if 'duplicate column' in str(e).lower():
             pass
     try:
-        c.execute("ALTER TABLE records ADD COLUMN move_count INTEGER DEFAULT 0")
+        c.execute('ALTER TABLE records ADD COLUMN move_count INTEGER DEFAULT 0')
     except sqlite3.OperationalError as e:
         if 'duplicate column' in str(e).lower():
             pass
@@ -272,7 +272,7 @@ def init_db():
         if 'duplicate column' in str(e).lower():
             pass
     try:
-        c.execute("ALTER TABLE saves ADD COLUMN timestamp REAL DEFAULT 0")
+        c.execute('ALTER TABLE saves ADD COLUMN timestamp REAL DEFAULT 0')
     except sqlite3.OperationalError as e:
         if 'duplicate column' in str(e).lower():
             pass
@@ -301,8 +301,14 @@ def init_db():
 
 def migrate_from_json():
     from .models import (
-        USERS_FILE, PASSWORD_FILE, TOKENS_FILE, RECORDS_FILE,
-        SAVES_FILE, SETTINGS_FILE, MESSAGES_FILE, load_json_with_lock
+        MESSAGES_FILE,
+        PASSWORD_FILE,
+        RECORDS_FILE,
+        SAVES_FILE,
+        SETTINGS_FILE,
+        TOKENS_FILE,
+        USERS_FILE,
+        load_json_with_lock,
     )
 
     connection = get_connection()
@@ -312,7 +318,8 @@ def migrate_from_json():
     if c.fetchone()[0] == 0:
         users = load_json_with_lock(USERS_FILE, {})
         for username, user in users.items():
-            c.execute('''
+            c.execute(
+                """
                 INSERT OR IGNORE INTO users (
                     username, password, score, wins, games, join_date, last_login,
                     is_admin, is_super_admin, banned_until, can_ban_user,
@@ -320,26 +327,28 @@ def migrate_from_json():
                     can_modify_score, can_set_password_free, can_monitor_matches,
                     can_manage_matches
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                username,
-                user.get('password', ''),
-                user.get('score', 1000),
-                user.get('wins', 0),
-                user.get('games', 0),
-                user.get('joinDate', ''),
-                user.get('lastLogin', ''),
-                1 if user.get('isAdmin') else 0,
-                1 if user.get('isSuperAdmin') else 0,
-                user.get('bannedUntil'),
-                1 if user.get('canBanUser') else 0,
-                1 if user.get('canKickUser') else 0,
-                1 if user.get('canDeleteUser') else 0,
-                1 if user.get('canChangePassword') else 0,
-                1 if user.get('canModifyScore') else 0,
-                1 if user.get('canSetPasswordFree') else 0,
-                1 if user.get('canMonitorMatches') else 0,
-                1 if user.get('canManageMatches') else 0
-            ))
+            """,
+                (
+                    username,
+                    user.get('password', ''),
+                    user.get('score', 1000),
+                    user.get('wins', 0),
+                    user.get('games', 0),
+                    user.get('joinDate', ''),
+                    user.get('lastLogin', ''),
+                    1 if user.get('isAdmin') else 0,
+                    1 if user.get('isSuperAdmin') else 0,
+                    user.get('bannedUntil'),
+                    1 if user.get('canBanUser') else 0,
+                    1 if user.get('canKickUser') else 0,
+                    1 if user.get('canDeleteUser') else 0,
+                    1 if user.get('canChangePassword') else 0,
+                    1 if user.get('canModifyScore') else 0,
+                    1 if user.get('canSetPasswordFree') else 0,
+                    1 if user.get('canMonitorMatches') else 0,
+                    1 if user.get('canManageMatches') else 0,
+                ),
+            )
         if users:
             logger.info(f'迁移 {len(users)} 个用户到数据库')
 
@@ -347,8 +356,7 @@ def migrate_from_json():
     if c.fetchone()[0] == 0:
         passwords = load_json_with_lock(PASSWORD_FILE, {})
         for username, password in passwords.items():
-            c.execute('INSERT OR IGNORE INTO passwords (username, password) VALUES (?, ?)',
-                      (username, password))
+            c.execute('INSERT OR IGNORE INTO passwords (username, password) VALUES (?, ?)', (username, password))
         if passwords:
             logger.info(f'迁移 {len(passwords)} 个密码到数据库')
 
@@ -362,8 +370,10 @@ def migrate_from_json():
             else:
                 username = token_data
                 turnstile_verified = 1
-            c.execute('INSERT OR IGNORE INTO tokens (token, username, turnstile_verified) VALUES (?, ?, ?)',
-                      (token, username, turnstile_verified))
+            c.execute(
+                'INSERT OR IGNORE INTO tokens (token, username, turnstile_verified) VALUES (?, ?, ?)',
+                (token, username, turnstile_verified),
+            )
         if tokens:
             logger.info(f'迁移 {len(tokens)} 个 Token 到数据库')
 
@@ -371,22 +381,25 @@ def migrate_from_json():
     if c.fetchone()[0] == 0:
         records = load_json_with_lock(RECORDS_FILE, {})
         for record_id, record in records.items():
-            c.execute('''
+            c.execute(
+                """
                 INSERT INTO records (player1, player2, winner, moves, board,
                     time_mode, move_time, total_time, start_time, end_time)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                record.get('player1', ''),
-                record.get('player2', ''),
-                record.get('winner'),
-                json.dumps(record.get('moves', []), ensure_ascii=False),
-                json.dumps(record.get('board', []), ensure_ascii=False),
-                record.get('timeMode', 'untimed'),
-                record.get('moveTime', 30),
-                record.get('totalTime', 600),
-                record.get('startTime', time.time()),
-                record.get('endTime', time.time())
-            ))
+            """,
+                (
+                    record.get('player1', ''),
+                    record.get('player2', ''),
+                    record.get('winner'),
+                    json.dumps(record.get('moves', []), ensure_ascii=False),
+                    json.dumps(record.get('board', []), ensure_ascii=False),
+                    record.get('timeMode', 'untimed'),
+                    record.get('moveTime', 30),
+                    record.get('totalTime', 600),
+                    record.get('startTime', time.time()),
+                    record.get('endTime', time.time()),
+                ),
+            )
         if records:
             logger.info(f'迁移 {len(records)} 条记录到数据库')
 
@@ -394,20 +407,23 @@ def migrate_from_json():
     if c.fetchone()[0] == 0:
         saves = load_json_with_lock(SAVES_FILE, {})
         for save_id, save in saves.items():
-            c.execute('''
+            c.execute(
+                """
                 INSERT INTO saves (username, match_id, board, moves, current_player,
                     time_mode, black_time, white_time)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                save.get('username', ''),
-                save.get('matchId'),
-                json.dumps(save.get('board', []), ensure_ascii=False),
-                json.dumps(save.get('moves', []), ensure_ascii=False),
-                save.get('currentPlayer', 1),
-                save.get('timeMode', 'untimed'),
-                save.get('blackTime', 600),
-                save.get('whiteTime', 600)
-            ))
+            """,
+                (
+                    save.get('username', ''),
+                    save.get('matchId'),
+                    json.dumps(save.get('board', []), ensure_ascii=False),
+                    json.dumps(save.get('moves', []), ensure_ascii=False),
+                    save.get('currentPlayer', 1),
+                    save.get('timeMode', 'untimed'),
+                    save.get('blackTime', 600),
+                    save.get('whiteTime', 600),
+                ),
+            )
         if saves:
             logger.info(f'迁移 {len(saves)} 个存档到数据库')
 
@@ -415,8 +431,10 @@ def migrate_from_json():
     if c.fetchone()[0] == 0:
         settings = load_json_with_lock(SETTINGS_FILE, {})
         for key, value in settings.items():
-            c.execute('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
-                      (key, json.dumps(value, ensure_ascii=False)))
+            c.execute(
+                'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)',
+                (key, json.dumps(value, ensure_ascii=False)),
+            )
         if settings:
             logger.info(f'迁移 {len(settings)} 个设置到数据库')
 
@@ -424,16 +442,19 @@ def migrate_from_json():
     if c.fetchone()[0] == 0:
         messages = load_json_with_lock(MESSAGES_FILE, {})
         for msg_id, msg in messages.items():
-            c.execute('''
+            c.execute(
+                """
                 INSERT INTO messages (from_user, to_user, content, timestamp, read)
                 VALUES (?, ?, ?, ?, ?)
-            ''', (
-                msg.get('from', ''),
-                msg.get('to', ''),
-                msg.get('content', ''),
-                msg.get('timestamp', time.time()),
-                1 if msg.get('read') else 0
-            ))
+            """,
+                (
+                    msg.get('from', ''),
+                    msg.get('to', ''),
+                    msg.get('content', ''),
+                    msg.get('timestamp', time.time()),
+                    1 if msg.get('read') else 0,
+                ),
+            )
         if messages:
             logger.info(f'迁移 {len(messages)} 条消息到数据库')
 

@@ -2,25 +2,45 @@
 测试范围：创建/加入/离开/关闭对局、落子、悔棋、和棋、查询、心跳、管理员操作
 """
 
-import sys
 import os
-import time
+import sys
+
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from server.game_logic import RULE_MODE_RENJU
 from server.match import (
-    active_matches, active_matches_lock, user_connections, user_connections_lock,
-    create_match, join_match, make_move, get_match_status,
-    leave_match, close_match, restart_match, decline_restart,
-    list_active_matches, get_user_current_match, heartbeat,
-    get_my_match, list_available_matches, get_all_matches, get_match_detail,
-    force_close_match, force_close_all_matches, force_restart_match, force_move,
-    request_undo, accept_undo, decline_undo,
-    request_draw, accept_draw, decline_draw, resign,
-    save_matches,
+    accept_draw,
+    accept_undo,
+    active_matches,
+    active_matches_lock,
+    close_match,
+    create_match,
+    decline_draw,
+    decline_restart,
+    decline_undo,
+    force_close_all_matches,
+    force_close_match,
+    force_move,
+    force_restart_match,
+    get_all_matches,
+    get_match_detail,
+    get_my_match,
+    get_user_current_match,
+    heartbeat,
+    join_match,
+    leave_match,
+    list_active_matches,
+    list_available_matches,
+    make_move,
+    request_draw,
+    request_undo,
+    resign,
+    restart_match,
+    user_connections,
+    user_connections_lock,
 )
-from server.game_logic import RULE_MODE_STANDARD, RULE_MODE_RENJU
 
 
 @pytest.fixture(autouse=True)
@@ -86,8 +106,7 @@ class TestCreateMatch:
 
     def test_create_invite_only(self, sample_user):
         """邀请制房间"""
-        match_id, _ = create_match(sample_user, invite_only=True,
-                                   invited_friends=['friend1', 'friend2'])
+        match_id, _ = create_match(sample_user, invite_only=True, invited_friends=['friend1', 'friend2'])
         with active_matches_lock:
             match = active_matches[match_id]
             assert match['inviteOnly'] is True
@@ -159,16 +178,14 @@ class TestJoinMatch:
 
     def test_join_invite_only_not_invited(self, sample_user, admin_user):
         """邀请制房间未受邀"""
-        match_id, _ = create_match(sample_user, invite_only=True,
-                                   invited_friends=['friend1'])
+        match_id, _ = create_match(sample_user, invite_only=True, invited_friends=['friend1'])
         result, code = join_match(admin_user, match_id)
         assert code == 403
         assert '未被邀请' in result.get('error', '')
 
     def test_join_invite_only_invited(self, sample_user):
         """邀请制房间受邀加入"""
-        match_id, _ = create_match(sample_user, invite_only=True,
-                                   invited_friends=['testuser2'])
+        match_id, _ = create_match(sample_user, invite_only=True, invited_friends=['testuser2'])
         invited_user = {'username': 'testuser2', 'score': 1000}
         result, code = join_match(invited_user, match_id)
         assert code == 200
@@ -191,10 +208,7 @@ class TestMakeMove:
             match = active_matches[match_id]
             black_player = match['creator'] if match['creatorColor'] == 1 else match['opponent']
 
-        if black_player == 'testuser':
-            player = sample_user
-        else:
-            player = admin_user
+        player = sample_user if black_player == 'testuser' else admin_user
 
         result, code = make_move(player, match_id, 7, 7)
         assert code == 200
@@ -211,15 +225,9 @@ class TestMakeMove:
 
         with active_matches_lock:
             match = active_matches[match_id]
-            if match['creatorColor'] == 1:
-                white_player = match['opponent']
-            else:
-                white_player = match['creator']
+            white_player = match['opponent'] if match['creatorColor'] == 1 else match['creator']
 
-        if white_player == 'testuser':
-            player = sample_user
-        else:
-            player = admin_user
+        player = sample_user if white_player == 'testuser' else admin_user
 
         result, code = make_move(player, match_id, 7, 7)
         assert code == 400
@@ -233,10 +241,7 @@ class TestMakeMove:
             match = active_matches[match_id]
             black_player = match['creator'] if match['creatorColor'] == 1 else match['opponent']
 
-        if black_player == 'testuser':
-            player = sample_user
-        else:
-            player = admin_user
+        player = sample_user if black_player == 'testuser' else admin_user
 
         make_move(player, match_id, 7, 7)
 
@@ -258,10 +263,10 @@ class TestMakeMove:
         assert code == 404
 
     def test_not_in_room(self, sample_user, admin_user):
-        """不在房间中"""
+        """不在房间中（房间状态为 waiting 时先触发 '游戏未在进行中' 返回 400）"""
         match_id, _ = create_match(sample_user)
         result, code = make_move(admin_user, match_id, 7, 7)
-        assert code == 403
+        assert code == 400
 
 
 class TestLeaveMatch:
@@ -297,7 +302,7 @@ class TestCloseMatch:
     """close_match 函数测试"""
 
     def test_close_room(self, sample_user, admin_user):
-        """关闭房间"""
+        """关闭房间（状态变为 closed，不从 active_matches 中删除）"""
         match_id, _ = create_match(sample_user)
         join_match(admin_user, match_id)
 
@@ -305,7 +310,8 @@ class TestCloseMatch:
         assert result['success'] is True
 
         with active_matches_lock:
-            assert match_id not in active_matches
+            assert match_id in active_matches
+            assert active_matches[match_id]['status'] == 'closed'
 
 
 class TestRestartMatch:

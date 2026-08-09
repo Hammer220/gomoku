@@ -8,18 +8,18 @@ AI难度算法分配：
 - master: MCTS算法 + UCT公式 + 10000次模拟
 """
 
-import re
-import random
 import math
-from copy import deepcopy
-from flask import Blueprint, request, jsonify
+import random
 
-from ..models import get_all_users_from_db
+from flask import Blueprint, jsonify, request
+
 from ..auth import require_auth
 from ..logger import logger
+from ..models import get_all_users_from_db
 from .auth_routes import calculate_rank
 
 game_bp = Blueprint('game', __name__)
+
 
 @game_bp.route('/api/leaderboard', methods=['GET'])
 @require_auth
@@ -28,14 +28,16 @@ def leaderboard(user):
         users = get_all_users_from_db()
         leaderboard_data = []
         for username, user_data in users.items():
-            leaderboard_data.append({
-                'username': username,
-                'score': user_data.get('score', 0),
-                'rank': calculate_rank(user_data.get('score', 0)),
-                'wins': user_data.get('wins', 0),
-                'games': user_data.get('games', 0),
-                'joinDate': user_data.get('joinDate', '')
-            })
+            leaderboard_data.append(
+                {
+                    'username': username,
+                    'score': user_data.get('score', 0),
+                    'rank': calculate_rank(user_data.get('score', 0)),
+                    'wins': user_data.get('wins', 0),
+                    'games': user_data.get('games', 0),
+                    'joinDate': user_data.get('joinDate', ''),
+                }
+            )
 
         leaderboard_data.sort(key=lambda x: x['score'], reverse=True)
         return jsonify({'leaderboard': leaderboard_data[:50]})
@@ -43,22 +45,26 @@ def leaderboard(user):
         logger.error(f'排行榜错误: {str(e)}')
         return jsonify({'leaderboard': []})
 
+
 @game_bp.route('/api/stats', methods=['GET'])
 @require_auth
 def stats(user):
     try:
-        return jsonify({
-            'score': user.get('score', 0),
-            'rank': calculate_rank(user.get('score', 0)),
-            'wins': user.get('wins', 0),
-            'games': user.get('games', 0),
-            'username': user.get('username', ''),
-            'joinDate': user.get('joinDate', ''),
-            'lastLogin': user.get('lastLogin', '')
-        })
+        return jsonify(
+            {
+                'score': user.get('score', 0),
+                'rank': calculate_rank(user.get('score', 0)),
+                'wins': user.get('wins', 0),
+                'games': user.get('games', 0),
+                'username': user.get('username', ''),
+                'joinDate': user.get('joinDate', ''),
+                'lastLogin': user.get('lastLogin', ''),
+            }
+        )
     except Exception as e:
         logger.error(f'统计错误: {str(e)}')
         return jsonify({'error': '获取统计信息失败'}), 500
+
 
 @game_bp.route('/api/ai/move', methods=['POST'])
 @require_auth
@@ -78,11 +84,12 @@ def ai_move(user):
         logger.error(f'AI移动错误: {str(e)}')
         return jsonify({'error': 'AI计算失败'}), 500
 
+
 def get_ai_move(board, current_player, difficulty='medium'):
     from ..game_logic import (
-        check_win, check_forbidden, evaluate_position_detailed,
-        check_threat_four, check_live_three, check_live_two,
-        find_candidate_moves, find_master_move
+        check_forbidden,
+        check_win,
+        find_master_move,
     )
 
     player = 2 if current_player == 1 else 1
@@ -120,8 +127,9 @@ def get_ai_move(board, current_player, difficulty='medium'):
 
     return find_medium_move(board, player, opponent)
 
+
 def find_easy_move(board, player, opponent):
-    from ..game_logic import check_forbidden, check_threat_four, check_live_three, check_live_two
+    from ..game_logic import check_forbidden, check_live_three, check_live_two, check_threat_four, find_candidate_moves
 
     candidates = find_candidate_moves(board, player, opponent, radius=2)
 
@@ -180,8 +188,9 @@ def find_easy_move(board, player, opponent):
 
     return {'row': 7, 'col': 7}
 
+
 def find_medium_move(board, player, opponent):
-    from ..game_logic import evaluate_position_detailed, check_forbidden
+    from ..game_logic import check_forbidden, find_candidate_moves
 
     best = None
     best_score = -float('inf')
@@ -211,8 +220,9 @@ def find_medium_move(board, player, opponent):
 
     return {'row': 7, 'col': 7}
 
+
 def find_hard_move(board, player, opponent):
-    from ..game_logic import evaluate_position_detailed, check_forbidden
+    from ..game_logic import check_forbidden, find_candidate_moves
 
     global killer_moves, history_heuristic
     killer_moves = {}
@@ -223,10 +233,13 @@ def find_hard_move(board, player, opponent):
 
     candidates = find_candidate_moves(board, player, opponent, radius=4)
 
-    candidates.sort(key=lambda pos: (
-        pos in killer_moves.get((player, 0), []) and 1000 or 0,
-        history_heuristic.get((pos[0], pos[1]), 0)
-    ), reverse=True)
+    candidates.sort(
+        key=lambda pos: (
+            pos in killer_moves.get((player, 0), []) and 1000 or 0,
+            history_heuristic.get((pos[0], pos[1]), 0),
+        ),
+        reverse=True,
+    )
 
     for r, c in candidates:
         if board[r][c] != 0:
@@ -251,16 +264,20 @@ def find_hard_move(board, player, opponent):
 
     return {'row': 7, 'col': 7}
 
-killer_moves = {}
-history_heuristic = {}
+
+killer_moves: dict = {}
+history_heuristic: dict = {}
+
 
 def minimax(board, depth, alpha, beta, maximizing, player, opponent):
-    from ..game_logic import check_win, check_forbidden, evaluate_position_detailed
+    from ..game_logic import check_forbidden, check_win, find_candidate_moves
 
     if depth == 0:
         return evaluate_position_simple(board, player) - evaluate_position_simple(board, opponent) * 0.9
 
-    candidates = find_candidate_moves(board, player if maximizing else opponent, opponent if maximizing else player, radius=2)
+    candidates = find_candidate_moves(
+        board, player if maximizing else opponent, opponent if maximizing else player, radius=2
+    )
 
     if not candidates:
         return evaluate_position_simple(board, player)
@@ -300,13 +317,16 @@ def minimax(board, depth, alpha, beta, maximizing, player, opponent):
                 break
         return min_eval
 
+
 def minimax_with_heuristics(board, depth, alpha, beta, maximizing, player, opponent):
-    from ..game_logic import check_win, check_forbidden, evaluate_position_detailed
+    from ..game_logic import check_forbidden, check_win, find_candidate_moves
 
     if depth == 0:
         return evaluate_position_simple(board, player) - evaluate_position_simple(board, opponent) * 0.9
 
-    candidates = find_candidate_moves(board, player if maximizing else opponent, opponent if maximizing else player, radius=3)
+    candidates = find_candidate_moves(
+        board, player if maximizing else opponent, opponent if maximizing else player, radius=3
+    )
 
     if not candidates:
         return evaluate_position_simple(board, player)
@@ -316,10 +336,13 @@ def minimax_with_heuristics(board, depth, alpha, beta, maximizing, player, oppon
 
     killer_moves.setdefault(depth_key, [])
 
-    candidates.sort(key=lambda pos: (
-        pos in killer_moves.get(depth_key, []),
-        history_heuristic.get((pos[0], pos[1], current_player), 0)
-    ), reverse=True)
+    candidates.sort(
+        key=lambda pos: (
+            pos in killer_moves.get(depth_key, []),
+            history_heuristic.get((pos[0], pos[1], current_player), 0),
+        ),
+        reverse=True,
+    )
 
     if maximizing:
         max_eval = -float('inf')
@@ -364,6 +387,7 @@ def minimax_with_heuristics(board, depth, alpha, beta, maximizing, player, oppon
                 break
         return min_eval
 
+
 def evaluate_position_simple(board, player):
     score = 0
     directions = [(1, 0), (0, 1), (1, 1), (1, -1)]
@@ -381,6 +405,7 @@ def evaluate_position_simple(board, player):
                     elif count == 2:
                         score += 10 if open_ends == 2 else 0
     return score
+
 
 def count_line_simple(board, row, col, dr, dc, player):
     count = 1
@@ -402,11 +427,16 @@ def count_line_simple(board, row, col, dr, dc, player):
             i += 1
     return count, open_ends
 
+
 def evaluate_position(board, row, col, player, opponent):
     from ..game_logic import (
-        SCORE_FIVE, SCORE_LIVE_FOUR, SCORE_RUSH_FOUR,
-        SCORE_LIVE_THREE, SCORE_SLEEP_THREE, SCORE_LIVE_TWO,
-        count_line
+        SCORE_FIVE,
+        SCORE_LIVE_FOUR,
+        SCORE_LIVE_THREE,
+        SCORE_LIVE_TWO,
+        SCORE_RUSH_FOUR,
+        SCORE_SLEEP_THREE,
+        count_line,
     )
 
     temp_board = [r[:] for r in board]
@@ -434,8 +464,7 @@ def evaluate_position(board, row, col, player, opponent):
                 score += SCORE_LIVE_THREE
             elif open_ends == 1:
                 score += SCORE_SLEEP_THREE
-        elif count == 2:
-            if open_ends == 2:
-                score += SCORE_LIVE_TWO
+        elif count == 2 and open_ends == 2:
+            score += SCORE_LIVE_TWO
 
     return score

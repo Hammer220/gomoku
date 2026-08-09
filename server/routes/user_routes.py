@@ -2,39 +2,54 @@
 处理个人资料修改、游戏记录查询、排行榜、棋盘颜色设置等用户相关请求。
 """
 
-import hashlib
-import time
 import base64
-from datetime import datetime
+import hashlib
 import os
-from flask import Blueprint, request, jsonify
+import time
+from datetime import datetime
 
+from flask import Blueprint, jsonify, request
+
+from ..auth import require_admin, require_auth
 from ..config import SCRIPT_DIR
-from ..models import (get_user, save_user, save_plain_password, get_plain_password,
-                      load_records, save_record, load_saves, save_save, delete_save,
-                      load_settings, save_settings)
-from ..auth import require_auth, require_admin
 from ..logger import logger
+from ..models import (
+    delete_save,
+    get_plain_password,
+    get_user,
+    load_records,
+    load_saves,
+    load_settings,
+    save_plain_password,
+    save_record,
+    save_save,
+    save_settings,
+    save_user,
+)
 from .auth_routes import calculate_rank
 
 user_bp = Blueprint('user', __name__)
 
+
 @user_bp.route('/api/profile', methods=['GET'])
 @require_auth
 def get_profile(user):
-    return jsonify({
-        'username': user['username'],
-        'score': user.get('score', 0),
-        'rank': calculate_rank(user.get('score', 0)),
-        'wins': user.get('wins', 0),
-        'games': user.get('games', 0),
-        'joinDate': user.get('joinDate', ''),
-        'lastLogin': user.get('lastLogin', ''),
-        'isAdmin': user.get('isAdmin', False),
-        'isSuperAdmin': user.get('isSuperAdmin', False),
-        'bannedUntil': user.get('bannedUntil'),
-        'language': user.get('language', 'zh-CN')
-    })
+    return jsonify(
+        {
+            'username': user['username'],
+            'score': user.get('score', 0),
+            'rank': calculate_rank(user.get('score', 0)),
+            'wins': user.get('wins', 0),
+            'games': user.get('games', 0),
+            'joinDate': user.get('joinDate', ''),
+            'lastLogin': user.get('lastLogin', ''),
+            'isAdmin': user.get('isAdmin', False),
+            'isSuperAdmin': user.get('isSuperAdmin', False),
+            'bannedUntil': user.get('bannedUntil'),
+            'language': user.get('language', 'zh-CN'),
+        }
+    )
+
 
 @user_bp.route('/api/profile/update', methods=['POST'])
 @require_auth
@@ -78,6 +93,7 @@ def update_profile(user):
         logger.error(f'更新资料错误: {str(e)}')
         return jsonify({'error': '服务器内部错误'}), 500
 
+
 @user_bp.route('/api/statistics', methods=['GET'])
 @require_auth
 def get_statistics(user):
@@ -93,27 +109,35 @@ def get_statistics(user):
 
         all_records.sort(key=lambda x: x.get('endTime', x.get('timestamp', 0)), reverse=True)
 
-        user_records = [r for r in all_records
-                        if r.get('player1') == user['username'] or r.get('player2') == user['username']]
+        user_records = [
+            r for r in all_records if r.get('player1') == user['username'] or r.get('player2') == user['username']
+        ]
         total = len(user_records)
         wins = sum(1 for r in user_records if r.get('winner') == user['username'])
-        losses = sum(1 for r in user_records
-                     if r.get('winner') and r.get('winner') != user['username']
-                     and (r.get('player1') == user['username'] or r.get('player2') == user['username']))
+        losses = sum(
+            1
+            for r in user_records
+            if r.get('winner')
+            and r.get('winner') != user['username']
+            and (r.get('player1') == user['username'] or r.get('player2') == user['username'])
+        )
         draws = total - wins - losses
         win_rate = round(wins / total * 100, 1) if total > 0 else 0
 
-        return jsonify({
-            'total': total,
-            'wins': wins,
-            'losses': losses,
-            'draws': draws,
-            'winRate': win_rate,
-            'records': all_records[:200]
-        })
+        return jsonify(
+            {
+                'total': total,
+                'wins': wins,
+                'losses': losses,
+                'draws': draws,
+                'winRate': win_rate,
+                'records': all_records[:200],
+            }
+        )
     except Exception as e:
         logger.error(f'获取统计错误: {str(e)}')
         return jsonify({'total': 0, 'wins': 0, 'losses': 0, 'draws': 0, 'winRate': 0, 'records': []})
+
 
 @user_bp.route('/api/records', methods=['GET'])
 @require_auth
@@ -137,6 +161,7 @@ def get_records(user):
         logger.error(f'获取记录错误: {str(e)}')
         return jsonify({'records': []})
 
+
 @user_bp.route('/api/records/add', methods=['POST'])
 @require_auth
 def add_record(user):
@@ -149,9 +174,9 @@ def add_record(user):
         record = {
             'player': user['username'],
             'opponent': data.get('opponent', 'AI'),
-            'winner': user['username'] if data.get('result') in ('胜利', 'win') else (
-                data.get('opponent', 'AI') if data.get('result') in ('失败', 'lose') else ''
-            ),
+            'winner': user['username']
+            if data.get('result') in ('胜利', 'win')
+            else (data.get('opponent', 'AI') if data.get('result') in ('失败', 'lose') else ''),
             'mode': data.get('mode', 'ai'),
             'aiDifficulty': data.get('aiDifficulty', 'medium'),
             'timestamp': timestamp,
@@ -159,7 +184,7 @@ def add_record(user):
             'moveCount': data.get('moves', 0),
             'moveHistory': data.get('moveHistory', []),
             'boardSize': data.get('boardSize', 15),
-            'playerColor': data.get('playerColor', 1)
+            'playerColor': data.get('playerColor', 1),
         }
         save_record(record)
 
@@ -167,7 +192,7 @@ def add_record(user):
         score_config = {
             'easy': {'win': 10, 'lose': 50},
             'medium': {'win': 50, 'lose': 25},
-            'hard': {'win': 100, 'lose': 5}
+            'hard': {'win': 100, 'lose': 5},
         }
         diff_config = score_config.get(difficulty, score_config['medium'])
 
@@ -186,6 +211,7 @@ def add_record(user):
         logger.error(f'添加记录错误: {str(e)}')
         return jsonify({'error': '服务器内部错误'}), 500
 
+
 @user_bp.route('/api/records/<record_id>', methods=['GET'])
 @require_auth
 def get_record_detail(user, record_id):
@@ -198,7 +224,11 @@ def get_record_detail(user, record_id):
         if not record:
             return jsonify({'error': '记录不存在'}), 404
 
-        if not user.get('isAdmin') and record.get('player1') != user['username'] and record.get('player2') != user['username']:
+        if (
+            not user.get('isAdmin')
+            and record.get('player1') != user['username']
+            and record.get('player2') != user['username']
+        ):
             return jsonify({'error': '无权查看此记录'}), 403
 
         record['id'] = record_id
@@ -206,6 +236,7 @@ def get_record_detail(user, record_id):
     except Exception as e:
         logger.error(f'获取记录详情错误: {str(e)}')
         return jsonify({'error': '服务器内部错误'}), 500
+
 
 @user_bp.route('/api/saves', methods=['GET'])
 @require_auth
@@ -228,6 +259,7 @@ def get_saves(user):
         logger.error(f'获取存档错误: {str(e)}')
         return jsonify([])
 
+
 @user_bp.route('/api/saves/save', methods=['POST'])
 @require_auth
 def save_game(user):
@@ -242,7 +274,7 @@ def save_game(user):
             'currentPlayer': data.get('currentPlayer', 1),
             'mode': data.get('mode', 'ai'),
             'timestamp': int(time.time()),
-            'name': data.get('name', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+            'name': data.get('name', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
         }
         save_save(save_data)
 
@@ -250,6 +282,7 @@ def save_game(user):
     except Exception as e:
         logger.error(f'保存游戏错误: {str(e)}')
         return jsonify({'error': '服务器内部错误'}), 500
+
 
 @user_bp.route('/api/saves/<save_id>', methods=['DELETE'])
 @require_auth
@@ -266,6 +299,7 @@ def delete_save_route(user, save_id):
     except Exception as e:
         logger.error(f'删除存档错误: {str(e)}')
         return jsonify({'error': '服务器内部错误'}), 500
+
 
 @user_bp.route('/api/saves/import', methods=['POST'])
 @require_auth
@@ -294,7 +328,7 @@ def import_save(user):
             'difficulty': data.get('difficulty', 'medium'),
             'blackTime': data.get('blackTime', 600),
             'whiteTime': data.get('whiteTime', 600),
-            'playerColor': data.get('playerColor', 1)
+            'playerColor': data.get('playerColor', 1),
         }
         save_save(save_data)
 
@@ -302,6 +336,7 @@ def import_save(user):
     except Exception as e:
         logger.error(f'导入棋局错误: {str(e)}')
         return jsonify({'error': '服务器内部错误'}), 500
+
 
 @user_bp.route('/api/settings', methods=['GET'])
 @require_auth
@@ -313,6 +348,7 @@ def get_settings(user):
     except Exception as e:
         logger.error(f'获取设置错误: {str(e)}')
         return jsonify({'settings': {}})
+
 
 @user_bp.route('/api/settings', methods=['POST'])
 @require_auth
@@ -348,11 +384,13 @@ def password_free_info():
         if not user:
             return jsonify({'error': '用户不存在'}), 404
 
-        return jsonify({
-            'passwordFree': user.get('passwordFree', False),
-            'maxAttempts': user.get('passwordFreeMaxAttempts', 0),
-            'remainingAttempts': user.get('passwordFreeRemainingAttempts', 0)
-        })
+        return jsonify(
+            {
+                'passwordFree': user.get('passwordFree', False),
+                'maxAttempts': user.get('passwordFreeMaxAttempts', 0),
+                'remainingAttempts': user.get('passwordFreeRemainingAttempts', 0),
+            }
+        )
     except Exception as e:
         logger.error(f'查询免密登录信息错误: {str(e)}')
         return jsonify({'error': '服务器内部错误'}), 500
@@ -408,7 +446,7 @@ def upload_background(user):
         filepath = os.path.join(picture_dir, safe_filename)
         counter = 1
         while os.path.exists(filepath):
-            safe_filename = f"{name}_{counter}{ext}"
+            safe_filename = f'{name}_{counter}{ext}'
             filepath = os.path.join(picture_dir, safe_filename)
             counter += 1
 

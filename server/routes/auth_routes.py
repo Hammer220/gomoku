@@ -8,19 +8,26 @@ import re
 import time
 import uuid
 from datetime import datetime
-from flask import Blueprint, request, jsonify, make_response
 
-from ..config import (GT4_CAPTCHA_ID, GT4_LOGIN_CAPTCHA_ID,
-                      GT4_LOGIN_CAPTCHA_KEY, LOGIN_VERIFY_URL,
-                      get_config)
-                      # TURNSTILE_SITE_KEY
-from ..models import (get_user, save_user, delete_user, save_plain_password,
-                      get_plain_password, get_admin_permissions,
-                      add_token, remove_token)
-from ..auth import (geetest_verify, get_current_user,
-                    require_auth)
+from flask import Blueprint, jsonify, make_response, request
+
+from ..auth import geetest_verify, require_auth
+from ..config import GT4_CAPTCHA_ID, GT4_LOGIN_CAPTCHA_ID, GT4_LOGIN_CAPTCHA_KEY, LOGIN_VERIFY_URL
 from ..logger import logger
-                    # turnstile_verify
+
+# TURNSTILE_SITE_KEY
+from ..models import (
+    add_token,
+    delete_user,
+    get_admin_permissions,
+    get_plain_password,
+    get_user,
+    remove_token,
+    save_plain_password,
+    save_user,
+)
+
+# turnstile_verify
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -35,8 +42,9 @@ RANK_CONFIG = [
     {'name': '六段', 'min_score': 2000, 'max_score': 3000},
     {'name': '七段', 'min_score': 3000, 'max_score': 4000},
     {'name': '八段', 'min_score': 4000, 'max_score': 5000},
-    {'name': '九段', 'min_score': 5000, 'max_score': float('inf')}
+    {'name': '九段', 'min_score': 5000, 'max_score': float('inf')},
 ]
+
 
 def calculate_rank(score):
     for rank in RANK_CONFIG:
@@ -44,14 +52,18 @@ def calculate_rank(score):
             return rank['name']
     return RANK_CONFIG[-1]['name']
 
+
 @auth_bp.route('/api/config', methods=['GET'])
 def api_config():
     """获取前端配置（验证码 ID 等）"""
-    return jsonify({
-        'captchaId': GT4_CAPTCHA_ID,
-        'loginCaptchaId': GT4_LOGIN_CAPTCHA_ID,
-        # 'turnstileSiteKey': TURNSTILE_SITE_KEY
-    })
+    return jsonify(
+        {
+            'captchaId': GT4_CAPTCHA_ID,
+            'loginCaptchaId': GT4_LOGIN_CAPTCHA_ID,
+            # 'turnstileSiteKey': TURNSTILE_SITE_KEY
+        }
+    )
+
 
 @auth_bp.route('/api/register', methods=['POST'])
 def register():
@@ -108,7 +120,7 @@ def register():
             'lastLogin': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             'isAdmin': False,
             'isSuperAdmin': False,
-            'bannedUntil': None
+            'bannedUntil': None,
         }
         save_user(username, user_data)
         save_plain_password(username, password)
@@ -117,24 +129,29 @@ def register():
         add_token(token, username)
 
         logger.info(f'用户注册成功: {username}')
-        resp = make_response(jsonify({
-            'success': True,
-            'token': token,
-            'user': {
-                'username': username,
-                'score': 0,
-                'rank': calculate_rank(0),
-                'wins': 0,
-                'games': 0,
-                'isAdmin': False,
-                'isSuperAdmin': False
-            }
-        }))
-        resp.set_cookie('token', token, max_age=30*24*3600, httponly=False, samesite='Lax', path='/')
+        resp = make_response(
+            jsonify(
+                {
+                    'success': True,
+                    'token': token,
+                    'user': {
+                        'username': username,
+                        'score': 0,
+                        'rank': calculate_rank(0),
+                        'wins': 0,
+                        'games': 0,
+                        'isAdmin': False,
+                        'isSuperAdmin': False,
+                    },
+                }
+            )
+        )
+        resp.set_cookie('token', token, max_age=30 * 24 * 3600, httponly=False, samesite='Lax', path='/')
         return resp
     except Exception as e:
         logger.error(f'注册错误: {str(e)}')
         return jsonify({'error': '服务器内部错误'}), 500
+
 
 @auth_bp.route('/api/login', methods=['POST'])
 def login():
@@ -165,9 +182,13 @@ def login():
         #     logger.info(f'Turnstile登录验证通过，用户名: {username}')
         # else:
         geetest_success, geetest_msg = geetest_verify(
-            geetest_lot, geetest_output, geetest_pass, geetest_gen_time,
+            geetest_lot,
+            geetest_output,
+            geetest_pass,
+            geetest_gen_time,
             captcha_id=GT4_LOGIN_CAPTCHA_ID,
-            captcha_key=GT4_LOGIN_CAPTCHA_KEY, verify_url=LOGIN_VERIFY_URL
+            captcha_key=GT4_LOGIN_CAPTCHA_KEY,
+            verify_url=LOGIN_VERIFY_URL,
         )
         if not geetest_success:
             return jsonify({'error': geetest_msg}), 400
@@ -180,7 +201,9 @@ def login():
         if user.get('bannedUntil'):
             banned_until = user['bannedUntil']
             if banned_until and time.time() < banned_until:
-                return jsonify({'error': f"账号已被封禁至 {datetime.fromtimestamp(banned_until).strftime('%Y-%m-%d %H:%M:%S')}"}), 403
+                return jsonify(
+                    {'error': f'账号已被封禁至 {datetime.fromtimestamp(banned_until).strftime("%Y-%m-%d %H:%M:%S")}'}
+                ), 403
 
         if 'password' in user:
             hashed_password = hashlib.sha256(password.encode()).hexdigest()
@@ -198,24 +221,29 @@ def login():
         add_token(token, username)
 
         logger.info(f'用户登录成功: {username}')
-        resp = make_response(jsonify({
-            'success': True,
-            'token': token,
-            'user': {
-                'username': username,
-                'score': user.get('score', 0),
-                'rank': calculate_rank(user.get('score', 0)),
-                'wins': user.get('wins', 0),
-                'games': user.get('games', 0),
-                'isAdmin': user.get('isAdmin', False),
-                'isSuperAdmin': user.get('isSuperAdmin', False)
-            }
-        }))
-        resp.set_cookie('token', token, max_age=30*24*3600, httponly=False, samesite='Lax', path='/')
+        resp = make_response(
+            jsonify(
+                {
+                    'success': True,
+                    'token': token,
+                    'user': {
+                        'username': username,
+                        'score': user.get('score', 0),
+                        'rank': calculate_rank(user.get('score', 0)),
+                        'wins': user.get('wins', 0),
+                        'games': user.get('games', 0),
+                        'isAdmin': user.get('isAdmin', False),
+                        'isSuperAdmin': user.get('isSuperAdmin', False),
+                    },
+                }
+            )
+        )
+        resp.set_cookie('token', token, max_age=30 * 24 * 3600, httponly=False, samesite='Lax', path='/')
         return resp
     except Exception as e:
         logger.error(f'登录错误: {str(e)}')
         return jsonify({'error': '服务器内部错误'}), 500
+
 
 @auth_bp.route('/api/logout', methods=['POST'])
 @require_auth
@@ -232,6 +260,7 @@ def logout(user):
     except Exception as e:
         logger.error(f'退出错误: {str(e)}')
         return jsonify({'success': True})
+
 
 @auth_bp.route('/api/guest/delete', methods=['POST'])
 def delete_guest():
@@ -251,6 +280,7 @@ def delete_guest():
     except Exception as e:
         logger.error(f'删除访客账号错误: {str(e)}')
         return jsonify({'success': True})
+
 
 @auth_bp.route('/api/guest/login', methods=['POST'])
 def guest_login():
@@ -273,9 +303,13 @@ def guest_login():
             return jsonify({'error': '请完成验证码验证'}), 400
 
         geetest_success, geetest_msg = geetest_verify(
-            geetest_lot, geetest_output, geetest_pass, geetest_gen_time,
+            geetest_lot,
+            geetest_output,
+            geetest_pass,
+            geetest_gen_time,
             captcha_id=GT4_LOGIN_CAPTCHA_ID,
-            captcha_key=GT4_LOGIN_CAPTCHA_KEY, verify_url=LOGIN_VERIFY_URL
+            captcha_key=GT4_LOGIN_CAPTCHA_KEY,
+            verify_url=LOGIN_VERIFY_URL,
         )
         if not geetest_success:
             return jsonify({'error': geetest_msg}), 400
@@ -286,7 +320,11 @@ def guest_login():
             if existing_user.get('bannedUntil'):
                 banned_until = existing_user['bannedUntil']
                 if banned_until and time.time() < banned_until:
-                    return jsonify({'error': f"账号已被封禁至 {datetime.fromtimestamp(banned_until).strftime('%Y-%m-%d %H:%M:%S')}"}), 403
+                    return jsonify(
+                        {
+                            'error': f'账号已被封禁至 {datetime.fromtimestamp(banned_until).strftime("%Y-%m-%d %H:%M:%S")}'
+                        }
+                    ), 403
             token = str(uuid.uuid4())
             add_token(token, username)
             existing_user['lastLogin'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -303,32 +341,37 @@ def guest_login():
                 'isAdmin': False,
                 'isSuperAdmin': False,
                 'bannedUntil': None,
-                'isGuest': True
+                'isGuest': True,
             }
             save_user(username, user_data)
             token = str(uuid.uuid4())
             add_token(token, username)
 
         logger.info(f'访客登录成功: {username}')
-        resp = make_response(jsonify({
-            'success': True,
-            'token': token,
-            'user': {
-                'username': username,
-                'score': 0,
-                'rank': calculate_rank(0),
-                'wins': 0,
-                'games': 0,
-                'isAdmin': False,
-                'isSuperAdmin': False,
-                'isGuest': True
-            }
-        }))
-        resp.set_cookie('token', token, max_age=30*24*3600, httponly=False, samesite='Lax', path='/')
+        resp = make_response(
+            jsonify(
+                {
+                    'success': True,
+                    'token': token,
+                    'user': {
+                        'username': username,
+                        'score': 0,
+                        'rank': calculate_rank(0),
+                        'wins': 0,
+                        'games': 0,
+                        'isAdmin': False,
+                        'isSuperAdmin': False,
+                        'isGuest': True,
+                    },
+                }
+            )
+        )
+        resp.set_cookie('token', token, max_age=30 * 24 * 3600, httponly=False, samesite='Lax', path='/')
         return resp
     except Exception as e:
         logger.error(f'访客登录错误: {str(e)}')
         return jsonify({'error': '服务器内部错误'}), 500
+
 
 @auth_bp.route('/api/current_user', methods=['GET'])
 @require_auth
@@ -344,11 +387,12 @@ def current_user_route(user):
         'lastLogin': user.get('lastLogin', ''),
         'isAdmin': user.get('isAdmin', False),
         'isSuperAdmin': user.get('isSuperAdmin', False),
-        'bannedUntil': user.get('bannedUntil')
+        'bannedUntil': user.get('bannedUntil'),
     }
     if user.get('isAdmin'):
         result['permissions'] = get_admin_permissions(user)
     return jsonify(result)
+
 
 @auth_bp.route('/api/login/password_free', methods=['POST'])
 def login_password_free():
@@ -378,7 +422,9 @@ def login_password_free():
         if user.get('bannedUntil'):
             banned_until = user['bannedUntil']
             if banned_until and time.time() < banned_until:
-                return jsonify({'error': f"账号已被封禁至 {datetime.fromtimestamp(banned_until).strftime('%Y-%m-%d %H:%M:%S')}"}), 403
+                return jsonify(
+                    {'error': f'账号已被封禁至 {datetime.fromtimestamp(banned_until).strftime("%Y-%m-%d %H:%M:%S")}'}
+                ), 403
 
         if max_attempts > 0:
             user['passwordFreeRemainingAttempts'] = remaining - 1
@@ -390,20 +436,24 @@ def login_password_free():
         add_token(token, username)
 
         logger.info(f'免密登录成功: {username}')
-        resp = make_response(jsonify({
-            'success': True,
-            'token': token,
-            'user': {
-                'username': username,
-                'score': user.get('score', 0),
-                'rank': calculate_rank(user.get('score', 0)),
-                'wins': user.get('wins', 0),
-                'games': user.get('games', 0),
-                'isAdmin': user.get('isAdmin', False),
-                'isSuperAdmin': user.get('isSuperAdmin', False)
-            }
-        }))
-        resp.set_cookie('token', token, max_age=30*24*3600, httponly=False, samesite='Lax', path='/')
+        resp = make_response(
+            jsonify(
+                {
+                    'success': True,
+                    'token': token,
+                    'user': {
+                        'username': username,
+                        'score': user.get('score', 0),
+                        'rank': calculate_rank(user.get('score', 0)),
+                        'wins': user.get('wins', 0),
+                        'games': user.get('games', 0),
+                        'isAdmin': user.get('isAdmin', False),
+                        'isSuperAdmin': user.get('isSuperAdmin', False),
+                    },
+                }
+            )
+        )
+        resp.set_cookie('token', token, max_age=30 * 24 * 3600, httponly=False, samesite='Lax', path='/')
         return resp
     except Exception as e:
         logger.error(f'免密登录错误: {str(e)}')

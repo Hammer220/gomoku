@@ -2,16 +2,23 @@
 负责：创建管理员、设置管理员权限、统计信息、查看记录
 """
 
-from datetime import datetime
 import hashlib
-from flask import request, jsonify
+from datetime import datetime
 
-from ..admin_routes import admin_bp
-from ...models import (get_user, save_user, save_plain_password,
-                       get_admin_permissions, PERMISSION_FIELDS,
-                       get_all_users_from_db, load_records)
+from flask import jsonify, request
+
 from ...auth import require_admin, require_super_admin
 from ...logger import logger
+from ...models import (
+    PERMISSION_FIELDS,
+    get_admin_permissions,
+    get_all_users_from_db,
+    get_user,
+    load_records,
+    save_plain_password,
+    save_user,
+)
+from ..admin_routes import admin_bp
 
 
 @admin_bp.route('/api/admin/stats', methods=['GET'])
@@ -24,10 +31,7 @@ def admin_get_stats(admin_user):
         total_users = len(users) if isinstance(users, dict) else 0
         total_records = len(records) if isinstance(records, (dict, list)) else 0
 
-        return jsonify({
-            'totalUsers': total_users,
-            'totalRecords': total_records
-        })
+        return jsonify({'totalUsers': total_users, 'totalRecords': total_records})
     except Exception as e:
         logger.error(f'获取统计信息错误: {str(e)}')
         return jsonify({'error': '获取统计信息失败'}), 500
@@ -90,11 +94,12 @@ def admin_create_admin(admin_user):
             'canModifyScore': True,
             'canSetPasswordFree': True,
             'canMonitorMatches': True,
-            'canManageMatches': True
+            'canManageMatches': True,
         }
         save_user(username, new_user)
         save_plain_password(username, password)
         from .user_management import _invalidate_admin_users_cache
+
         _invalidate_admin_users_cache()
         logger.info(f'超级管理员 {admin_user["username"]} 创建了管理员账号 {username}')
         return jsonify({'success': True, 'message': '管理员账号创建成功'})
@@ -122,6 +127,7 @@ def admin_set_permission(admin_user):
         user['canManage'] = can_manage
         save_user(username, user)
         from .user_management import _invalidate_admin_users_cache
+
         _invalidate_admin_users_cache()
         logger.info(f'超级管理员 {admin_user["username"]} 设置 {username} 的管理权限: {can_manage}')
         return jsonify({'success': True, 'message': '权限设置已更新'})
@@ -157,6 +163,7 @@ def admin_set_permissions(admin_user):
 
         save_user(username, user)
         from .user_management import _invalidate_admin_users_cache
+
         _invalidate_admin_users_cache()
         logger.info(f'超级管理员 {admin_user["username"]} 设置了 {username} 的细粒度权限')
         return jsonify({'success': True, 'message': '权限设置已更新', 'permissions': get_admin_permissions(user)})
@@ -193,6 +200,7 @@ def admin_set_all_permissions(admin_user):
         save_user(username, user)
         action = '启用' if enable else '禁用'
         from .user_management import _invalidate_admin_users_cache
+
         _invalidate_admin_users_cache()
         logger.info(f'超级管理员 {admin_user["username"]} {action}了 {username} 的所有权限')
         return jsonify({'success': True, 'message': f'已{action}所有权限', 'permissions': get_admin_permissions(user)})

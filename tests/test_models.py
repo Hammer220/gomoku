@@ -2,19 +2,24 @@
 测试范围：段位计算、用户数据转换、权限管理、积分计算
 """
 
-import sys
-import os
 import hashlib
+import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from server.models import (
-    _row_to_user, get_admin_permissions, PERMISSION_FIELDS,
-    load_json_with_lock, save_json_with_lock,
-    get_cached_data, set_cached_data, clear_cache,
+    PERMISSION_FIELDS,
+    _row_to_user,
+    clear_cache,
+    get_admin_permissions,
+    get_cached_data,
     get_file_lock,
+    load_json_with_lock,
+    save_json_with_lock,
+    set_cached_data,
 )
-from server.routes.auth_routes import calculate_rank, RANK_CONFIG
+from server.routes.auth_routes import RANK_CONFIG, calculate_rank
 
 
 class TestCalculateRank:
@@ -117,37 +122,41 @@ class TestRowToUser:
 
     def test_basic_conversion(self):
         """基本转换"""
+
         class FakeRow:
             def __init__(self, d):
                 self._d = d
+
             def __getitem__(self, key):
                 return self._d.get(key)
 
-        row = FakeRow({
-            'username': 'test',
-            'password': 'hashed',
-            'score': 1000,
-            'wins': 5,
-            'games': 10,
-            'join_date': '2024-01-01',
-            'last_login': '2024-06-01',
-            'is_admin': 0,
-            'is_super_admin': 0,
-            'banned_until': None,
-            'can_ban_user': 0,
-            'can_kick_user': 0,
-            'can_delete_user': 0,
-            'can_change_password': 0,
-            'can_modify_score': 0,
-            'can_set_password_free': 0,
-            'can_monitor_matches': 0,
-            'can_manage_matches': 0,
-            'password_free': 0,
-            'password_free_max_attempts': 0,
-            'password_free_remaining_attempts': 0,
-            'is_guest': 0,
-            'language': 'zh-CN',
-        })
+        row = FakeRow(
+            {
+                'username': 'test',
+                'password': 'hashed',
+                'score': 1000,
+                'wins': 5,
+                'games': 10,
+                'join_date': '2024-01-01',
+                'last_login': '2024-06-01',
+                'is_admin': 0,
+                'is_super_admin': 0,
+                'banned_until': None,
+                'can_ban_user': 0,
+                'can_kick_user': 0,
+                'can_delete_user': 0,
+                'can_change_password': 0,
+                'can_modify_score': 0,
+                'can_set_password_free': 0,
+                'can_monitor_matches': 0,
+                'can_manage_matches': 0,
+                'password_free': 0,
+                'password_free_max_attempts': 0,
+                'password_free_remaining_attempts': 0,
+                'is_guest': 0,
+                'language': 'zh-CN',
+            }
+        )
 
         user = _row_to_user(row)
         assert user['username'] == 'test'
@@ -159,37 +168,41 @@ class TestRowToUser:
 
     def test_admin_conversion(self):
         """管理员转换"""
+
         class FakeRow:
             def __init__(self, d):
                 self._d = d
+
             def __getitem__(self, key):
                 return self._d.get(key)
 
-        row = FakeRow({
-            'username': 'admin',
-            'password': 'hashed',
-            'score': 2000,
-            'wins': 50,
-            'games': 80,
-            'join_date': '2024-01-01',
-            'last_login': '2024-06-01',
-            'is_admin': 1,
-            'is_super_admin': 0,
-            'banned_until': None,
-            'can_ban_user': 1,
-            'can_kick_user': 1,
-            'can_delete_user': 1,
-            'can_change_password': 1,
-            'can_modify_score': 1,
-            'can_set_password_free': 1,
-            'can_monitor_matches': 1,
-            'can_manage_matches': 1,
-            'password_free': 0,
-            'password_free_max_attempts': 0,
-            'password_free_remaining_attempts': 0,
-            'is_guest': 0,
-            'language': 'zh-CN',
-        })
+        row = FakeRow(
+            {
+                'username': 'admin',
+                'password': 'hashed',
+                'score': 2000,
+                'wins': 50,
+                'games': 80,
+                'join_date': '2024-01-01',
+                'last_login': '2024-06-01',
+                'is_admin': 1,
+                'is_super_admin': 0,
+                'banned_until': None,
+                'can_ban_user': 1,
+                'can_kick_user': 1,
+                'can_delete_user': 1,
+                'can_change_password': 1,
+                'can_modify_score': 1,
+                'can_set_password_free': 1,
+                'can_monitor_matches': 1,
+                'can_manage_matches': 1,
+                'password_free': 0,
+                'password_free_max_attempts': 0,
+                'password_free_remaining_attempts': 0,
+                'is_guest': 0,
+                'language': 'zh-CN',
+            }
+        )
 
         user = _row_to_user(row)
         assert user['isAdmin'] is True
@@ -224,9 +237,14 @@ class TestAdminPermissions:
     def test_permission_fields_complete(self):
         """PERMISSION_FIELDS 包含所有权限字段"""
         expected_fields = [
-            'canBanUser', 'canKickUser', 'canDeleteUser',
-            'canChangePassword', 'canModifyScore', 'canSetPasswordFree',
-            'canMonitorMatches', 'canManageMatches'
+            'canBanUser',
+            'canKickUser',
+            'canDeleteUser',
+            'canChangePassword',
+            'canModifyScore',
+            'canSetPasswordFree',
+            'canMonitorMatches',
+            'canManageMatches',
         ]
         for field in expected_fields:
             assert field in PERMISSION_FIELDS
@@ -244,13 +262,13 @@ class TestPasswordHashing:
 
     def test_sha256_different_passwords(self):
         """不同密码产生不同哈希"""
-        hash1 = hashlib.sha256('password1'.encode()).hexdigest()
-        hash2 = hashlib.sha256('password2'.encode()).hexdigest()
+        hash1 = hashlib.sha256(b'password1').hexdigest()
+        hash2 = hashlib.sha256(b'password2').hexdigest()
         assert hash1 != hash2
 
     def test_hash_length(self):
         """SHA256 哈希长度应为64"""
-        h = hashlib.sha256('test'.encode()).hexdigest()
+        h = hashlib.sha256(b'test').hexdigest()
         assert len(h) == 64
 
 
@@ -269,6 +287,7 @@ class TestCache:
         clear_cache()
         set_cached_data('test_key', 'test_value', ttl=0)
         import time
+
         time.sleep(0.01)
         result = get_cached_data('test_key')
         assert result is None

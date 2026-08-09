@@ -2,11 +2,11 @@
 负责：批量封禁、批量解封、批量强制登出、批量注销用户
 """
 
-from flask import request, jsonify
+from flask import jsonify, request
 
-from ..admin_routes import admin_bp, require_permission, _batch_operate
 from ...auth import require_admin
 from ...logger import logger
+from ..admin_routes import _batch_operate, admin_bp, require_permission
 
 
 @admin_bp.route('/api/admin/batch_ban', methods=['POST'])

@@ -9,9 +9,10 @@
 - 大师(Master): MCTS算法 + UCT公式 + 10000次模拟
 """
 
-import random
 import math
-from copy import deepcopy
+import random
+
+
 def check_win(board, row, col, player):
     directions = [(1, 0), (0, 1), (1, 1), (1, -1)]
     for dr, dc in directions:
@@ -25,6 +26,7 @@ def check_win(board, row, col, player):
         if count >= 5:
             return True
     return False
+
 
 RULE_MODE_STANDARD = 'standard'
 RULE_MODE_RENJU = 'renju'
@@ -58,6 +60,7 @@ def check_forbidden(board, row, col, rule_mode=RULE_MODE_RENJU):
 
     return {'forbidden': False, 'reason': ''}
 
+
 def check_overline(board, row, col):
     directions = [(1, 0), (0, 1), (1, 1), (1, -1)]
     for dr, dc in directions:
@@ -75,6 +78,7 @@ def check_overline(board, row, col):
         if count >= 6:
             return True
     return False
+
 
 def analyze_line(board, row, col, dr, dc):
     result = {'live_three': False, 'four': False}
@@ -112,14 +116,13 @@ def analyze_line(board, row, col, dr, dc):
         else:
             break
 
-    if count == 4 and left_empty > 0 and right_empty > 0:
-        result['four'] = True
-    elif count == 4 and (left_empty > 0 or right_empty > 0):
+    if count == 4 and (left_empty > 0 or right_empty > 0):
         result['four'] = True
     elif count == 3 and left_empty > 0 and right_empty > 0:
         result['live_three'] = True
 
     return result
+
 
 SCORE_FIVE = 100000
 SCORE_LIVE_FOUR = 10000
@@ -127,6 +130,7 @@ SCORE_RUSH_FOUR = 1000
 SCORE_LIVE_THREE = 200
 SCORE_SLEEP_THREE = 50
 SCORE_LIVE_TWO = 10
+
 
 def evaluate_position_detailed(board, row, col, player):
     temp_board = [r[:] for r in board]
@@ -153,11 +157,11 @@ def evaluate_position_detailed(board, row, col, player):
                 score += SCORE_LIVE_THREE
             elif open_ends == 1:
                 score += SCORE_SLEEP_THREE
-        elif count == 2:
-            if open_ends == 2:
-                score += SCORE_LIVE_TWO
+        elif count == 2 and open_ends == 2:
+            score += SCORE_LIVE_TWO
 
     return score
+
 
 def count_line(board, row, col, dr, dc, player):
     count = 1
@@ -165,7 +169,6 @@ def count_line(board, row, col, dr, dc, player):
 
     for delta in [1, -1]:
         i = 1
-        blocked = False
         while True:
             r, c = row + i * dr * delta, col + i * dc * delta
             if 0 <= r < 15 and 0 <= c < 15:
@@ -175,17 +178,15 @@ def count_line(board, row, col, dr, dc, player):
                     open_ends += 1
                     break
                 else:
-                    blocked = True
                     break
             else:
-                blocked = True
                 break
             i += 1
 
     return count, open_ends
 
+
 def find_candidate_moves(board, player, opponent, radius=2):
-    candidates = []
     has_neighbor = set()
 
     for r in range(15):
@@ -201,6 +202,7 @@ def find_candidate_moves(board, player, opponent, radius=2):
     empty = [(r, c) for r in range(15) for c in range(15) if board[r][c] == 0]
     return list(has_neighbor) if has_neighbor else empty
 
+
 def check_threat_four(board, row, col, player):
     temp_board = [r[:] for r in board]
     temp_board[row][col] = player
@@ -210,6 +212,7 @@ def check_threat_four(board, row, col, player):
         if count == 4 and open_ends >= 1:
             return True
     return False
+
 
 def check_live_three(board, row, col, player):
     temp_board = [r[:] for r in board]
@@ -221,6 +224,7 @@ def check_live_three(board, row, col, player):
             return True
     return False
 
+
 def check_live_two(board, row, col, player):
     temp_board = [r[:] for r in board]
     temp_board[row][col] = player
@@ -230,6 +234,7 @@ def check_live_two(board, row, col, player):
         if count == 2 and open_ends == 2:
             return True
     return False
+
 
 class MCTSNode:
     def __init__(self, board, player, parent=None, move=None):
@@ -308,8 +313,8 @@ class MCTSNode:
         if self.parent:
             self.parent.backpropagate(result)
 
+
 def find_master_move(board, player, simulations=5000):
-    opponent = 3 - player
     root = MCTSNode(board, player)
 
     for _ in range(simulations):
@@ -318,7 +323,7 @@ def find_master_move(board, player, simulations=5000):
         while node.children and not node.untried_moves:
             node = node.best_child()
 
-        if node.untried_moves:
+        if node.untried_moves is not None or not node.children:
             node = node.expand()
 
         if node.move and check_win(node.board, node.move[0], node.move[1], node.player):

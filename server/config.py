@@ -2,8 +2,8 @@
 定义应用路径、数据文件路径、极验验证码参数、默认配置文件等。
 """
 
-import os
 import configparser
+import os
 
 SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(SCRIPT_DIR, 'static')
@@ -12,6 +12,7 @@ os.makedirs(STATIC_DIR, exist_ok=True)
 cfg = configparser.ConfigParser()
 cfg.read(os.path.join(SCRIPT_DIR, 'config.ini'), encoding='utf-8')
 
+
 def has_valid_geetest_config():
     """检查是否存在有效的极验验证码配置"""
     try:
@@ -19,12 +20,14 @@ def has_valid_geetest_config():
     except (configparser.NoSectionError, configparser.NoOptionError):
         return False
 
+
 def has_valid_geetest_login_config():
     """检查是否存在有效的极验登录验证码配置"""
     try:
         return bool(cfg.get('GEETEST_LOGIN', 'captcha_id')) and bool(cfg.get('GEETEST_LOGIN', 'captcha_key'))
     except (configparser.NoSectionError, configparser.NoOptionError):
         return False
+
 
 def get_config():
     captcha_enabled = has_valid_geetest_config() and has_valid_geetest_login_config()
@@ -38,6 +41,7 @@ def get_config():
         'PORT': int(cfg.get('APP', 'port')) if cfg.has_option('APP', 'port') else 8000,
         'CAPTCHA_ENABLED': captcha_enabled,
     }
+
 
 GT4_CAPTCHA_ID = cfg.get('GEETEST', 'captcha_id') if has_valid_geetest_config() else ''
 GT4_CAPTCHA_KEY = cfg.get('GEETEST', 'captcha_key') if has_valid_geetest_config() else ''

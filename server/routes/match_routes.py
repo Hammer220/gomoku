@@ -11,19 +11,35 @@
 
 import time
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, jsonify, request
 
 from ..auth import require_auth
-from ..match_manager import (create_match, join_match, make_move,
-                             get_match_status, leave_match, close_match,
-                             restart_match, decline_restart, get_my_match, list_available_matches,
-                             heartbeat, request_undo, accept_undo, decline_undo,
-                             request_draw, accept_draw, decline_draw,
-                             resign,
-                             get_spectatable_matches, spectate_match, leave_spectate,
-                             get_spectate_status)
 from ..logger import logger
-from ..match.storage import active_matches, active_matches_lock
+from ..match.storage import active_matches, active_matches_lock, save_matches
+from ..match_manager import (
+    accept_draw,
+    accept_undo,
+    close_match,
+    create_match,
+    decline_draw,
+    decline_restart,
+    decline_undo,
+    get_match_status,
+    get_my_match,
+    get_spectatable_matches,
+    get_spectate_status,
+    heartbeat,
+    join_match,
+    leave_match,
+    leave_spectate,
+    list_available_matches,
+    make_move,
+    request_draw,
+    request_undo,
+    resign,
+    restart_match,
+    spectate_match,
+)
 
 match_bp = Blueprint('match', __name__)
 
@@ -84,6 +100,7 @@ def _emit_match_update(match_id):
     """
     try:
         from .. import socketio
+
         with active_matches_lock:
             if match_id in active_matches:
                 match = active_matches[match_id]
@@ -91,6 +108,7 @@ def _emit_match_update(match_id):
         socketio.emit('match_updated', event_data, room=match_id)
     except Exception as e:
         logger.warning(f'Socket.IO emit failed for match {match_id}: {e}')
+
 
 @match_bp.route('/api/match/create', methods=['POST'])
 @require_auth
@@ -106,24 +124,25 @@ def api_create_match(user):
         invite_only = body.get('inviteOnly', False)
         invited_friends = body.get('invitedFriends', [])
         match_id, creator_color = create_match(
-            user, time_mode, move_time, total_time,
-            allow_spectate, password, rule_mode,
-            invite_only, invited_friends
+            user, time_mode, move_time, total_time, allow_spectate, password, rule_mode, invite_only, invited_friends
         )
-        return jsonify({
-            'success': True,
-            'matchId': match_id,
-            'creatorColor': creator_color,
-            'timeMode': time_mode,
-            'allowSpectate': allow_spectate,
-            'hasPassword': password is not None,
-            'ruleMode': rule_mode,
-            'inviteOnly': invite_only,
-            'invitedFriends': invited_friends
-        })
+        return jsonify(
+            {
+                'success': True,
+                'matchId': match_id,
+                'creatorColor': creator_color,
+                'timeMode': time_mode,
+                'allowSpectate': allow_spectate,
+                'hasPassword': password is not None,
+                'ruleMode': rule_mode,
+                'inviteOnly': invite_only,
+                'invitedFriends': invited_friends,
+            }
+        )
     except Exception as e:
         logger.error(f'Create match error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
+
 
 @match_bp.route('/api/match/join', methods=['POST'])
 @require_auth
@@ -144,6 +163,7 @@ def api_join_match(user):
         logger.error(f'Join match error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
+
 @match_bp.route('/api/match/move', methods=['POST'])
 @require_auth
 def api_make_move(user):
@@ -158,6 +178,7 @@ def api_make_move(user):
     except Exception as e:
         logger.error(f'Move error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
+
 
 @match_bp.route('/api/match/status', methods=['GET'])
 @require_auth
@@ -189,6 +210,7 @@ def api_get_match_status_by_id_alt(user, match_id):
         logger.error(f'Status error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
+
 @match_bp.route('/api/match/leave', methods=['POST'])
 @require_auth
 def api_leave_match(user):
@@ -201,6 +223,7 @@ def api_leave_match(user):
     except Exception as e:
         logger.error(f'Leave match error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
+
 
 @match_bp.route('/api/match/close', methods=['POST'])
 @require_auth
@@ -215,6 +238,7 @@ def api_close_match(user):
         logger.error(f'Close match error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
+
 @match_bp.route('/api/match/restart', methods=['POST'])
 @require_auth
 def api_restart_match(user):
@@ -228,6 +252,7 @@ def api_restart_match(user):
         logger.error(f'Restart match error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
+
 @match_bp.route('/api/match/my', methods=['GET'])
 @require_auth
 def api_get_my_match(user):
@@ -236,6 +261,7 @@ def api_get_my_match(user):
     except Exception as e:
         logger.error(f'My match error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
+
 
 @match_bp.route('/api/match/list', methods=['GET'])
 @require_auth
@@ -246,11 +272,13 @@ def api_list_matches(user):
         logger.error(f'List matches error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
+
 @match_bp.route('/api/match/heartbeat', methods=['POST'])
 @require_auth
 def api_heartbeat(user):
     heartbeat(user)
     return jsonify({'success': True})
+
 
 @match_bp.route('/api/match/restart/decline', methods=['POST'])
 @require_auth
@@ -265,7 +293,9 @@ def api_decline_restart(user):
         logger.error(f'Decline restart error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
+
 # ==================== 悔棋 ====================
+
 
 @match_bp.route('/api/match/undo/request', methods=['POST'])
 @require_auth
@@ -280,6 +310,7 @@ def api_request_undo(user):
         logger.error(f'Request undo error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
+
 @match_bp.route('/api/match/undo/accept', methods=['POST'])
 @require_auth
 def api_accept_undo(user):
@@ -292,6 +323,7 @@ def api_accept_undo(user):
     except Exception as e:
         logger.error(f'Accept undo error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
+
 
 @match_bp.route('/api/match/undo/decline', methods=['POST'])
 @require_auth
@@ -306,7 +338,9 @@ def api_decline_undo(user):
         logger.error(f'Decline undo error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
+
 # ==================== 和棋 ====================
+
 
 @match_bp.route('/api/match/draw/request', methods=['POST'])
 @require_auth
@@ -321,6 +355,7 @@ def api_request_draw(user):
         logger.error(f'Request draw error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
+
 @match_bp.route('/api/match/draw/accept', methods=['POST'])
 @require_auth
 def api_accept_draw(user):
@@ -333,6 +368,7 @@ def api_accept_draw(user):
     except Exception as e:
         logger.error(f'Accept draw error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
+
 
 @match_bp.route('/api/match/draw/decline', methods=['POST'])
 @require_auth
@@ -347,6 +383,7 @@ def api_decline_draw(user):
         logger.error(f'Decline draw error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
+
 @match_bp.route('/api/match/resign', methods=['POST'])
 @require_auth
 def api_resign(user):
@@ -360,7 +397,9 @@ def api_resign(user):
         logger.error(f'Resign error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
+
 # ==================== 观战 ====================
+
 
 @match_bp.route('/api/match/spectate/list', methods=['GET'])
 @require_auth
@@ -370,6 +409,7 @@ def api_spectate_list(user):
     except Exception as e:
         logger.error(f'Spectate list error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
+
 
 @match_bp.route('/api/match/spectate/join', methods=['POST'])
 @require_auth
@@ -390,6 +430,7 @@ def api_spectate_join(user):
         logger.error(f'Spectate join error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
+
 @match_bp.route('/api/match/spectate/leave', methods=['POST'])
 @require_auth
 def api_spectate_leave(user):
@@ -403,6 +444,7 @@ def api_spectate_leave(user):
         logger.error(f'Spectate leave error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
+
 @match_bp.route('/api/match/spectate/status', methods=['GET'])
 @require_auth
 def api_spectate_status(user):
@@ -412,6 +454,7 @@ def api_spectate_status(user):
     except Exception as e:
         logger.error(f'Spectate status error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
+
 
 @match_bp.route('/api/spectate/token', methods=['GET'])
 @require_auth
@@ -430,6 +473,7 @@ def api_get_spectate_token(user):
     except Exception as e:
         logger.error(f'Get spectate token error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
+
 
 @match_bp.route('/api/spectate/public', methods=['GET'])
 def api_public_spectate():
@@ -464,11 +508,12 @@ def api_public_spectate():
                 'blackTime': match.get('blackTime', 600),
                 'whiteTime': match.get('whiteTime', 600),
                 'moveDeadline': match.get('moveDeadline', 0),
-                'restartVersion': match.get('restartVersion', 0)
+                'restartVersion': match.get('restartVersion', 0),
             }, 200
     except Exception as e:
         logger.error(f'Public spectate error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
+
 
 @match_bp.route('/api/match/<match_id>/invite-friends', methods=['POST'])
 @require_auth
@@ -511,25 +556,25 @@ def api_invite_friends_to_match(user, match_id):
                 send_match_invitation(user['username'], friend, match_id)
 
             if not invited:
-                return jsonify({
-                    'success': False,
-                    'error': '无可邀请的好友',
-                    'notFriends': not_friends,
-                    'alreadyInvited': already_invited
-                }), 400
+                return jsonify(
+                    {
+                        'success': False,
+                        'error': '无可邀请的好友',
+                        'notFriends': not_friends,
+                        'alreadyInvited': already_invited,
+                    }
+                ), 400
 
             save_matches()
             _emit_match_update(match_id)
 
-            return jsonify({
-                'success': True,
-                'invited': invited,
-                'alreadyInvited': already_invited,
-                'notFriends': not_friends
-            })
+            return jsonify(
+                {'success': True, 'invited': invited, 'alreadyInvited': already_invited, 'notFriends': not_friends}
+            )
     except Exception as e:
         logger.error(f'Invite friends error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
+
 
 @match_bp.route('/api/match/<match_id>/invites', methods=['GET'])
 @require_auth
@@ -540,13 +585,13 @@ def api_get_match_invites(user, match_id):
                 return jsonify({'error': '房间不存在'}), 404
 
             match = active_matches[match_id]
-            return jsonify({
-                'inviteOnly': match.get('inviteOnly', False),
-                'invitedFriends': match.get('invitedFriends', [])
-            })
+            return jsonify(
+                {'inviteOnly': match.get('inviteOnly', False), 'invitedFriends': match.get('invitedFriends', [])}
+            )
     except Exception as e:
         logger.error(f'Get match invites error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
+
 
 @match_bp.route('/api/poll/events', methods=['POST'])
 @require_auth
@@ -566,46 +611,52 @@ def api_poll_events(user):
                     continue
 
                 if 'match_updated' in requested_events:
-                    result_events.append({
-                        'type': 'match_updated',
-                        'data': _build_match_event(match)
-                    })
+                    result_events.append({'type': 'match_updated', 'data': _build_match_event(match)})
 
                 if 'move_made' in requested_events and len(match['moves']) > 0:
                     last_move = match['moves'][-1]
-                    result_events.append({
-                        'type': 'move_made',
-                        'data': {
-                            'match_id': match_id,
-                            'row': last_move['row'],
-                            'col': last_move['col'],
-                            'player': last_move['player'],
-                            'currentPlayer': match['currentPlayer']
+                    result_events.append(
+                        {
+                            'type': 'move_made',
+                            'data': {
+                                'match_id': match_id,
+                                'row': last_move['row'],
+                                'col': last_move['col'],
+                                'player': last_move['player'],
+                                'currentPlayer': match['currentPlayer'],
+                            },
                         }
-                    })
+                    )
 
-                if 'undo_requested' in requested_events and match.get('undoRequested') and match.get('undoRequestedBy') != username:
-                    result_events.append({
-                        'type': 'undo_requested',
-                        'data': {
-                            'match_id': match_id,
-                            'undoRequestedBy': match.get('undoRequestedBy')
+                if (
+                    'undo_requested' in requested_events
+                    and match.get('undoRequested')
+                    and match.get('undoRequestedBy') != username
+                ):
+                    result_events.append(
+                        {
+                            'type': 'undo_requested',
+                            'data': {'match_id': match_id, 'undoRequestedBy': match.get('undoRequestedBy')},
                         }
-                    })
+                    )
 
-                if 'draw_requested' in requested_events and match.get('drawRequested') and match.get('drawRequestedBy') != username:
-                    result_events.append({
-                        'type': 'draw_requested',
-                        'data': {
-                            'match_id': match_id,
-                            'drawRequestedBy': match.get('drawRequestedBy')
+                if (
+                    'draw_requested' in requested_events
+                    and match.get('drawRequested')
+                    and match.get('drawRequestedBy') != username
+                ):
+                    result_events.append(
+                        {
+                            'type': 'draw_requested',
+                            'data': {'match_id': match_id, 'drawRequestedBy': match.get('drawRequestedBy')},
                         }
-                    })
+                    )
 
         return jsonify({'events': result_events})
     except Exception as e:
         logger.error(f'Poll events error: {e}')
         return jsonify({'events': []})
+
 
 @match_bp.route('/api/match/<match_id>/set-invite-only', methods=['POST'])
 @require_auth

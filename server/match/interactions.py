@@ -4,11 +4,11 @@
 
 import time
 
-from .storage import active_matches, active_matches_lock, save_matches
 from ..logger import logger
-
+from .storage import active_matches, active_matches_lock, save_matches
 
 # ==================== 悔棋功能 ====================
+
 
 def request_undo(user, match_id):
     """请求悔棋
@@ -85,8 +85,13 @@ def accept_undo(user, match_id):
         board_copy = [row[:] for row in match['board']]
         save_matches()
         logger.info(f'悔棋已执行: match={match_id}')
-        return {'success': True, 'undoAccepted': True, 'board': board_copy,
-                'currentPlayer': match['currentPlayer'], 'message': '悔棋成功'}, 200
+        return {
+            'success': True,
+            'undoAccepted': True,
+            'board': board_copy,
+            'currentPlayer': match['currentPlayer'],
+            'message': '悔棋成功',
+        }, 200
 
 
 def decline_undo(user, match_id):
@@ -114,6 +119,7 @@ def decline_undo(user, match_id):
 
 
 # ==================== 和棋功能 ====================
+
 
 def request_draw(user, match_id):
     """请求和棋"""
@@ -147,8 +153,7 @@ def request_draw(user, match_id):
                 match['drawDeclinedBy'] = None
                 match['lastActivity'] = time.time()
                 save_matches()
-                return {'success': True, 'drawAccepted': True, 'winner': 0,
-                        'message': '双方同意和棋！'}, 200
+                return {'success': True, 'drawAccepted': True, 'winner': 0, 'message': '双方同意和棋！'}, 200
 
         match['drawRequested'] = True
         match['drawRequestedBy'] = username
@@ -211,6 +216,7 @@ def decline_draw(user, match_id):
 
 # ==================== 认输功能 ====================
 
+
 def resign(user, match_id):
     """认输 - 直接判负"""
     with active_matches_lock:
@@ -225,11 +231,7 @@ def resign(user, match_id):
         if match['status'] != 'playing':
             return {'error': '游戏未在进行中'}, 400
 
-        my_color = None
-        if match['creator'] == username:
-            my_color = match['creatorColor']
-        else:
-            my_color = 2 if match['creatorColor'] == 1 else 1
+        my_color = match['creatorColor'] if match['creator'] == username else (2 if match['creatorColor'] == 1 else 1)
 
         winner_color = 2 if my_color == 1 else 1
         match['winner'] = winner_color
@@ -245,11 +247,12 @@ def resign(user, match_id):
             'resigned': True,
             'winner': winner_color,
             'winReason': 'resign',
-            'message': '你已认输'
+            'message': '你已认输',
         }, 200
 
 
 # ==================== 观战功能 ====================
+
 
 def get_spectatable_matches():
     """获取所有可观看的对局列表（过滤掉不允许观战的房间）"""
@@ -259,19 +262,21 @@ def get_spectatable_matches():
             if match['status'] in ['playing', 'waiting_for_reconnect']:
                 if not match.get('allowSpectate', True):
                     continue
-                spec_list.append({
-                    'id': match_id,
-                    'creator': match['creator'],
-                    'opponent': match.get('opponent'),
-                    'status': match['status'],
-                    'creatorColor': match['creatorColor'],
-                    'currentPlayer': match['currentPlayer'],
-                    'startTime': match['startTime'],
-                    'moveCount': len(match.get('moves', [])),
-                    'spectatorCount': len(match.get('spectators', [])),
-                    'timeMode': match.get('timeMode', 'untimed'),
-                    'hasPassword': match.get('password') is not None
-                })
+                spec_list.append(
+                    {
+                        'id': match_id,
+                        'creator': match['creator'],
+                        'opponent': match.get('opponent'),
+                        'status': match['status'],
+                        'creatorColor': match['creatorColor'],
+                        'currentPlayer': match['currentPlayer'],
+                        'startTime': match['startTime'],
+                        'moveCount': len(match.get('moves', [])),
+                        'spectatorCount': len(match.get('spectators', [])),
+                        'timeMode': match.get('timeMode', 'untimed'),
+                        'hasPassword': match.get('password') is not None,
+                    }
+                )
         spec_list.sort(key=lambda x: x['moveCount'], reverse=True)
     return {'matches': spec_list}
 
@@ -326,7 +331,7 @@ def spectate_match(user, match_id, password=None):
             'timeMode': match.get('timeMode', 'untimed'),
             'blackTime': match.get('blackTime', 600),
             'whiteTime': match.get('whiteTime', 600),
-            'moveDeadline': match.get('moveDeadline', 0)
+            'moveDeadline': match.get('moveDeadline', 0),
         }, 200
 
 
@@ -367,5 +372,5 @@ def get_spectate_status(user, match_id):
             'blackTime': match.get('blackTime', 600),
             'whiteTime': match.get('whiteTime', 600),
             'moveDeadline': match.get('moveDeadline', 0),
-            'restartVersion': match.get('restartVersion', 0)
+            'restartVersion': match.get('restartVersion', 0),
         }, 200

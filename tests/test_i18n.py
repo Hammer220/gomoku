@@ -2,13 +2,12 @@
 测试范围：翻译文本获取、用户语言偏好、多语言覆盖
 """
 
-import sys
 import os
-import pytest
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from server.i18n import get_text, get_user_language, TRANSLATIONS
+from server.i18n import TRANSLATIONS, get_text, get_user_language
 
 
 class TestGetText:

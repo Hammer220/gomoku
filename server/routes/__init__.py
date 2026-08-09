@@ -2,17 +2,16 @@
 负责将所有蓝图（Blueprint）注册到 Flask 应用，并定义页面路由。
 """
 
-import os
-from flask import send_from_directory, render_template
+from flask import render_template
 
-from .auth_routes import auth_bp
 from ..auth import login_required
-from .user_routes import user_bp
 from .admin_routes import admin_bp
-from .match_routes import match_bp
+from .auth_routes import auth_bp
 from .game_routes import game_bp
-from .static_routes import static_bp
+from .match_routes import match_bp
 from .message_routes import message_bp
+from .static_routes import static_bp
+from .user_routes import user_bp
 
 
 def register_routes(app):

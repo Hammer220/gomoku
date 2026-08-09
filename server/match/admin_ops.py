@@ -4,9 +4,9 @@
 
 import time
 
-from .storage import active_matches, active_matches_lock, save_matches
 from ..game_logic import check_win
 from ..logger import logger
+from .storage import active_matches, active_matches_lock, save_matches
 
 
 def force_close_match(match_id):
@@ -32,7 +32,7 @@ def force_close_all_matches():
     """
     closed_count = 0
     with active_matches_lock:
-        for match_id, match in active_matches.items():
+        for _match_id, match in active_matches.items():
             if match['status'] in ['waiting', 'playing', 'waiting_for_reconnect']:
                 match['status'] = 'closed'
                 match['closed_at'] = int(time.time())
@@ -77,7 +77,7 @@ def force_restart_match(match_id):
         'restartVersion': match['restartVersion'],
         'creatorColor': match['creatorColor'],
         'currentPlayer': match['currentPlayer'],
-        'message': '对局已强制重新开始'
+        'message': '对局已强制重新开始',
     }, 200
 
 
@@ -106,18 +106,9 @@ def force_move(match_id, row, col, player):
             match['status'] = 'finished'
             save_matches()
             logger.info(f'管理员强制落子，游戏结束: {match_id}, winner: {player}')
-            return {
-                'success': True,
-                'win': True,
-                'winner': player,
-                'board': [r[:] for r in match['board']]
-            }, 200
+            return {'success': True, 'win': True, 'winner': player, 'board': [r[:] for r in match['board']]}, 200
 
         match['currentPlayer'] = 2 if player == 1 else 1
         save_matches()
     logger.info(f'管理员强制落子: {match_id}, ({row},{col}), player={player}')
-    return {
-        'success': True,
-        'win': False,
-        'board': [r[:] for r in match['board']]
-    }, 200
+    return {'success': True, 'win': False, 'board': [r[:] for r in match['board']]}, 200

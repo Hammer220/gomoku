@@ -9,23 +9,48 @@
 本文件保留兼容性导入，现有导入方式无需修改。
 """
 
-from .match import (
-    # 存储
-    active_matches, active_matches_lock, user_connections, user_connections_lock,
-    CONNECT_TIMEOUT, init_matches, save_matches,
-    update_user_connection, get_user_connection, remove_user_connection,
-    cleanup_expired_matches, cleanup_inactive_connections, start_cleanup_task,
-    # 核心操作
-    create_match, join_match, make_move, get_match_status,
-    leave_match, close_match, restart_match, decline_restart,
-    # 查询
-    list_active_matches, get_user_current_match, heartbeat,
-    get_my_match, list_available_matches, get_all_matches, get_match_detail,
-    # 管理员操作
-    force_close_match, force_close_all_matches, force_restart_match, force_move,
-    # 交互
-    request_undo, accept_undo, decline_undo,
-    request_draw, accept_draw, decline_draw,
+from .match import (  # noqa: F401
+    CONNECT_TIMEOUT,
+    accept_draw,
+    accept_undo,
+    active_matches,
+    active_matches_lock,
+    cleanup_expired_matches,
+    cleanup_inactive_connections,
+    close_match,
+    create_match,
+    decline_draw,
+    decline_restart,
+    decline_undo,
+    force_close_all_matches,
+    force_close_match,
+    force_move,
+    force_restart_match,
+    get_all_matches,
+    get_match_detail,
+    get_match_status,
+    get_my_match,
+    get_spectatable_matches,
+    get_spectate_status,
+    get_user_connection,
+    get_user_current_match,
+    heartbeat,
+    init_matches,
+    join_match,
+    leave_match,
+    leave_spectate,
+    list_active_matches,
+    list_available_matches,
+    make_move,
+    remove_user_connection,
+    request_draw,
+    request_undo,
     resign,
-    get_spectatable_matches, spectate_match, leave_spectate, get_spectate_status
+    restart_match,
+    save_matches,
+    spectate_match,
+    start_cleanup_task,
+    update_user_connection,
+    user_connections,
+    user_connections_lock,
 )

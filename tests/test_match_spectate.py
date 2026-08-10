@@ -42,7 +42,7 @@ class TestGetSpectatableMatches:
 
     def test_no_playing_matches(self, sample_user):
         """无进行中对局：等待中的不返回"""
-        match_id, _ = create_match(sample_user)
+        _match_id, _ = create_match(sample_user)
         result = get_spectatable_matches()
         assert len(result['matches']) == 0
 
@@ -102,16 +102,16 @@ class TestGetSpectatableMatches:
         spectate_match(spectator, match_id)
 
         result = get_spectatable_matches()
-        match = [m for m in result['matches'] if m['id'] == match_id][0]
+        match = next(m for m in result['matches'] if m['id'] == match_id)
         assert match['spectatorCount'] == 1
 
     def test_password_field(self, sample_user, admin_user):
         """密码房间标记"""
         match_id, _ = create_match(sample_user, password='secret')
-        join_match(admin_user, match_id)
+        join_match(admin_user, match_id, password='secret')
 
         result = get_spectatable_matches()
-        match = [m for m in result['matches'] if m['id'] == match_id][0]
+        match = next(m for m in result['matches'] if m['id'] == match_id)
         assert match['hasPassword'] is True
 
     def test_no_password_field(self, sample_user, admin_user):
@@ -120,7 +120,7 @@ class TestGetSpectatableMatches:
         join_match(admin_user, match_id)
 
         result = get_spectatable_matches()
-        match = [m for m in result['matches'] if m['id'] == match_id][0]
+        match = next(m for m in result['matches'] if m['id'] == match_id)
         assert match['hasPassword'] is False
 
 
@@ -152,7 +152,7 @@ class TestSpectateMatch:
     def test_spectate_nonexistent(self):
         """观战不存在的房间"""
         spectator = {'username': 'spectator1', 'score': 1000}
-        result, code = spectate_match(spectator, 'nonexist')
+        _result, code = spectate_match(spectator, 'nonexist')
         assert code == 404
 
     def test_spectate_own_game(self, sample_user, admin_user):
@@ -193,7 +193,7 @@ class TestSpectateMatch:
     def test_spectate_with_password(self, sample_user, admin_user):
         """带密码观战成功"""
         match_id, _ = create_match(sample_user, password='secret')
-        join_match(admin_user, match_id)
+        join_match(admin_user, match_id, password='secret')
 
         spectator = {'username': 'spectator1', 'score': 1000}
         result, code = spectate_match(spectator, match_id, password='secret')
@@ -203,7 +203,7 @@ class TestSpectateMatch:
     def test_spectate_with_wrong_password(self, sample_user, admin_user):
         """密码错误"""
         match_id, _ = create_match(sample_user, password='secret')
-        join_match(admin_user, match_id)
+        join_match(admin_user, match_id, password='secret')
 
         spectator = {'username': 'spectator1', 'score': 1000}
         result, code = spectate_match(spectator, match_id, password='wrong')
@@ -215,7 +215,7 @@ class TestSpectateMatch:
         match_id = self._setup_playing_match(sample_user, admin_user)
 
         spectator = {'username': 'spectator1', 'score': 1000}
-        result, code = spectate_match(spectator, match_id)
+        result, _code = spectate_match(spectator, match_id)
 
         required_keys = [
             'id', 'creator', 'opponent', 'status', 'board', 'currentPlayer',
@@ -252,7 +252,7 @@ class TestSpectateMatch:
 
         spectator = {'username': 'spectator1', 'score': 1000}
         spectate_match(spectator, match_id)
-        result, code = spectate_match(spectator, match_id)
+        _result, code = spectate_match(spectator, match_id)
 
         assert code == 200
         with active_matches_lock:
@@ -271,7 +271,7 @@ class TestLeaveSpectate:
         spectator = {'username': 'spectator1', 'score': 1000}
         spectate_match(spectator, match_id)
 
-        result, code = leave_spectate(spectator, match_id)
+        result, _code = leave_spectate(spectator, match_id)
         assert result['success'] is True
 
         with active_matches_lock:
@@ -281,7 +281,7 @@ class TestLeaveSpectate:
     def test_leave_nonexistent(self):
         """离开不存在的房间"""
         spectator = {'username': 'spectator1', 'score': 1000}
-        result, code = leave_spectate(spectator, 'nonexist')
+        result, _code = leave_spectate(spectator, 'nonexist')
         assert result['success'] is True
 
     def test_leave_non_spectator(self, sample_user, admin_user):
@@ -290,7 +290,7 @@ class TestLeaveSpectate:
         join_match(admin_user, match_id)
 
         spectator = {'username': 'spectator1', 'score': 1000}
-        result, code = leave_spectate(spectator, match_id)
+        result, _code = leave_spectate(spectator, match_id)
         assert result['success'] is True
 
 
@@ -319,14 +319,14 @@ class TestGetSpectateStatus:
 
     def test_nonexistent_room(self):
         """不存在的房间"""
-        result, code = get_spectate_status({'username': 'user1'}, 'nonexist')
+        _result, code = get_spectate_status({'username': 'user1'}, 'nonexist')
         assert code == 404
 
     def test_status_fields(self, sample_user, admin_user):
         """状态包含完整字段"""
         match_id = self._setup_with_spectator(sample_user, admin_user)
 
-        result, code = get_spectate_status({'username': 'spectator1'}, match_id)
+        result, _code = get_spectate_status({'username': 'spectator1'}, match_id)
 
         required_keys = [
             'id', 'creator', 'opponent', 'status', 'board', 'currentPlayer',
@@ -341,7 +341,7 @@ class TestGetSpectateStatus:
         """观战人数正确"""
         match_id = self._setup_with_spectator(sample_user, admin_user)
 
-        result, code = get_spectate_status({'username': 'spectator1'}, match_id)
+        result, _code = get_spectate_status({'username': 'spectator1'}, match_id)
         assert result['spectatorCount'] == 1
 
     def test_any_user_can_poll(self, sample_user, admin_user):

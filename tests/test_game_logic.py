@@ -300,7 +300,7 @@ class TestCountLine:
         board = empty_board
         for c in range(5, 10):
             board[7][c] = 1
-        count, open_ends = count_line(board, 7, 7, 0, 1, 1)
+        count, _open_ends = count_line(board, 7, 7, 0, 1, 1)
         assert count == 5
 
     def test_wall_boundary(self, empty_board):

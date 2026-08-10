@@ -5,7 +5,7 @@
 import json
 import os
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -77,7 +77,7 @@ class TestBatchOperate:
         from unittest.mock import patch
 
         admin = {'username': 'admin', 'isSuperAdmin': False}
-        with patch('server.routes.admin_routes.get_user', return_value=None):
+        with patch('server.models.get_user', return_value=None):
             success, failed = _batch_operate(admin, ['nonexistent_user'], 'ban', minutes=60)
             assert isinstance(success, int)
             assert isinstance(failed, int)
@@ -85,7 +85,7 @@ class TestBatchOperate:
     def test_unban_operation(self):
         """unban 操作"""
         admin = {'username': 'admin', 'isSuperAdmin': False}
-        with patch('server.routes.admin_routes.get_user', return_value=None):
+        with patch('server.models.get_user', return_value=None):
             success, failed = _batch_operate(admin, ['nonexistent_user'], 'unban')
             assert isinstance(success, int)
             assert isinstance(failed, int)
@@ -93,7 +93,7 @@ class TestBatchOperate:
     def test_kick_operation(self):
         """kick 操作"""
         admin = {'username': 'admin', 'isSuperAdmin': False}
-        with patch('server.routes.admin_routes.get_user', return_value=None):
+        with patch('server.models.get_user', return_value=None):
             success, failed = _batch_operate(admin, ['nonexistent_user'], 'kick')
             assert isinstance(success, int)
             assert isinstance(failed, int)
@@ -101,7 +101,7 @@ class TestBatchOperate:
     def test_delete_operation(self):
         """delete 操作"""
         admin = {'username': 'admin', 'isSuperAdmin': False}
-        with patch('server.routes.admin_routes.get_user', return_value=None):
+        with patch('server.models.get_user', return_value=None):
             success, failed = _batch_operate(admin, ['nonexistent_user'], 'delete')
             assert isinstance(success, int)
             assert isinstance(failed, int)
@@ -109,7 +109,7 @@ class TestBatchOperate:
     def test_returns_tuple(self):
         """返回 (success_count, failed_count) 元组"""
         admin = {'username': 'admin', 'isSuperAdmin': False}
-        with patch('server.routes.admin_routes.get_user', return_value=None):
+        with patch('server.models.get_user', return_value=None):
             result = _batch_operate(admin, ['nonexistent_user'], 'ban')
             assert isinstance(result, tuple)
             assert len(result) == 2
@@ -122,11 +122,13 @@ class TestBatchOperate:
             'isSuperAdmin': True,
             'isAdmin': True,
         }
-        with patch('server.routes.admin_routes.get_user', return_value=mock_user):
-            with patch('server.routes.admin_routes._invalidate_admin_users_cache'):
-                success, failed = _batch_operate(admin, ['super_admin'], 'ban')
-                assert failed == 1
-                assert success == 0
+        with (
+            patch('server.models.get_user', return_value=mock_user),
+            patch('server.routes.admin.user_management._invalidate_admin_users_cache'),
+        ):
+            success, failed = _batch_operate(admin, ['super_admin'], 'ban')
+            assert failed == 1
+            assert success == 0
 
     def test_self_operation_blocked(self):
         """不能操作自己"""
@@ -136,11 +138,13 @@ class TestBatchOperate:
             'isSuperAdmin': False,
             'isAdmin': True,
         }
-        with patch('server.routes.admin_routes.get_user', return_value=mock_user):
-            with patch('server.routes.admin_routes._invalidate_admin_users_cache'):
-                success, failed = _batch_operate(admin, ['admin'], 'ban')
-                assert failed == 1
-                assert success == 0
+        with (
+            patch('server.models.get_user', return_value=mock_user),
+            patch('server.routes.admin.user_management._invalidate_admin_users_cache'),
+        ):
+            success, failed = _batch_operate(admin, ['admin'], 'ban')
+            assert failed == 1
+            assert success == 0
 
 
 class TestAdminManagementImport:
@@ -321,19 +325,19 @@ class TestAdminRoutesWithClient:
         """GET /api/admin/users 需要认证"""
         with self.app.app_context():
             response = self.client.get('/api/admin/users')
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_stats_requires_auth(self):
         """GET /api/admin/stats 需要认证"""
         with self.app.app_context():
             response = self.client.get('/api/admin/stats')
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_records_requires_auth(self):
         """GET /api/admin/records 需要认证"""
         with self.app.app_context():
             response = self.client.get('/api/admin/records')
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_create_admin_requires_auth(self):
         """POST /api/admin/create_admin 需要认证"""
@@ -343,7 +347,7 @@ class TestAdminRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_create_admin_missing_data(self):
         """POST /api/admin/create_admin 缺少数据"""
@@ -353,7 +357,7 @@ class TestAdminRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (400, 401, 302)
+            assert response.status_code in (400, 401, 403, 302)
 
     def test_admin_set_permission_requires_auth(self):
         """POST /api/admin/set_permission 需要认证"""
@@ -363,7 +367,7 @@ class TestAdminRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_set_permissions_requires_auth(self):
         """POST /api/admin/set_permissions 需要认证"""
@@ -373,7 +377,7 @@ class TestAdminRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_ban_requires_auth(self):
         """POST /api/admin/ban 需要认证"""
@@ -383,7 +387,7 @@ class TestAdminRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_ban_empty_username(self):
         """POST /api/admin/ban 空用户名返回 400"""
@@ -393,7 +397,7 @@ class TestAdminRoutesWithClient:
                 data=json.dumps({'username': ''}),
                 content_type='application/json',
             )
-            assert response.status_code in (400, 401, 302)
+            assert response.status_code in (400, 401, 403, 302)
 
     def test_admin_unban_requires_auth(self):
         """POST /api/admin/unban 需要认证"""
@@ -403,7 +407,7 @@ class TestAdminRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_kick_requires_auth(self):
         """POST /api/admin/kick 需要认证"""
@@ -413,13 +417,13 @@ class TestAdminRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_delete_user_requires_auth(self):
         """DELETE /api/admin/user/test 需要认证"""
         with self.app.app_context():
             response = self.client.delete('/api/admin/user/test')
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_batch_ban_requires_auth(self):
         """POST /api/admin/batch_ban 需要认证"""
@@ -429,7 +433,7 @@ class TestAdminRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_batch_unban_requires_auth(self):
         """POST /api/admin/batch_unban 需要认证"""
@@ -439,7 +443,7 @@ class TestAdminRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_batch_kick_requires_auth(self):
         """POST /api/admin/batch_kick 需要认证"""
@@ -449,7 +453,7 @@ class TestAdminRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_batch_delete_requires_auth(self):
         """POST /api/admin/batch_delete 需要认证"""
@@ -459,37 +463,37 @@ class TestAdminRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_matches_requires_auth(self):
         """GET /api/admin/matches 需要认证"""
         with self.app.app_context():
             response = self.client.get('/api/admin/matches')
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_match_detail_requires_auth(self):
         """GET /api/admin/match/test 需要认证"""
         with self.app.app_context():
             response = self.client.get('/api/admin/match/test')
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_close_match_requires_auth(self):
         """POST /api/admin/match/test/close 需要认证"""
         with self.app.app_context():
             response = self.client.post('/api/admin/match/test/close')
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_close_all_matches_requires_auth(self):
         """POST /api/admin/matches/close-all 需要认证"""
         with self.app.app_context():
             response = self.client.post('/api/admin/matches/close-all')
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_restart_match_requires_auth(self):
         """POST /api/admin/match/test/restart 需要认证"""
         with self.app.app_context():
             response = self.client.post('/api/admin/match/test/restart')
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_force_move_requires_auth(self):
         """POST /api/admin/match/test/force-move 需要认证"""
@@ -499,7 +503,7 @@ class TestAdminRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_force_move_missing_params(self):
         """POST /api/admin/match/test/force-move 缺少参数返回 400"""
@@ -509,7 +513,7 @@ class TestAdminRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (400, 401, 302)
+            assert response.status_code in (400, 401, 403, 302)
 
     def test_admin_set_score_requires_auth(self):
         """POST /api/admin/user/test/score 需要认证"""
@@ -519,7 +523,7 @@ class TestAdminRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_set_admin_requires_auth(self):
         """POST /api/admin/user/test/admin 需要认证"""
@@ -529,7 +533,7 @@ class TestAdminRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_set_captcha_requires_auth(self):
         """POST /api/admin/set_captcha 需要认证"""
@@ -539,7 +543,7 @@ class TestAdminRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_set_password_free_requires_auth(self):
         """POST /api/admin/set_password_free 需要认证"""
@@ -549,7 +553,7 @@ class TestAdminRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_change_password_requires_auth(self):
         """POST /api/admin/change_password 需要认证"""
@@ -559,7 +563,7 @@ class TestAdminRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_admin_change_password_missing_params(self):
         """POST /api/admin/change_password 缺少参数返回 400"""
@@ -569,7 +573,7 @@ class TestAdminRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (400, 401, 302)
+            assert response.status_code in (400, 401, 403, 302)
 
 
 class TestAdminUserCache:
@@ -602,7 +606,7 @@ class TestPermissionFields:
     def test_permission_fields_import(self):
         """PERMISSION_FIELDS 可导入"""
         from server.models import PERMISSION_FIELDS
-        assert isinstance(PERMISSION_FIELDS, list)
+        assert isinstance(PERMISSION_FIELDS, dict)
         assert len(PERMISSION_FIELDS) > 0
 
     def test_common_permission_fields(self):

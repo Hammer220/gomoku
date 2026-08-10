@@ -6,7 +6,6 @@ import hashlib
 import json
 import os
 import sys
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -32,7 +31,7 @@ class TestAuthBlueprint:
 
     def test_blueprint_has_routes(self):
         """蓝图注册了路由"""
-        rules = [rule.rule for rule in auth_bp.deferred_functions[0].func.__self__.url_map.iter_rules()] if False else []
+        [rule.rule for rule in auth_bp.deferred_functions[0].func.__self__.url_map.iter_rules()] if False else []
         assert len(list(auth_bp.deferred_functions)) > 0
 
 
@@ -313,8 +312,8 @@ class TestPasswordHashing:
 
     def test_different_password_different_hash(self):
         """不同密码产生不同哈希"""
-        hash1 = hashlib.sha256('password1'.encode()).hexdigest()
-        hash2 = hashlib.sha256('password2'.encode()).hexdigest()
+        hash1 = hashlib.sha256(b'password1').hexdigest()
+        hash2 = hashlib.sha256(b'password2').hexdigest()
         assert hash1 != hash2
 
 

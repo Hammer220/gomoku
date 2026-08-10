@@ -240,6 +240,8 @@ def find_hard_move(board, player, opponent):
         ),
         reverse=True,
     )
+    # 限制顶层搜索规模，避免空棋盘上候选过多导致搜索爆炸
+    candidates = candidates[:20]
 
     for r, c in candidates:
         if board[r][c] != 0:
@@ -343,6 +345,8 @@ def minimax_with_heuristics(board, depth, alpha, beta, maximizing, player, oppon
         ),
         reverse=True,
     )
+    # 限制每层搜索宽度，保证 hard 难度响应时间
+    candidates = candidates[:16]
 
     if maximizing:
         max_eval = -float('inf')

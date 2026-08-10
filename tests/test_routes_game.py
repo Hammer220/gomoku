@@ -5,7 +5,6 @@
 import json
 import os
 import sys
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -105,7 +104,7 @@ class TestCountLineSimple:
         """空棋盘计数"""
         board = [[0] * 15 for _ in range(15)]
         board[7][7] = 1
-        count, open_ends = count_line_simple(board, 7, 7, 1, 0, 1)
+        count, _open_ends = count_line_simple(board, 7, 7, 1, 0, 1)
         assert count == 1
 
     def test_two_in_a_row(self):
@@ -113,7 +112,7 @@ class TestCountLineSimple:
         board = [[0] * 15 for _ in range(15)]
         board[7][7] = 1
         board[7][8] = 1
-        count, open_ends = count_line_simple(board, 7, 7, 0, 1, 1)
+        count, _open_ends = count_line_simple(board, 7, 7, 0, 1, 1)
         assert count == 2
 
     def test_blocked_by_opponent(self):
@@ -121,7 +120,7 @@ class TestCountLineSimple:
         board = [[0] * 15 for _ in range(15)]
         board[7][7] = 1
         board[7][8] = 2
-        count, open_ends = count_line_simple(board, 7, 7, 0, 1, 1)
+        count, _open_ends = count_line_simple(board, 7, 7, 0, 1, 1)
         assert count == 1
 
     def test_at_board_edge(self):
@@ -129,7 +128,7 @@ class TestCountLineSimple:
         board = [[0] * 15 for _ in range(15)]
         board[0][0] = 1
         board[0][1] = 1
-        count, open_ends = count_line_simple(board, 0, 0, 0, 1, 1)
+        count, _open_ends = count_line_simple(board, 0, 0, 0, 1, 1)
         assert count == 2
 
     def test_returns_tuple(self):

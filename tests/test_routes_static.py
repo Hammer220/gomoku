@@ -2,10 +2,8 @@
 测试范围：静态文件服务、图片服务、favicon 服务
 """
 
-import json
 import os
 import sys
-from unittest.mock import MagicMock, patch
 
 import pytest
 

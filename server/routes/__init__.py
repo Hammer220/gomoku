@@ -91,4 +91,4 @@ def register_routes(app):
     # 404 错误处理：返回登录页面
     @app.errorhandler(404)
     def not_found(e):
-        return render_template('login.html'), 200
+        return render_template('login.html'), 404

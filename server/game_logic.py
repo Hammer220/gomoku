@@ -187,20 +187,20 @@ def count_line(board, row, col, dr, dc, player):
 
 
 def find_candidate_moves(board, player, opponent, radius=2):
+    occupied = [(r, c) for r in range(15) for c in range(15) if board[r][c] != 0]
+
+    if not occupied:
+        return [(r, c) for r in range(15) for c in range(15) if board[r][c] == 0]
+
     has_neighbor = set()
+    for r, c in occupied:
+        for dr in range(-radius, radius + 1):
+            for dc in range(-radius, radius + 1):
+                nr, nc = r + dr, c + dc
+                if 0 <= nr < 15 and 0 <= nc < 15 and board[nr][nc] == 0:
+                    has_neighbor.add((nr, nc))
 
-    for r in range(15):
-        for c in range(15):
-            if board[r][c] == 0:
-                for dr in range(-radius, radius + 1):
-                    for dc in range(-radius, radius + 1):
-                        nr, nc = r + dr, c + dc
-                        if 0 <= nr < 15 and 0 <= nc < 15 and board[nr][nc] != 0:
-                            has_neighbor.add((r, c))
-                            break
-
-    empty = [(r, c) for r in range(15) for c in range(15) if board[r][c] == 0]
-    return list(has_neighbor) if has_neighbor else empty
+    return list(has_neighbor)
 
 
 def check_threat_four(board, row, col, player):
@@ -285,7 +285,7 @@ class MCTSNode:
         sim_player = self.player
         passes = 0
 
-        for _ in range(100):
+        for _ in range(50):
             moves = find_candidate_moves(sim_board, sim_player, 3 - sim_player, radius=2)
             if not moves:
                 passes += 1
@@ -293,8 +293,6 @@ class MCTSNode:
                     break
                 sim_player = 3 - sim_player
                 continue
-
-            pass
 
             move = random.choice(moves)
             sim_board[move[0]][move[1]] = sim_player
@@ -314,7 +312,7 @@ class MCTSNode:
             self.parent.backpropagate(result)
 
 
-def find_master_move(board, player, simulations=5000):
+def find_master_move(board, player, simulations=1500):
     root = MCTSNode(board, player)
 
     for _ in range(simulations):

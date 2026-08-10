@@ -127,8 +127,7 @@ class TestTranslationsStructure:
     def test_zh_cn_tw_difference(self):
         """简繁中文应有区别"""
         for key in TRANSLATIONS['zh-CN']:
-            cn_val = TRANSLATIONS['zh-CN'][key]
-            tw_val = TRANSLATIONS['zh-TW'][key]
+            TRANSLATIONS['zh-CN'][key]
+            TRANSLATIONS['zh-TW'][key]
             # 有些词简繁相同，但至少要有不同的
-            pass
         assert True

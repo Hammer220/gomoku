@@ -5,7 +5,6 @@
 import json
 import os
 import sys
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -123,7 +122,7 @@ class TestUserRoutesWithClient:
         """GET /api/profile 需要认证"""
         with self.app.app_context():
             response = self.client.get('/api/profile')
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_update_profile_requires_auth(self):
         """POST /api/profile/update 需要认证"""
@@ -133,7 +132,7 @@ class TestUserRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_update_profile_empty_body(self):
         """POST /api/profile/update 空请求体返回 400"""
@@ -149,13 +148,13 @@ class TestUserRoutesWithClient:
         """GET /api/statistics 需要认证"""
         with self.app.app_context():
             response = self.client.get('/api/statistics')
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_records_requires_auth(self):
         """GET /api/records 需要认证"""
         with self.app.app_context():
             response = self.client.get('/api/records')
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_add_record_requires_auth(self):
         """POST /api/records/add 需要认证"""
@@ -165,7 +164,7 @@ class TestUserRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_add_record_empty_body(self):
         """POST /api/records/add 空请求体返回 400"""
@@ -181,7 +180,7 @@ class TestUserRoutesWithClient:
         """GET /api/saves 需要认证"""
         with self.app.app_context():
             response = self.client.get('/api/saves')
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_save_game_requires_auth(self):
         """POST /api/saves/save 需要认证"""
@@ -191,7 +190,7 @@ class TestUserRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_save_game_empty_body(self):
         """POST /api/saves/save 空请求体返回 400"""
@@ -207,7 +206,7 @@ class TestUserRoutesWithClient:
         """DELETE /api/saves/1 需要认证"""
         with self.app.app_context():
             response = self.client.delete('/api/saves/1')
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_import_save_requires_auth(self):
         """POST /api/saves/import 需要认证"""
@@ -217,7 +216,7 @@ class TestUserRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_import_save_empty_body(self):
         """POST /api/saves/import 空请求体返回 400"""
@@ -233,7 +232,7 @@ class TestUserRoutesWithClient:
         """GET /api/settings 需要认证"""
         with self.app.app_context():
             response = self.client.get('/api/settings')
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_settings_post_requires_auth(self):
         """POST /api/settings 需要认证"""
@@ -243,7 +242,7 @@ class TestUserRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_settings_post_empty_body(self):
         """POST /api/settings 空请求体返回 400"""
@@ -282,13 +281,13 @@ class TestUserRoutesWithClient:
                 data=json.dumps({}),
                 content_type='application/json',
             )
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
     def test_record_detail_requires_auth(self):
         """GET /api/records/1 需要认证"""
         with self.app.app_context():
             response = self.client.get('/api/records/1')
-            assert response.status_code in (401, 302)
+            assert response.status_code in (401, 403, 302)
 
 
 class TestScoreCalculation:

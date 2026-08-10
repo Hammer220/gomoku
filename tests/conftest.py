@@ -10,7 +10,7 @@ import pytest
 SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, SCRIPT_DIR)
 
-from server import create_app  # noqa: E402
+from server import create_app
 
 
 @pytest.fixture

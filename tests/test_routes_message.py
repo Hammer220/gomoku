@@ -5,7 +5,6 @@
 import json
 import os
 import sys
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -210,7 +209,6 @@ class TestRedPacketLogic:
 
     def test_red_packet_amount_calculation(self):
         """红包金额计算"""
-        import random
         remaining = 100
         count_left = 5
         max_single = int(remaining / count_left * 2)
@@ -219,7 +217,6 @@ class TestRedPacketLogic:
     def test_red_packet_last_one(self):
         """最后一个红包领取全部剩余"""
         remaining = 50
-        count_left = 1
         claimed_amount = remaining
         assert claimed_amount == 50
 

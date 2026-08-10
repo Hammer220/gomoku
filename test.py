@@ -1,6 +1,6 @@
 """测试执行脚本
 对 tests 文件夹中的测试文件进行静态检查（ruff/mypy）和动态测试（pytest），
-生成测试报告到 text/report 目录。
+生成测试报告到 tests/report 目录。
 """
 
 import os
@@ -8,10 +8,13 @@ import sys
 import subprocess
 import datetime
 
+# 避免控制台编码（如 GBK）无法编码报告中的特殊字符而崩溃
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(errors='replace')
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 TESTS_DIR = os.path.join(SCRIPT_DIR, 'tests')
-TEXT_DIR = os.path.join(SCRIPT_DIR, 'tests')
-REPORT_DIR = os.path.join(TEXT_DIR, 'report')
+REPORT_DIR = os.path.join(TESTS_DIR, 'report')
 os.makedirs(REPORT_DIR, exist_ok=True)
 
 def get_timestamp():
@@ -58,7 +61,7 @@ def main():
     report_lines.append("")
 
     mypy_result = run_command(
-        f'cd /d {SCRIPT_DIR} && "{sys.executable}" -m mypy {TESTS_DIR} --ignore-missing-imports',
+        f'cd /d {SCRIPT_DIR} && "{sys.executable}" -m mypy {TESTS_DIR} --ignore-missing-imports --no-namespace-packages',
         "静态检查 - MyPy (类型检查)"
     )
     report_lines.append("【静态检查 - MyPy】")

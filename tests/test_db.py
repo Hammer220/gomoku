@@ -2,13 +2,10 @@
 测试范围：数据库连接、表结构定义、数据迁移、字段升级
 """
 
+import contextlib
 import os
 import sqlite3
 import sys
-import tempfile
-from unittest.mock import MagicMock, patch
-
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -203,17 +200,13 @@ class TestMigrateFromJSON:
 
     def test_migration_is_idempotent(self):
         """迁移应该是幂等的（多次调用不报错）"""
-        try:
-            db.migrate_from_json()
-        except Exception as e:
-            pytest.fail(f'migrate_from_json 不应抛出异常: {e}')
+        # 若抛异常则 pytest 自动记录失败
+        db.migrate_from_json()
 
     def test_migration_does_not_crash(self):
         """迁移不应崩溃"""
-        try:
+        with contextlib.suppress(Exception):
             db.migrate_from_json()
-        except Exception:
-            pass
 
 
 class TestDatabaseOperations:
@@ -267,3 +260,4 @@ class TestDatabaseOperations:
             conn.execute("ROLLBACK")
             conn.execute("DELETE FROM users WHERE username='rollback_user'")
             conn.commit()
+            raise

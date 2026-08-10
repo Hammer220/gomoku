@@ -173,7 +173,7 @@ class TestJoinMatch:
         with active_matches_lock:
             active_matches[match_id]['status'] = 'finished'
 
-        result, code = join_match(sample_user, match_id)
+        _result, code = join_match(sample_user, match_id)
         assert code == 400
 
     def test_join_invite_only_not_invited(self, sample_user, admin_user):
@@ -187,7 +187,7 @@ class TestJoinMatch:
         """邀请制房间受邀加入"""
         match_id, _ = create_match(sample_user, invite_only=True, invited_friends=['testuser2'])
         invited_user = {'username': 'testuser2', 'score': 1000}
-        result, code = join_match(invited_user, match_id)
+        _result, code = join_match(invited_user, match_id)
         assert code == 200
 
 
@@ -259,13 +259,13 @@ class TestMakeMove:
 
     def test_nonexistent_room(self, sample_user):
         """不存在的房间"""
-        result, code = make_move(sample_user, 'nonexist', 7, 7)
+        _result, code = make_move(sample_user, 'nonexist', 7, 7)
         assert code == 404
 
     def test_not_in_room(self, sample_user, admin_user):
         """不在房间中（房间状态为 waiting 时先触发 '游戏未在进行中' 返回 400）"""
         match_id, _ = create_match(sample_user)
-        result, code = make_move(admin_user, match_id, 7, 7)
+        _result, code = make_move(admin_user, match_id, 7, 7)
         assert code == 400
 
 
@@ -294,7 +294,7 @@ class TestLeaveMatch:
 
     def test_leave_nonexistent(self, sample_user):
         """离开不存在的房间"""
-        result, code = leave_match(sample_user, 'nonexist')
+        result, _code = leave_match(sample_user, 'nonexist')
         assert result['success'] is True
 
 
@@ -306,7 +306,7 @@ class TestCloseMatch:
         match_id, _ = create_match(sample_user)
         join_match(admin_user, match_id)
 
-        result, code = close_match(sample_user, match_id)
+        result, _code = close_match(sample_user, match_id)
         assert result['success'] is True
 
         with active_matches_lock:
@@ -322,7 +322,7 @@ class TestRestartMatch:
         match_id, _ = create_match(sample_user)
         join_match(admin_user, match_id)
 
-        result, code = restart_match(sample_user, match_id)
+        result, _code = restart_match(sample_user, match_id)
         assert result['success'] is True
         assert result.get('restartRequested') is True
 
@@ -332,7 +332,7 @@ class TestRestartMatch:
         join_match(admin_user, match_id)
 
         restart_match(sample_user, match_id)
-        result, code = decline_restart(admin_user, match_id)
+        result, _code = decline_restart(admin_user, match_id)
         assert result['success'] is True
 
 
@@ -358,9 +358,9 @@ class TestUndoOperations:
 
     def test_request_undo(self, sample_user, admin_user):
         """请求悔棋"""
-        match_id, black, white = self._setup_played_match(sample_user, admin_user)
+        match_id, black, _white = self._setup_played_match(sample_user, admin_user)
 
-        result, code = request_undo(black, match_id)
+        result, _code = request_undo(black, match_id)
         assert result['success'] is True
         assert result['undoRequested'] is True
 
@@ -369,7 +369,7 @@ class TestUndoOperations:
         match_id, black, white = self._setup_played_match(sample_user, admin_user)
 
         request_undo(black, match_id)
-        result, code = accept_undo(white, match_id)
+        result, _code = accept_undo(white, match_id)
         assert result['success'] is True
         assert result['undoAccepted'] is True
 
@@ -382,16 +382,16 @@ class TestUndoOperations:
         match_id, black, white = self._setup_played_match(sample_user, admin_user)
 
         request_undo(black, match_id)
-        result, code = decline_undo(white, match_id)
+        result, _code = decline_undo(white, match_id)
         assert result['success'] is True
         assert result['undoDeclined'] is True
 
     def test_cannot_accept_own_undo(self, sample_user, admin_user):
         """不能接受自己的悔棋请求"""
-        match_id, black, white = self._setup_played_match(sample_user, admin_user)
+        match_id, black, _white = self._setup_played_match(sample_user, admin_user)
 
         request_undo(black, match_id)
-        result, code = accept_undo(black, match_id)
+        _result, code = accept_undo(black, match_id)
         assert code == 400
 
 
@@ -406,7 +406,7 @@ class TestDrawOperations:
     def test_request_draw(self, sample_user, admin_user):
         """请求和棋"""
         match_id = self._setup_playing_match(sample_user, admin_user)
-        result, code = request_draw(sample_user, match_id)
+        result, _code = request_draw(sample_user, match_id)
         assert result['success'] is True
         assert result['drawRequested'] is True
 
@@ -414,7 +414,7 @@ class TestDrawOperations:
         """接受和棋"""
         match_id = self._setup_playing_match(sample_user, admin_user)
         request_draw(sample_user, match_id)
-        result, code = accept_draw(admin_user, match_id)
+        result, _code = accept_draw(admin_user, match_id)
         assert result['success'] is True
         assert result['winner'] == 0
 
@@ -426,14 +426,14 @@ class TestDrawOperations:
         """拒绝和棋"""
         match_id = self._setup_playing_match(sample_user, admin_user)
         request_draw(sample_user, match_id)
-        result, code = decline_draw(admin_user, match_id)
+        result, _code = decline_draw(admin_user, match_id)
         assert result['success'] is True
 
     def test_mutual_draw(self, sample_user, admin_user):
         """双方同时请求和棋"""
         match_id = self._setup_playing_match(sample_user, admin_user)
         request_draw(sample_user, match_id)
-        result, code = request_draw(admin_user, match_id)
+        result, _code = request_draw(admin_user, match_id)
         assert result['success'] is True
         assert result.get('drawAccepted') is True
 
@@ -441,7 +441,7 @@ class TestDrawOperations:
         """不能接受自己的和棋请求"""
         match_id = self._setup_playing_match(sample_user, admin_user)
         request_draw(sample_user, match_id)
-        result, code = accept_draw(sample_user, match_id)
+        _result, code = accept_draw(sample_user, match_id)
         assert code == 400
 
 
@@ -453,7 +453,7 @@ class TestResign:
         match_id, _ = create_match(sample_user)
         join_match(admin_user, match_id)
 
-        result, code = resign(sample_user, match_id)
+        result, _code = resign(sample_user, match_id)
         assert result['success'] is True
 
         with active_matches_lock:
@@ -546,7 +546,7 @@ class TestAdminOperations:
         match_id, _ = create_match(sample_user)
         join_match(admin_user, match_id)
 
-        result, code = force_close_match(match_id)
+        result, _code = force_close_match(match_id)
         assert result['success'] is True
 
         with active_matches_lock:
@@ -555,7 +555,7 @@ class TestAdminOperations:
 
     def test_force_close_nonexistent(self):
         """强制关闭不存在房间"""
-        result, code = force_close_match('nonexist')
+        _result, code = force_close_match('nonexist')
         assert code == 404
 
     def test_force_close_all(self, sample_user, admin_user):
@@ -563,7 +563,7 @@ class TestAdminOperations:
         create_match(sample_user)
         create_match(admin_user)
 
-        result, code = force_close_all_matches()
+        result, _code = force_close_all_matches()
         assert result['success'] is True
         assert result['closed_count'] >= 2
 
@@ -572,7 +572,7 @@ class TestAdminOperations:
         match_id, _ = create_match(sample_user)
         join_match(admin_user, match_id)
 
-        result, code = force_restart_match(match_id)
+        result, _code = force_restart_match(match_id)
         assert result['success'] is True
         assert result['restartInitiated'] is True
 
@@ -586,7 +586,7 @@ class TestAdminOperations:
         match_id, _ = create_match(sample_user)
         join_match(admin_user, match_id)
 
-        result, code = force_move(match_id, 7, 7, 1)
+        result, _code = force_move(match_id, 7, 7, 1)
         assert result['success'] is True
 
         with active_matches_lock:
@@ -598,7 +598,7 @@ class TestAdminOperations:
         match_id, _ = create_match(sample_user)
         join_match(admin_user, match_id)
 
-        result, code = force_move(match_id, 20, 20, 1)
+        _result, code = force_move(match_id, 20, 20, 1)
         assert code == 400
 
     def test_force_move_occupied(self, sample_user, admin_user):
@@ -607,7 +607,7 @@ class TestAdminOperations:
         join_match(admin_user, match_id)
         force_move(match_id, 7, 7, 1)
 
-        result, code = force_move(match_id, 7, 7, 2)
+        _result, code = force_move(match_id, 7, 7, 2)
         assert code == 400
 
 
@@ -617,7 +617,7 @@ class TestMatchIntegration:
     def test_full_game_flow(self, sample_user, admin_user):
         """完整对局流程"""
         # 创建
-        match_id, color = create_match(sample_user)
+        match_id, _color = create_match(sample_user)
         assert match_id is not None
 
         # 加入
@@ -665,10 +665,10 @@ class TestMatchIntegration:
         make_move(black, match_id, 7, 7)
         make_move(white, match_id, 7, 8)
 
-        result, code = request_undo(black, match_id)
+        result, _code = request_undo(black, match_id)
         assert result['undoRequested'] is True
 
-        result, code = accept_undo(white, match_id)
+        result, _code = accept_undo(white, match_id)
         assert result['undoAccepted'] is True
 
         with active_matches_lock:
@@ -682,10 +682,10 @@ class TestMatchIntegration:
         match_id, _ = create_match(sample_user)
         join_match(admin_user, match_id)
 
-        result, code = request_draw(sample_user, match_id)
+        result, _code = request_draw(sample_user, match_id)
         assert result['drawRequested'] is True
 
-        result, code = accept_draw(admin_user, match_id)
+        result, _code = accept_draw(admin_user, match_id)
         assert result['drawAccepted'] is True
 
         with active_matches_lock:

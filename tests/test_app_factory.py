@@ -6,8 +6,6 @@ import os
 import sys
 from unittest.mock import patch
 
-import pytest
-
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from server import create_app
@@ -71,11 +69,11 @@ class TestAppRoutes:
         """关键路由已注册"""
         with app.app_context():
             rules = [rule.rule for rule in app.url_map.iter_rules()]
-            assert '/api/auth/login' in rules
-            assert '/api/game/ai-move' in rules
+            assert '/api/login' in rules
+            assert '/api/ai/move' in rules
             assert '/api/match/create' in rules
             assert '/api/messages/send' in rules
-            assert '/api/user/profile' in rules
+            assert '/api/profile' in rules
             assert '/api/admin/users' in rules
 
     def test_get_root(self, app):

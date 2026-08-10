@@ -7,12 +7,17 @@ import hashlib
 import re
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, make_response, request
 
 from ..auth import geetest_verify, require_auth
-from ..config import GT4_CAPTCHA_ID, GT4_LOGIN_CAPTCHA_ID, GT4_LOGIN_CAPTCHA_KEY, LOGIN_VERIFY_URL
+from ..config import (
+    GT4_CAPTCHA_ID,
+    GT4_LOGIN_CAPTCHA_ID,
+    GT4_LOGIN_CAPTCHA_KEY,
+    LOGIN_VERIFY_URL,
+)
 from ..logger import logger
 
 # TURNSTILE_SITE_KEY
@@ -116,8 +121,8 @@ def register():
             'score': 0,
             'wins': 0,
             'games': 0,
-            'joinDate': datetime.now().strftime('%Y-%m-%d'),
-            'lastLogin': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'joinDate': datetime.now(timezone.utc).strftime('%Y-%m-%d'),
+            'lastLogin': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
             'isAdmin': False,
             'isSuperAdmin': False,
             'bannedUntil': None,
@@ -148,8 +153,8 @@ def register():
         )
         resp.set_cookie('token', token, max_age=30 * 24 * 3600, httponly=False, samesite='Lax', path='/')
         return resp
-    except Exception as e:
-        logger.error(f'注册错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'注册错误: {e!s}')
         return jsonify({'error': '服务器内部错误'}), 500
 
 
@@ -202,7 +207,7 @@ def login():
             banned_until = user['bannedUntil']
             if banned_until and time.time() < banned_until:
                 return jsonify(
-                    {'error': f'账号已被封禁至 {datetime.fromtimestamp(banned_until).strftime("%Y-%m-%d %H:%M:%S")}'}
+                    {'error': f'账号已被封禁至 {datetime.fromtimestamp(banned_until, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")}'}
                 ), 403
 
         if 'password' in user:
@@ -214,7 +219,7 @@ def login():
             if not plain_pwd or plain_pwd != password:
                 return jsonify({'error': '用户名或密码错误'}), 401
 
-        user['lastLogin'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        user['lastLogin'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         save_user(username, user)
 
         token = str(uuid.uuid4())
@@ -240,8 +245,8 @@ def login():
         )
         resp.set_cookie('token', token, max_age=30 * 24 * 3600, httponly=False, samesite='Lax', path='/')
         return resp
-    except Exception as e:
-        logger.error(f'登录错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'登录错误: {e!s}')
         return jsonify({'error': '服务器内部错误'}), 500
 
 
@@ -257,8 +262,8 @@ def logout(user):
         resp = make_response(jsonify({'success': True}))
         resp.set_cookie('token', '', max_age=0, path='/')
         return resp
-    except Exception as e:
-        logger.error(f'退出错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'退出错误: {e!s}')
         return jsonify({'success': True})
 
 
@@ -277,8 +282,8 @@ def delete_guest():
         delete_user(username)
 
         return jsonify({'success': True})
-    except Exception as e:
-        logger.error(f'删除访客账号错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'删除访客账号错误: {e!s}')
         return jsonify({'success': True})
 
 
@@ -322,12 +327,12 @@ def guest_login():
                 if banned_until and time.time() < banned_until:
                     return jsonify(
                         {
-                            'error': f'账号已被封禁至 {datetime.fromtimestamp(banned_until).strftime("%Y-%m-%d %H:%M:%S")}'
+                            'error': f'账号已被封禁至 {datetime.fromtimestamp(banned_until, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")}'
                         }
                     ), 403
             token = str(uuid.uuid4())
             add_token(token, username)
-            existing_user['lastLogin'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            existing_user['lastLogin'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
             save_user(username, existing_user)
         else:
             user_data = {
@@ -336,8 +341,8 @@ def guest_login():
                 'score': 0,
                 'wins': 0,
                 'games': 0,
-                'joinDate': datetime.now().strftime('%Y-%m-%d'),
-                'lastLogin': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'joinDate': datetime.now(timezone.utc).strftime('%Y-%m-%d'),
+                'lastLogin': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
                 'isAdmin': False,
                 'isSuperAdmin': False,
                 'bannedUntil': None,
@@ -368,8 +373,8 @@ def guest_login():
         )
         resp.set_cookie('token', token, max_age=30 * 24 * 3600, httponly=False, samesite='Lax', path='/')
         return resp
-    except Exception as e:
-        logger.error(f'访客登录错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'访客登录错误: {e!s}')
         return jsonify({'error': '服务器内部错误'}), 500
 
 
@@ -423,13 +428,13 @@ def login_password_free():
             banned_until = user['bannedUntil']
             if banned_until and time.time() < banned_until:
                 return jsonify(
-                    {'error': f'账号已被封禁至 {datetime.fromtimestamp(banned_until).strftime("%Y-%m-%d %H:%M:%S")}'}
+                    {'error': f'账号已被封禁至 {datetime.fromtimestamp(banned_until, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")}'}
                 ), 403
 
         if max_attempts > 0:
             user['passwordFreeRemainingAttempts'] = remaining - 1
 
-        user['lastLogin'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        user['lastLogin'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         save_user(username, user)
 
         token = str(uuid.uuid4())
@@ -455,6 +460,6 @@ def login_password_free():
         )
         resp.set_cookie('token', token, max_age=30 * 24 * 3600, httponly=False, samesite='Lax', path='/')
         return resp
-    except Exception as e:
-        logger.error(f'免密登录错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'免密登录错误: {e!s}')
         return jsonify({'error': '服务器内部错误'}), 500

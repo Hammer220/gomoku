@@ -6,11 +6,11 @@ import json
 import os
 import secrets
 
-from flask import Flask, send_from_directory
+from flask import Flask
 from flask import request as socket_request
 from flask_socketio import SocketIO, emit, join_room, leave_room
 
-from .config import SCRIPT_DIR, STATIC_DIR, cfg, get_config
+from .config import SCRIPT_DIR, STATIC_DIR
 from .logger import logger, setup_logging
 
 socketio = SocketIO()
@@ -102,7 +102,7 @@ def _emit_match_update(sio, match_id):
                 match = active_matches[match_id]
                 event_data = _build_match_event(match)
         sio.emit('match_updated', event_data, room=match_id)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning(f'Socket.IO emit failed for match {match_id}: {e}')
 
 
@@ -213,7 +213,7 @@ def register_socket_events(sio):
 
             _emit_match_update(sio, match_id)
             _ws_success_response(sid, {'action': 'move', 'result': result_data})
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket落子错误: {e}')
             _ws_error_response(sid, str(e))
 
@@ -236,7 +236,7 @@ def register_socket_events(sio):
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _emit_match_update(sio, match_id)
             _ws_success_response(sid, {'action': 'undo_request', 'result': result_data})
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket悔棋请求错误: {e}')
             _ws_error_response(sid, str(e))
 
@@ -259,7 +259,7 @@ def register_socket_events(sio):
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _emit_match_update(sio, match_id)
             _ws_success_response(sid, {'action': 'undo_accept', 'result': result_data})
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket接受悔棋错误: {e}')
             _ws_error_response(sid, str(e))
 
@@ -282,7 +282,7 @@ def register_socket_events(sio):
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _emit_match_update(sio, match_id)
             _ws_success_response(sid, {'action': 'undo_decline', 'result': result_data})
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket拒绝悔棋错误: {e}')
             _ws_error_response(sid, str(e))
 
@@ -305,7 +305,7 @@ def register_socket_events(sio):
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _emit_match_update(sio, match_id)
             _ws_success_response(sid, {'action': 'draw_request', 'result': result_data})
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket和棋请求错误: {e}')
             _ws_error_response(sid, str(e))
 
@@ -328,7 +328,7 @@ def register_socket_events(sio):
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _emit_match_update(sio, match_id)
             _ws_success_response(sid, {'action': 'draw_accept', 'result': result_data})
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket接受和棋错误: {e}')
             _ws_error_response(sid, str(e))
 
@@ -351,7 +351,7 @@ def register_socket_events(sio):
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _emit_match_update(sio, match_id)
             _ws_success_response(sid, {'action': 'draw_decline', 'result': result_data})
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket拒绝和棋错误: {e}')
             _ws_error_response(sid, str(e))
 
@@ -374,7 +374,7 @@ def register_socket_events(sio):
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _emit_match_update(sio, match_id)
             _ws_success_response(sid, {'action': 'resign', 'result': result_data})
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket认输错误: {e}')
             _ws_error_response(sid, str(e))
 
@@ -397,7 +397,7 @@ def register_socket_events(sio):
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _emit_match_update(sio, match_id)
             _ws_success_response(sid, {'action': 'restart', 'result': result_data})
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket重开请求错误: {e}')
             _ws_error_response(sid, str(e))
 
@@ -420,7 +420,7 @@ def register_socket_events(sio):
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _emit_match_update(sio, match_id)
             _ws_success_response(sid, {'action': 'restart_decline', 'result': result_data})
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket拒绝重开错误: {e}')
             _ws_error_response(sid, str(e))
 
@@ -443,7 +443,7 @@ def register_socket_events(sio):
             result = close_match(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _ws_success_response(sid, {'action': 'close_room', 'result': result_data})
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket关闭房间错误: {e}')
             _ws_error_response(sid, str(e))
 
@@ -466,7 +466,7 @@ def register_socket_events(sio):
             _emit_match_update(sio, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _ws_success_response(sid, {'action': 'leave_room', 'result': result_data})
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket离开房间错误: {e}')
             _ws_error_response(sid, str(e))
 
@@ -478,13 +478,13 @@ def register_socket_events(sio):
         if not user:
             return
 
-        match_id = data.get('matchId') or data.get('match_id')
+        data.get('matchId') or data.get('match_id')
         try:
             from .match_manager import heartbeat
 
             heartbeat(user)
             _ws_success_response(sid, {'action': 'heartbeat', 'result': {'success': True}})
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.warning(f'WebSocket心跳错误: {e}')
 
     # ==================== 兼容旧的简单事件（仅转发） ====================

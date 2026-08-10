@@ -23,8 +23,8 @@ from ..admin_routes import admin_bp, require_permission
 def admin_get_matches(admin_user):
     try:
         return jsonify(get_all_matches())
-    except Exception as e:
-        logger.error(f'获取匹配列表错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'获取匹配列表错误: {e!s}')
         return jsonify({'error': '获取匹配列表失败'}), 500
 
 
@@ -76,6 +76,6 @@ def admin_force_move(admin_user, match_id):
 
         logger.info(f'管理员 {admin_user["username"]} 强制落子 房间 {match_id} ({row},{col}) player={player}')
         return force_move(match_id, row, col, player)
-    except Exception as e:
-        logger.error(f'强制落子错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'强制落子错误: {e!s}')
         return jsonify({'error': '强制落子失败'}), 500

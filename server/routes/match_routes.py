@@ -106,7 +106,7 @@ def _emit_match_update(match_id):
                 match = active_matches[match_id]
                 event_data = _build_match_event(match)
         socketio.emit('match_updated', event_data, room=match_id)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.warning(f'Socket.IO emit failed for match {match_id}: {e}')
 
 
@@ -139,7 +139,7 @@ def api_create_match(user):
                 'invitedFriends': invited_friends,
             }
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Create match error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -159,7 +159,7 @@ def api_join_match(user):
             return resp, code
         _emit_match_update(match_id)
         return result
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Join match error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -175,7 +175,7 @@ def api_make_move(user):
         result = make_move(user, match_id, row, col)
         _emit_match_update(match_id)
         return result
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Move error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -186,7 +186,7 @@ def api_get_match_status(user):
     try:
         match_id = request.args.get('matchId', '')
         return get_match_status(user, match_id)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Status error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -196,7 +196,7 @@ def api_get_match_status(user):
 def api_get_match_status_by_id(user, match_id):
     try:
         return get_match_status(user, match_id)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Status error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -206,7 +206,7 @@ def api_get_match_status_by_id(user, match_id):
 def api_get_match_status_by_id_alt(user, match_id):
     try:
         return get_match_status(user, match_id)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Status error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -220,7 +220,7 @@ def api_leave_match(user):
         result = leave_match(user, match_id)
         _emit_match_update(match_id)
         return result
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Leave match error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -234,7 +234,7 @@ def api_close_match(user):
         _emit_match_update(match_id)
         result = close_match(user, match_id)
         return result
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Close match error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -248,7 +248,7 @@ def api_restart_match(user):
         result = restart_match(user, match_id)
         _emit_match_update(match_id)
         return result
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Restart match error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -258,7 +258,7 @@ def api_restart_match(user):
 def api_get_my_match(user):
     try:
         return jsonify(get_my_match(user['username']))
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'My match error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -268,7 +268,7 @@ def api_get_my_match(user):
 def api_list_matches(user):
     try:
         return jsonify(list_available_matches(user['username']))
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'List matches error for user {user.get("username", "unknown")}: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -289,7 +289,7 @@ def api_decline_restart(user):
         result = decline_restart(user, match_id)
         _emit_match_update(match_id)
         return result
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Decline restart error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -306,7 +306,7 @@ def api_request_undo(user):
         result = request_undo(user, match_id)
         _emit_match_update(match_id)
         return result
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Request undo error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -320,7 +320,7 @@ def api_accept_undo(user):
         result = accept_undo(user, match_id)
         _emit_match_update(match_id)
         return result
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Accept undo error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -334,7 +334,7 @@ def api_decline_undo(user):
         result = decline_undo(user, match_id)
         _emit_match_update(match_id)
         return result
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Decline undo error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -351,7 +351,7 @@ def api_request_draw(user):
         result = request_draw(user, match_id)
         _emit_match_update(match_id)
         return result
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Request draw error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -365,7 +365,7 @@ def api_accept_draw(user):
         result = accept_draw(user, match_id)
         _emit_match_update(match_id)
         return result
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Accept draw error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -379,7 +379,7 @@ def api_decline_draw(user):
         result = decline_draw(user, match_id)
         _emit_match_update(match_id)
         return result
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Decline draw error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -393,7 +393,7 @@ def api_resign(user):
         result = resign(user, match_id)
         _emit_match_update(match_id)
         return result
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Resign error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -406,7 +406,7 @@ def api_resign(user):
 def api_spectate_list(user):
     try:
         return jsonify(get_spectatable_matches())
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Spectate list error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -426,7 +426,7 @@ def api_spectate_join(user):
             return resp, code
         _emit_match_update(match_id)
         return result
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Spectate join error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -440,7 +440,7 @@ def api_spectate_leave(user):
         result = leave_spectate(user, match_id)
         _emit_match_update(match_id)
         return result
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Spectate leave error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -451,7 +451,7 @@ def api_spectate_status(user):
     try:
         match_id = request.args.get('matchId', '')
         return get_spectate_status(user, match_id)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Spectate status error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -470,7 +470,7 @@ def api_get_spectate_token(user):
                 return jsonify({'error': '您不在这个房间中'}), 403
             token = match.get('spectateToken', '')
         return jsonify({'success': True, 'token': token, 'matchId': match_id})
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Get spectate token error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -510,7 +510,7 @@ def api_public_spectate():
                 'moveDeadline': match.get('moveDeadline', 0),
                 'restartVersion': match.get('restartVersion', 0),
             }, 200
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Public spectate error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -571,7 +571,7 @@ def api_invite_friends_to_match(user, match_id):
             return jsonify(
                 {'success': True, 'invited': invited, 'alreadyInvited': already_invited, 'notFriends': not_friends}
             )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Invite friends error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -588,7 +588,7 @@ def api_get_match_invites(user, match_id):
             return jsonify(
                 {'inviteOnly': match.get('inviteOnly', False), 'invitedFriends': match.get('invitedFriends', [])}
             )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Get match invites error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
@@ -653,7 +653,7 @@ def api_poll_events(user):
                     )
 
         return jsonify({'events': result_events})
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Poll events error: {e}')
         return jsonify({'events': []})
 
@@ -680,6 +680,6 @@ def api_set_invite_only(user, match_id):
             _emit_match_update(match_id)
 
             return jsonify({'success': True, 'inviteOnly': invite_only})
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Set invite only error: {e}')
         return jsonify({'error': 'Internal server error'}), 500

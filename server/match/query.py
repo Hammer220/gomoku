@@ -52,7 +52,7 @@ def heartbeat(user):
     update_user_connection(username)
 
     with active_matches_lock:
-        for _match_id, match in active_matches.items():
+        for match in active_matches.values():
             if match['status'] in ['waiting', 'playing', 'waiting_for_reconnect'] and (
                 match['creator'] == username or match.get('opponent') == username
             ):

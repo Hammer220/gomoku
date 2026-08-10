@@ -6,7 +6,7 @@ require_super_admin（超级管理员认证），以及 token 验证和用户获
 import hashlib
 import hmac
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 
 import requests
@@ -80,7 +80,7 @@ def geetest_verify(
 
     try:
         resp = requests.post(use_verify_url, data=params, headers=headers, timeout=10)
-        logger.info(f'极验请求状态码: {resp.status_code}, 原始返回: {repr(resp.text)}')
+        logger.info(f'极验请求状态码: {resp.status_code}, 原始返回: {resp.text!r}')
         if resp.status_code != 200:
             logger.warning(f'极验接口返回非200状态码: {resp.status_code}，触发容灾模式')
             return True, 'request geetest api fail'
@@ -97,10 +97,10 @@ def geetest_verify(
         else:
             return False, f'验证失败：{data.get("reason", "未知原因")}'
     except requests.exceptions.RequestException as e:
-        logger.error(f'极验网络请求异常: {str(e)}，触发容灾模式')
+        logger.error(f'极验网络请求异常: {e!s}，触发容灾模式')
         return True, 'request geetest api fail'
-    except Exception as e:
-        logger.error(f'极验校验全局异常: {str(e)}，触发容灾模式')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'极验校验全局异常: {e!s}，触发容灾模式')
         return True, 'request geetest api fail'
 
 
@@ -118,7 +118,7 @@ def require_auth(f):
             banned_until = user['bannedUntil']
             if banned_until and time.time() < banned_until:
                 return jsonify(
-                    {'error': f'账号已被封禁至 {datetime.fromtimestamp(banned_until).strftime("%Y-%m-%d %H:%M:%S")}'}
+                    {'error': f'账号已被封禁至 {datetime.fromtimestamp(banned_until, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")}'}
                 ), 403
         return f(user, *args, **kwargs)
 

@@ -42,8 +42,8 @@ def get_received_messages(user):
         for msg in received:
             msg['isRead'] = username in msg.get('read_by', [])
         return jsonify({'messages': received})
-    except Exception as e:
-        logger.error(f'获取收件箱消息错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'获取收件箱消息错误: {e!s}')
         return jsonify({'error': get_text('get_messages_error', lang)}), 500
 
 
@@ -57,8 +57,8 @@ def get_sent_messages(user):
         sent = [m for m in all_msgs if m.get('from') == username]
         sent.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
         return jsonify({'messages': sent})
-    except Exception as e:
-        logger.error(f'获取已发送消息错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'获取已发送消息错误: {e!s}')
         return jsonify({'error': get_text('get_messages_error', lang)}), 500
 
 
@@ -74,8 +74,8 @@ def get_unread_count(user):
             if username in m.get('to', []) and username not in m.get('read_by', []):
                 count += 1
         return jsonify({'unreadCount': count})
-    except Exception as e:
-        logger.error(f'获取未读消息数错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'获取未读消息数错误: {e!s}')
         return jsonify({'error': get_text('get_unread_count_error', lang)}), 500
 
 
@@ -168,8 +168,8 @@ def send_message(user):
 
         logger.info(f'用户 {from_username} 发送消息给 {valid_recipients}')
         return jsonify({'success': True, 'message': get_text('message_sent_success', lang), 'data': msg})
-    except Exception as e:
-        logger.error(f'发送消息错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'发送消息错误: {e!s}')
         return jsonify({'error': get_text('send_message_error', lang)}), 500
 
 
@@ -206,8 +206,8 @@ def mark_as_read(user):
         socketio.push_unread_count_update(username, unread_count)
 
         return jsonify({'success': True})
-    except Exception as e:
-        logger.error(f'标记已读错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'标记已读错误: {e!s}')
         return jsonify({'error': get_text('mark_read_error', lang)}), 500
 
 
@@ -225,8 +225,8 @@ def mark_all_as_read(user):
                 update_message(msg['id'], msg)
 
         return jsonify({'success': True})
-    except Exception as e:
-        logger.error(f'全部标记已读错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'全部标记已读错误: {e!s}')
         return jsonify({'error': get_text('mark_read_error', lang)}), 500
 
 
@@ -259,8 +259,8 @@ def delete_message(user, message_id):
             return jsonify({'error': get_text('message_not_found', lang)}), 404
 
         return jsonify({'success': True})
-    except Exception as e:
-        logger.error(f'删除消息错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'删除消息错误: {e!s}')
         return jsonify({'error': get_text('delete_message_error', lang)}), 500
 
 
@@ -283,8 +283,8 @@ def get_user_list(user):
                 )
         user_list.sort(key=lambda x: x['username'])
         return jsonify({'users': user_list})
-    except Exception as e:
-        logger.error(f'获取用户列表错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'获取用户列表错误: {e!s}')
         return jsonify({'error': get_text('get_user_list_error', lang)}), 500
 
 
@@ -350,6 +350,6 @@ def claim_red_packet(user):
         logger.info(f'用户 {username} 领取了 {msg["from"]} 的红包 {claimed_amount} 积分')
 
         return jsonify({'success': True, 'claimed_amount': claimed_amount, 'red_packet': rp})
-    except Exception as e:
-        logger.error(f'领取红包错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'领取红包错误: {e!s}')
         return jsonify({'error': get_text('claim_red_packet_error', lang) or '领取红包失败'}), 500

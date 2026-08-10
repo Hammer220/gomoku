@@ -32,7 +32,7 @@ def force_close_all_matches():
     """
     closed_count = 0
     with active_matches_lock:
-        for _match_id, match in active_matches.items():
+        for match in active_matches.values():
             if match['status'] in ['waiting', 'playing', 'waiting_for_reconnect']:
                 match['status'] = 'closed'
                 match['closed_at'] = int(time.time())

@@ -38,7 +38,7 @@ def _build_admin_user_list():
     users = get_all_users_from_db()
     tokens = get_all_tokens()
     online_users = set()
-    for _token, token_data in tokens.items():
+    for token_data in tokens.values():
         if isinstance(token_data, dict) and now - token_data.get('createdAt', 0) < 3600:
             online_users.add(token_data.get('username'))
 
@@ -85,8 +85,8 @@ def admin_get_users(admin_user):
     try:
         user_list = _build_admin_user_list()
         return jsonify({'users': user_list})
-    except Exception as e:
-        logger.error(f'获取用户列表错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'获取用户列表错误: {e!s}')
         return jsonify({'error': '获取用户列表失败'}), 500
 
 
@@ -110,8 +110,8 @@ def admin_get_user(admin_user, username):
                 'bannedUntil': user.get('bannedUntil'),
             }
         )
-    except Exception as e:
-        logger.error(f'获取用户详情错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'获取用户详情错误: {e!s}')
         return jsonify({'error': '获取用户详情失败'}), 500
 
 
@@ -140,8 +140,8 @@ def admin_ban_user(admin_user, username):
         _invalidate_admin_users_cache()
         logger.info(f'管理员 {admin_user["username"]} 封禁了 {username}，时长: {duration}秒')
         return jsonify({'success': True, 'message': '操作成功'})
-    except Exception as e:
-        logger.error(f'封禁用户错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'封禁用户错误: {e!s}')
         return jsonify({'error': '封禁用户失败'}), 500
 
 
@@ -165,8 +165,8 @@ def admin_set_score(admin_user, username):
         save_user(username, user)
         _invalidate_admin_users_cache()
         return jsonify({'success': True, 'message': '积分修改成功'})
-    except Exception as e:
-        logger.error(f'修改积分错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'修改积分错误: {e!s}')
         return jsonify({'error': '修改积分失败'}), 500
 
 
@@ -189,8 +189,8 @@ def admin_set_admin(admin_user, username):
         save_user(username, user)
         _invalidate_admin_users_cache()
         return jsonify({'success': True, 'message': '权限修改成功'})
-    except Exception as e:
-        logger.error(f'修改管理员权限错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'修改管理员权限错误: {e!s}')
         return jsonify({'error': '修改管理员权限失败'}), 500
 
 
@@ -216,8 +216,8 @@ def admin_set_captcha(admin_user):
         _invalidate_admin_users_cache()
         logger.info(f'管理员 {admin_user["username"]} 设置 {username} 的验证码: {use_captcha}')
         return jsonify({'success': True, 'message': '验证码设置已更新'})
-    except Exception as e:
-        logger.error(f'设置验证码错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'设置验证码错误: {e!s}')
         return jsonify({'error': '设置验证码失败'}), 500
 
 
@@ -261,8 +261,8 @@ def admin_set_password_free(admin_user):
         _invalidate_admin_users_cache()
         logger.info(f'管理员 {admin_user["username"]} 设置 {username} 的免密登录: {password_free}')
         return jsonify({'success': True, 'message': '免密登录设置已更新'})
-    except Exception as e:
-        logger.error(f'设置免密登录错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'设置免密登录错误: {e!s}')
         return jsonify({'error': '设置免密登录失败'}), 500
 
 
@@ -292,8 +292,8 @@ def admin_change_password(admin_user):
         _invalidate_admin_users_cache()
         logger.info(f'管理员 {admin_user["username"]} 修改了 {username} 的密码')
         return jsonify({'success': True, 'message': '密码修改成功'})
-    except Exception as e:
-        logger.error(f'修改密码错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'修改密码错误: {e!s}')
         return jsonify({'error': '修改密码失败'}), 500
 
 
@@ -333,8 +333,8 @@ def admin_ban(admin_user):
         _invalidate_admin_users_cache()
         logger.info(f'管理员 {admin_user["username"]} 封禁了 {username}，时长: {minutes}分钟')
         return jsonify({'success': True, 'message': '操作成功'})
-    except Exception as e:
-        logger.error(f'封禁用户错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'封禁用户错误: {e!s}')
         return jsonify({'error': '封禁用户失败'}), 500
 
 
@@ -364,8 +364,8 @@ def admin_unban(admin_user):
         _invalidate_admin_users_cache()
         logger.info(f'管理员 {admin_user["username"]} 解封了 {username}')
         return jsonify({'success': True, 'message': '操作成功'})
-    except Exception as e:
-        logger.error(f'解封用户错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'解封用户错误: {e!s}')
         return jsonify({'error': '解封用户失败'}), 500
 
 
@@ -393,8 +393,8 @@ def admin_kick(admin_user):
         _invalidate_admin_users_cache()
         logger.info(f'管理员 {admin_user["username"]} 强制登出了 {username}')
         return jsonify({'success': True, 'message': '操作成功'})
-    except Exception as e:
-        logger.error(f'强制登出错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'强制登出错误: {e!s}')
         return jsonify({'error': '强制登出失败'}), 500
 
 
@@ -416,6 +416,6 @@ def admin_delete_user(admin_user, username):
         _invalidate_admin_users_cache()
         logger.info(f'管理员 {admin_user["username"]} 注销了用户 {username}')
         return jsonify({'success': True, 'message': '操作成功'})
-    except Exception as e:
-        logger.error(f'注销用户错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'注销用户错误: {e!s}')
         return jsonify({'error': '注销用户失败'}), 500

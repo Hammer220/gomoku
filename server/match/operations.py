@@ -377,7 +377,7 @@ def close_match(user, match_id):
         match['closed_at'] = int(time.time())
         match['closed_by'] = username
 
-        if 'opponent' in match and match['opponent']:
+        if match.get('opponent'):
             match['opponent_left'] = True
 
         save_matches()

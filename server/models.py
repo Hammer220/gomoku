@@ -2,6 +2,7 @@
 提供 SQLite 数据库操作、用户 CRUD 操作、密码管理等基础数据操作。
 """
 
+import contextlib
 import json
 import os
 import threading
@@ -111,9 +112,9 @@ def clear_cache(cache_key=None):
             else:
                 cache[cache_key] = None
     else:
-        for key in cache:
-            if isinstance(cache[key], dict):
-                cache[key].clear()
+        for key, value in cache.items():
+            if isinstance(value, dict):
+                value.clear()
             else:
                 cache[key] = None
 
@@ -217,10 +218,8 @@ def save_user(username, data):
         ('password_free_remaining_attempts', 'INTEGER', 0),
         ('is_guest', 'INTEGER', 0),
     ]:
-        try:
+        with contextlib.suppress(Exception):
             c.execute(f'ALTER TABLE users ADD COLUMN {col} {col_type} DEFAULT {default}')
-        except Exception:
-            pass
 
     c.execute(
         """
@@ -618,25 +617,21 @@ def load_messages():
             to_list = [to_val] if to_val else []
 
         read_by_val = None
-        try:
+        with contextlib.suppress(Exception):
             if 'read_by' in row:
                 read_by_val = row['read_by']
-        except Exception:
-            pass
         try:
             read_by_list = json.loads(read_by_val) if read_by_val else []
         except (json.JSONDecodeError, TypeError):
             read_by_list = []
 
         image_val = ''
-        try:
+        with contextlib.suppress(Exception):
             if 'image' in row:
                 image_val = row['image'] or ''
-        except Exception:
-            pass
 
         red_packet_val = None
-        try:
+        with contextlib.suppress(Exception):
             if 'red_packet' in row:
                 rp = row['red_packet']
                 if rp:
@@ -644,8 +639,6 @@ def load_messages():
                         red_packet_val = json.loads(rp)
                     except (json.JSONDecodeError, TypeError):
                         red_packet_val = None
-        except Exception:
-            pass
 
         messages[str(row['id'])] = {
             'id': row['id'],

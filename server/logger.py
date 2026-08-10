@@ -8,6 +8,7 @@
   - 静态文件日志: 紫色方法 + 普通状态码，整体暗色以区分 API 请求
 """
 
+import contextlib
 import logging
 import os
 import platform
@@ -21,13 +22,11 @@ _logging_initialized = False
 IS_WINDOWS = platform.system() == 'Windows'
 
 if IS_WINDOWS:
-    try:
+    with contextlib.suppress(Exception):
         import ctypes
 
         kernel32 = ctypes.windll.kernel32
         kernel32.SetConsoleMode(kernel32.GetStdHandle(-11), 7)
-    except Exception:
-        pass
 
 
 class ANSI:

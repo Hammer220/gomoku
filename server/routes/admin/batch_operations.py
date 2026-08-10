@@ -25,8 +25,8 @@ def admin_batch_ban(admin_user):
         success_count, failed_count = _batch_operate(admin_user, usernames, 'ban', minutes=minutes)
         logger.info(f'管理员 {admin_user["username"]} 批量封禁：成功 {success_count}，失败 {failed_count}')
         return jsonify({'success_count': success_count, 'failed_count': failed_count})
-    except Exception as e:
-        logger.error(f'批量封禁错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'批量封禁错误: {e!s}')
         return jsonify({'error': '批量封禁失败'}), 500
 
 
@@ -45,8 +45,8 @@ def admin_batch_unban(admin_user):
         success_count, failed_count = _batch_operate(admin_user, usernames, 'unban')
         logger.info(f'管理员 {admin_user["username"]} 批量解封：成功 {success_count}，失败 {failed_count}')
         return jsonify({'success_count': success_count, 'failed_count': failed_count})
-    except Exception as e:
-        logger.error(f'批量解封错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'批量解封错误: {e!s}')
         return jsonify({'error': '批量解封失败'}), 500
 
 
@@ -65,8 +65,8 @@ def admin_batch_kick(admin_user):
         success_count, failed_count = _batch_operate(admin_user, usernames, 'kick')
         logger.info(f'管理员 {admin_user["username"]} 批量强制登出：成功 {success_count}，失败 {failed_count}')
         return jsonify({'success_count': success_count, 'failed_count': failed_count})
-    except Exception as e:
-        logger.error(f'批量强制登出错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'批量强制登出错误: {e!s}')
         return jsonify({'error': '批量强制登出失败'}), 500
 
 
@@ -85,6 +85,6 @@ def admin_batch_delete(admin_user):
         success_count, failed_count = _batch_operate(admin_user, usernames, 'delete')
         logger.info(f'管理员 {admin_user["username"]} 批量注销：成功 {success_count}，失败 {failed_count}')
         return jsonify({'success_count': success_count, 'failed_count': failed_count})
-    except Exception as e:
-        logger.error(f'批量注销错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'批量注销错误: {e!s}')
         return jsonify({'error': '批量注销失败'}), 500

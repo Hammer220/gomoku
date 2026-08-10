@@ -3,7 +3,7 @@
 """
 
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import jsonify, request
 
@@ -32,8 +32,8 @@ def admin_get_stats(admin_user):
         total_records = len(records) if isinstance(records, (dict, list)) else 0
 
         return jsonify({'totalUsers': total_users, 'totalRecords': total_records})
-    except Exception as e:
-        logger.error(f'获取统计信息错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'获取统计信息错误: {e!s}')
         return jsonify({'error': '获取统计信息失败'}), 500
 
 
@@ -52,8 +52,8 @@ def admin_get_records(admin_user):
 
         record_list.sort(key=lambda x: x.get('endTime', 0), reverse=True)
         return jsonify({'records': record_list})
-    except Exception as e:
-        logger.error(f'获取所有记录错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'获取所有记录错误: {e!s}')
         return jsonify({'records': []})
 
 
@@ -84,7 +84,7 @@ def admin_create_admin(admin_user):
             'games': 0,
             'isAdmin': True,
             'isSuperAdmin': False,
-            'joinDate': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'joinDate': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
             'lastLogin': '',
             'bannedUntil': None,
             'canBanUser': True,
@@ -103,8 +103,8 @@ def admin_create_admin(admin_user):
         _invalidate_admin_users_cache()
         logger.info(f'超级管理员 {admin_user["username"]} 创建了管理员账号 {username}')
         return jsonify({'success': True, 'message': '管理员账号创建成功'})
-    except Exception as e:
-        logger.error(f'创建管理员错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'创建管理员错误: {e!s}')
         return jsonify({'error': '创建管理员账号失败'}), 500
 
 
@@ -131,8 +131,8 @@ def admin_set_permission(admin_user):
         _invalidate_admin_users_cache()
         logger.info(f'超级管理员 {admin_user["username"]} 设置 {username} 的管理权限: {can_manage}')
         return jsonify({'success': True, 'message': '权限设置已更新'})
-    except Exception as e:
-        logger.error(f'设置权限错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'设置权限错误: {e!s}')
         return jsonify({'error': '设置权限失败'}), 500
 
 
@@ -167,8 +167,8 @@ def admin_set_permissions(admin_user):
         _invalidate_admin_users_cache()
         logger.info(f'超级管理员 {admin_user["username"]} 设置了 {username} 的细粒度权限')
         return jsonify({'success': True, 'message': '权限设置已更新', 'permissions': get_admin_permissions(user)})
-    except Exception as e:
-        logger.error(f'设置细粒度权限错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'设置细粒度权限错误: {e!s}')
         return jsonify({'error': '设置权限失败'}), 500
 
 
@@ -204,6 +204,6 @@ def admin_set_all_permissions(admin_user):
         _invalidate_admin_users_cache()
         logger.info(f'超级管理员 {admin_user["username"]} {action}了 {username} 的所有权限')
         return jsonify({'success': True, 'message': f'已{action}所有权限', 'permissions': get_admin_permissions(user)})
-    except Exception as e:
-        logger.error(f'设置所有权限错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'设置所有权限错误: {e!s}')
         return jsonify({'error': '设置权限失败'}), 500

@@ -6,7 +6,7 @@ import base64
 import hashlib
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, jsonify, request
 
@@ -89,8 +89,8 @@ def update_profile(user):
             return jsonify({'success': True, 'message': '密码修改成功'})
 
         return jsonify({'error': '请提供有效的更新内容'}), 400
-    except Exception as e:
-        logger.error(f'更新资料错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'更新资料错误: {e!s}')
         return jsonify({'error': '服务器内部错误'}), 500
 
 
@@ -134,8 +134,8 @@ def get_statistics(user):
                 'records': all_records[:200],
             }
         )
-    except Exception as e:
-        logger.error(f'获取统计错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'获取统计错误: {e!s}')
         return jsonify({'total': 0, 'wins': 0, 'losses': 0, 'draws': 0, 'winRate': 0, 'records': []})
 
 
@@ -157,8 +157,8 @@ def get_records(user):
 
         user_records.sort(key=lambda x: x.get('endTime', x.get('timestamp', 0)), reverse=True)
         return jsonify({'records': user_records[:50]})
-    except Exception as e:
-        logger.error(f'获取记录错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'获取记录错误: {e!s}')
         return jsonify({'records': []})
 
 
@@ -207,8 +207,8 @@ def add_record(user):
         save_user(user['username'], user)
 
         return jsonify({'success': True, 'record': record})
-    except Exception as e:
-        logger.error(f'添加记录错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'添加记录错误: {e!s}')
         return jsonify({'error': '服务器内部错误'}), 500
 
 
@@ -233,8 +233,8 @@ def get_record_detail(user, record_id):
 
         record['id'] = record_id
         return jsonify({'record': record})
-    except Exception as e:
-        logger.error(f'获取记录详情错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'获取记录详情错误: {e!s}')
         return jsonify({'error': '服务器内部错误'}), 500
 
 
@@ -255,8 +255,8 @@ def get_saves(user):
                 if save.get('username') == user['username']:
                     user_saves.append(save)
         return jsonify(user_saves[:20])
-    except Exception as e:
-        logger.error(f'获取存档错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'获取存档错误: {e!s}')
         return jsonify([])
 
 
@@ -274,13 +274,13 @@ def save_game(user):
             'currentPlayer': data.get('currentPlayer', 1),
             'mode': data.get('mode', 'ai'),
             'timestamp': int(time.time()),
-            'name': data.get('name', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+            'name': data.get('name', datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')),
         }
         save_save(save_data)
 
         return jsonify({'success': True, 'save': save_data})
-    except Exception as e:
-        logger.error(f'保存游戏错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'保存游戏错误: {e!s}')
         return jsonify({'error': '服务器内部错误'}), 500
 
 
@@ -296,8 +296,8 @@ def delete_save_route(user, save_id):
             delete_save(save_id)
             return jsonify({'success': True})
         return jsonify({'error': '存档不存在'}), 404
-    except Exception as e:
-        logger.error(f'删除存档错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'删除存档错误: {e!s}')
         return jsonify({'error': '服务器内部错误'}), 500
 
 
@@ -323,7 +323,7 @@ def import_save(user):
             'currentPlayer': data.get('currentPlayer', 1),
             'mode': data.get('mode', 'ai'),
             'timestamp': int(time.time()),
-            'name': data.get('name', datetime.now().strftime('%Y-%m-%d %H:%M:%S')),
+            'name': data.get('name', datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')),
             'gameTime': data.get('gameTime', 0),
             'difficulty': data.get('difficulty', 'medium'),
             'blackTime': data.get('blackTime', 600),
@@ -333,8 +333,8 @@ def import_save(user):
         save_save(save_data)
 
         return jsonify({'success': True, 'message': '棋局导入成功'})
-    except Exception as e:
-        logger.error(f'导入棋局错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'导入棋局错误: {e!s}')
         return jsonify({'error': '服务器内部错误'}), 500
 
 
@@ -345,8 +345,8 @@ def get_settings(user):
         settings = load_settings()
         user_settings = settings.get(user['username'], {})
         return jsonify({'settings': user_settings})
-    except Exception as e:
-        logger.error(f'获取设置错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'获取设置错误: {e!s}')
         return jsonify({'settings': {}})
 
 
@@ -363,8 +363,8 @@ def save_settings_route(user):
         save_settings(settings)
 
         return jsonify({'success': True})
-    except Exception as e:
-        logger.error(f'保存设置错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'保存设置错误: {e!s}')
         return jsonify({'error': '服务器内部错误'}), 500
 
 
@@ -391,8 +391,8 @@ def password_free_info():
                 'remainingAttempts': user.get('passwordFreeRemainingAttempts', 0),
             }
         )
-    except Exception as e:
-        logger.error(f'查询免密登录信息错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'查询免密登录信息错误: {e!s}')
         return jsonify({'error': '服务器内部错误'}), 500
 
 
@@ -412,8 +412,8 @@ def get_backgrounds():
                 backgrounds.append('/picture/' + filename)
 
         return jsonify({'backgrounds': backgrounds})
-    except Exception as e:
-        logger.error(f'获取背景图片列表错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'获取背景图片列表错误: {e!s}')
         return jsonify({'backgrounds': []})
 
 
@@ -454,6 +454,6 @@ def upload_background(user):
             f.write(base64.b64decode(image_data))
 
         return jsonify({'success': True, 'filename': safe_filename, 'url': '/picture/' + safe_filename})
-    except Exception as e:
-        logger.error(f'上传背景图片错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'上传背景图片错误: {e!s}')
         return jsonify({'error': '服务器内部错误'}), 500

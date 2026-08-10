@@ -8,6 +8,7 @@
 - 数据库模式升级（动态添加新列）
 """
 
+import contextlib
 import json
 import os
 import sqlite3
@@ -96,18 +97,12 @@ def init_db():
         )
     """)
 
-    try:
+    with contextlib.suppress(Exception):
         c.execute('ALTER TABLE users ADD COLUMN password_free INTEGER DEFAULT 0')
-    except Exception:
-        pass
-    try:
+    with contextlib.suppress(Exception):
         c.execute('ALTER TABLE users ADD COLUMN password_free_max_attempts INTEGER DEFAULT 0')
-    except Exception:
-        pass
-    try:
+    with contextlib.suppress(Exception):
         c.execute('ALTER TABLE users ADD COLUMN password_free_remaining_attempts INTEGER DEFAULT 0')
-    except Exception:
-        pass
 
     c.execute("""
         CREATE TABLE IF NOT EXISTS matches (
@@ -380,7 +375,7 @@ def migrate_from_json():
     c.execute('SELECT COUNT(*) FROM records')
     if c.fetchone()[0] == 0:
         records = load_json_with_lock(RECORDS_FILE, {})
-        for record_id, record in records.items():
+        for record in records.values():
             c.execute(
                 """
                 INSERT INTO records (player1, player2, winner, moves, board,
@@ -406,7 +401,7 @@ def migrate_from_json():
     c.execute('SELECT COUNT(*) FROM saves')
     if c.fetchone()[0] == 0:
         saves = load_json_with_lock(SAVES_FILE, {})
-        for save_id, save in saves.items():
+        for save in saves.values():
             c.execute(
                 """
                 INSERT INTO saves (username, match_id, board, moves, current_player,
@@ -441,7 +436,7 @@ def migrate_from_json():
     c.execute('SELECT COUNT(*) FROM messages')
     if c.fetchone()[0] == 0:
         messages = load_json_with_lock(MESSAGES_FILE, {})
-        for msg_id, msg in messages.items():
+        for msg in messages.values():
             c.execute(
                 """
                 INSERT INTO messages (from_user, to_user, content, timestamp, read)

@@ -72,7 +72,7 @@ def _batch_operate(admin_user, usernames, operation, **kwargs):
             elif operation == 'delete':
                 delete_user(username)
                 success_count += 1
-        except Exception:
+        except Exception:  # noqa: BLE001
             failed_count += 1
 
     from .admin.user_management import _invalidate_admin_users_cache
@@ -83,8 +83,8 @@ def _batch_operate(admin_user, usernames, operation, **kwargs):
 
 # 导入子模块路由
 from .admin import (
-    admin_management,  # noqa: E402, F401
-    batch_operations,  # noqa: E402, F401
-    match_management,  # noqa: E402, F401
-    user_management,  # noqa: E402, F401
+    admin_management,  # noqa: F401
+    batch_operations,  # noqa: F401
+    match_management,  # noqa: F401
+    user_management,  # noqa: F401
 )

@@ -41,8 +41,8 @@ def leaderboard(user):
 
         leaderboard_data.sort(key=lambda x: x['score'], reverse=True)
         return jsonify({'leaderboard': leaderboard_data[:50]})
-    except Exception as e:
-        logger.error(f'排行榜错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'排行榜错误: {e!s}')
         return jsonify({'leaderboard': []})
 
 
@@ -61,8 +61,8 @@ def stats(user):
                 'lastLogin': user.get('lastLogin', ''),
             }
         )
-    except Exception as e:
-        logger.error(f'统计错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'统计错误: {e!s}')
         return jsonify({'error': '获取统计信息失败'}), 500
 
 
@@ -80,8 +80,8 @@ def ai_move(user):
 
         ai_move_result = get_ai_move(board, current_player, difficulty)
         return jsonify(ai_move_result)
-    except Exception as e:
-        logger.error(f'AI移动错误: {str(e)}')
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'AI移动错误: {e!s}')
         return jsonify({'error': 'AI计算失败'}), 500
 
 
@@ -129,7 +129,13 @@ def get_ai_move(board, current_player, difficulty='medium'):
 
 
 def find_easy_move(board, player, opponent):
-    from ..game_logic import check_forbidden, check_live_three, check_live_two, check_threat_four, find_candidate_moves
+    from ..game_logic import (
+        check_forbidden,
+        check_live_three,
+        check_live_two,
+        check_threat_four,
+        find_candidate_moves,
+    )
 
     candidates = find_candidate_moves(board, player, opponent, radius=2)
 

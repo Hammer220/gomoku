@@ -47,7 +47,7 @@ def init_matches():
                     active_matches[match_id] = match
                     if match.get('status') == 'playing':
                         match['status'] = 'waiting_for_reconnect'
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             logger.error(f'Error loading matches from JSON: {e}')
 
     cleanup_expired_matches()
@@ -77,7 +77,7 @@ def save_matches():
             )
         conn.commit()
         logger.debug('Matches saved successfully to SQLite')
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Error saving matches: {e}')
 
 
@@ -86,7 +86,7 @@ def update_user_connection(username):
         with user_connections_lock:
             user_connections[username] = {'lastHeartbeat': time.time(), 'isOnline': True}
         logger.debug(f'User connection updated: {username}')
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Error updating user connection for {username}: {e}')
 
 
@@ -94,7 +94,7 @@ def get_user_connection(username):
     try:
         with user_connections_lock:
             return user_connections.get(username)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Error getting user connection for {username}: {e}')
         return None
 
@@ -105,12 +105,11 @@ def remove_user_connection(username):
             if username in user_connections:
                 del user_connections[username]
                 logger.info(f'User connection removed: {username}')
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Error removing user connection for {username}: {e}')
 
 
 def cleanup_expired_matches():
-    global active_matches
     expired_matches = []
     current_time = time.time()
 
@@ -128,13 +127,13 @@ def cleanup_expired_matches():
                     ):
                         expired_matches.append(match_id)
                         logger.info(f'清理已结束房间: {match_id}')
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     logger.error(f'Error checking match {match_id}: {e}')
 
             for match_id in expired_matches:
                 try:
                     del active_matches[match_id]
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     logger.error(f'Error deleting match {match_id}: {e}')
 
         if expired_matches:
@@ -148,7 +147,7 @@ def cleanup_expired_matches():
             )
             conn.commit()
             logger.info(f'Cleaned up {len(expired_matches)} expired matches')
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Error in cleanup_expired_matches: {e}')
 
 
@@ -162,16 +161,16 @@ def cleanup_inactive_connections():
                 try:
                     if current_time - conn['lastHeartbeat'] > CONNECT_TIMEOUT:
                         inactive_users.append(username)
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     logger.error(f'Error checking connection for {username}: {e}')
 
             for username in inactive_users:
                 try:
                     del user_connections[username]
                     logger.info(f'清理超时连接: {username}')
-                except Exception as e:
+                except Exception as e:  # noqa: BLE001
                     logger.error(f'Error removing connection for {username}: {e}')
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Error in cleanup_inactive_connections: {e}')
 
     for username in inactive_users:
@@ -236,7 +235,7 @@ def handle_player_disconnect_from_match(username):
                             match['lastActivity'] = time.time()
                             save_matches()
                         continue
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Error handling player disconnect from match: {e}')
 
 
@@ -247,7 +246,7 @@ def start_cleanup_task():
             try:
                 cleanup_expired_matches()
                 cleanup_inactive_connections()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 logger.error(f'清理任务异常: {e}')
 
     cleanup_thread = threading.Thread(target=cleanup_loop, daemon=True)
@@ -282,7 +281,7 @@ def add_room_chat_message(match_id, username, message):
                 room_chats[match_id] = room_chats[match_id][-100:]
 
         return chat_msg
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Error adding room chat message: {e}')
         return None
 
@@ -296,7 +295,7 @@ def get_room_chat_messages(match_id, limit=50):
 
             messages = room_chats[match_id][-limit:]
             return messages[:]
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Error getting room chat messages: {e}')
         return []
 
@@ -305,7 +304,6 @@ def clear_room_chat(match_id):
     """清除房间聊天记录"""
     try:
         with room_chats_lock:
-            if match_id in room_chats:
-                del room_chats[match_id]
-    except Exception as e:
+            room_chats.pop(match_id, None)
+    except Exception as e:  # noqa: BLE001
         logger.error(f'Error clearing room chat: {e}')

@@ -8,14 +8,14 @@ import time
 
 from ..logger import logger
 
-active_matches = {}
+active_matches: dict = {}
 active_matches_lock = threading.Lock()
 
-user_connections = {}
+user_connections: dict = {}
 user_connections_lock = threading.Lock()
 CONNECT_TIMEOUT = 120
 
-room_chats = {}
+room_chats: dict = {}
 room_chats_lock = threading.Lock()
 
 

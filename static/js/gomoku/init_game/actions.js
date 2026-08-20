@@ -60,6 +60,13 @@
         });
     }
 
+    // 隐藏胜利弹窗，查看棋盘
+    var hideWinModalBtn = $('hideWinModalBtn');
+    if (hideWinModalBtn) hideWinModalBtn.addEventListener('click', function() {
+        var winModal = $('winModal');
+        if (winModal) winModal.classList.add('hidden');
+    });
+
     // 新游戏
     var newGameBtn = $('newGameBtn');
     if (newGameBtn) newGameBtn.addEventListener('click', G.resetGame);

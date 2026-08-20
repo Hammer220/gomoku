@@ -20,7 +20,7 @@
         const data = await G.apiCall('/api/admin/users');
         G.adminAllUsers = data.users || [];
 
-        const filteredUsers = G.getFilteredUsers();
+        const filteredUsers = G.getFilteredUsers().filter(u => u.username !== G.currentUser.username);
 
         const countEl = document.getElementById('adminUserCount');
         if (countEl) {

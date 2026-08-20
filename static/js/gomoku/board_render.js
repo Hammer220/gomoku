@@ -148,9 +148,43 @@ var Gomoku = window.Gomoku || {};
                 }
             }
         }
+        G.drawWinningLine();
         if (G.hoverEnabled && G.hoverRow >= 0 && G.hoverCol >= 0 && G.gameBoard[G.hoverRow] && G.gameBoard[G.hoverRow][G.hoverCol] === 0) {
             G.drawHoverPreview(G.hoverRow, G.hoverCol, G.currentPlayer);
         }
+        if (G.shouldCheckForbidden() && G.currentPlayer === 1 && G.gameActive) {
+            var forbiddenPositions = G.findForbiddenPositions(G.gameBoard);
+            G.drawForbiddenMarks(G.ctx, forbiddenPositions, cellSize, pieceSize, margin);
+        }
+    };
+
+    G.drawWinningLine = function() {
+        if (G.gameActive) return;
+        if (!G.winningCells || G.winningCells.length < 5) return;
+        var cells = G.winningCells.slice();
+        cells.sort(function(a, b) {
+            if (a.row !== b.row) return a.row - b.row;
+            return a.col - b.col;
+        });
+        var margin = G.PIECE_SIZE / 2 + 4;
+        var cellSize = G.CELL_SIZE || 30;
+        var first = cells[0];
+        var last = cells[cells.length - 1];
+        var x1 = first.col * cellSize + margin;
+        var y1 = first.row * cellSize + margin;
+        var x2 = last.col * cellSize + margin;
+        var y2 = last.row * cellSize + margin;
+        G.ctx.save();
+        G.ctx.strokeStyle = '#FF0000';
+        G.ctx.lineWidth = 4;
+        G.ctx.lineCap = 'round';
+        G.ctx.shadowColor = '#FF0000';
+        G.ctx.shadowBlur = 8;
+        G.ctx.beginPath();
+        G.ctx.moveTo(x1, y1);
+        G.ctx.lineTo(x2, y2);
+        G.ctx.stroke();
+        G.ctx.restore();
     };
 
     // 获取指定位置的手数
@@ -173,6 +207,29 @@ var Gomoku = window.Gomoku || {};
             }
         }
         return 0;
+    };
+
+    // 绘制禁手标记（小叉 ×）
+    G.drawForbiddenMarks = function(ctx, positions, cellSize, pieceSize, margin) {
+        if (!positions || positions.length === 0) return;
+        var crossSize = Math.max(4, pieceSize * 0.3);
+        ctx.save();
+        ctx.strokeStyle = '#FF4444';
+        ctx.lineWidth = Math.max(1.5, cellSize * 0.06);
+        ctx.lineCap = 'round';
+        for (var i = 0; i < positions.length; i++) {
+            var x = positions[i].col * cellSize + margin;
+            var y = positions[i].row * cellSize + margin;
+            ctx.beginPath();
+            ctx.moveTo(x - crossSize, y - crossSize);
+            ctx.lineTo(x + crossSize, y + crossSize);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x + crossSize, y - crossSize);
+            ctx.lineTo(x - crossSize, y + crossSize);
+            ctx.stroke();
+        }
+        ctx.restore();
     };
 
     // 绘制悬停预览棋子
@@ -219,13 +276,6 @@ var Gomoku = window.Gomoku || {};
             G.ctx.stroke();
             G.ctx.setLineDash([]);
         }
-        if (isLast && !isWin) {
-            G.ctx.beginPath();
-            G.ctx.arc(x, y, G.PIECE_SIZE / 2 + 4, 0, 2 * Math.PI);
-            G.ctx.strokeStyle = '#FF6B6B';
-            G.ctx.lineWidth = 2;
-            G.ctx.stroke();
-        }
         G.ctx.beginPath();
         G.ctx.arc(x, y, G.PIECE_SIZE / 2 + 2, 0, 2 * Math.PI);
         G.ctx.fillStyle = 'rgba(0,0,0,0.2)';
@@ -245,6 +295,26 @@ var Gomoku = window.Gomoku || {};
         G.ctx.strokeStyle = player === 1 ? '#333' : '#ccc';
         G.ctx.lineWidth = 1;
         G.ctx.stroke();
+        if (isLast && !isWin) {
+            G.ctx.save();
+            G.ctx.beginPath();
+            G.ctx.arc(x, y, G.PIECE_SIZE / 2 + 4, 0, 2 * Math.PI);
+            G.ctx.strokeStyle = '#FF3366';
+            G.ctx.lineWidth = 3;
+            G.ctx.shadowColor = '#FF3366';
+            G.ctx.shadowBlur = 10;
+            G.ctx.stroke();
+            G.ctx.restore();
+            var dotColor = player === 1 ? '#FF6B6B' : '#FF3366';
+            var dotRadius = Math.max(3, G.PIECE_SIZE / 6);
+            G.ctx.beginPath();
+            G.ctx.arc(x, y, dotRadius, 0, 2 * Math.PI);
+            G.ctx.fillStyle = dotColor;
+            G.ctx.fill();
+            G.ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+            G.ctx.lineWidth = 0.5;
+            G.ctx.stroke();
+        }
         };
 
     // 绘制联机棋盘（网格线 + 星位点 + 棋子）
@@ -296,8 +366,13 @@ var Gomoku = window.Gomoku || {};
                 }
             }
         }
+        G.drawOnlineWinningLine(cellSize);
         if (G.onlineHoverEnabled && G.onlineHoverRow >= 0 && G.onlineHoverCol >= 0 && G.onlineBoard[G.onlineHoverRow] && G.onlineBoard[G.onlineHoverRow][G.onlineHoverCol] === 0) {
             G.drawOnlineHoverPreview(G.onlineHoverRow, G.onlineHoverCol, G.onlineCurrentPlayer, cellSize);
+        }
+        if (G.onlineGameActive && G.onlineCurrentPlayer === 1) {
+            var onlineForbiddenPositions = G.findForbiddenPositions(G.onlineBoard);
+            G.drawForbiddenMarks(G.onlineCtx, onlineForbiddenPositions, cellSize, pieceSize, margin);
         }
     };
 
@@ -327,6 +402,35 @@ var Gomoku = window.Gomoku || {};
         G.onlineCtx.globalAlpha = 1;
     };
 
+    G.drawOnlineWinningLine = function(cellSize) {
+        if (G.onlineGameActive) return;
+        if (!G.winningCells || G.winningCells.length < 5) return;
+        var cells = G.winningCells.slice();
+        cells.sort(function(a, b) {
+            if (a.row !== b.row) return a.row - b.row;
+            return a.col - b.col;
+        });
+        var pieceSize = cellSize * G.PIECE_SIZE_RATIO;
+        var margin = pieceSize / 2 + 4;
+        var first = cells[0];
+        var last = cells[cells.length - 1];
+        var x1 = first.col * cellSize + margin;
+        var y1 = first.row * cellSize + margin;
+        var x2 = last.col * cellSize + margin;
+        var y2 = last.row * cellSize + margin;
+        G.onlineCtx.save();
+        G.onlineCtx.strokeStyle = '#FF0000';
+        G.onlineCtx.lineWidth = 4;
+        G.onlineCtx.lineCap = 'round';
+        G.onlineCtx.shadowColor = '#FF0000';
+        G.onlineCtx.shadowBlur = 8;
+        G.onlineCtx.beginPath();
+        G.onlineCtx.moveTo(x1, y1);
+        G.onlineCtx.lineTo(x2, y2);
+        G.onlineCtx.stroke();
+        G.onlineCtx.restore();
+    };
+
     // 绘制联机棋盘上的单个棋子（带手数和最后一手标记）
     G.drawOnlinePiece = function(row, col, player, cellSize, moveNum, isLast) {
         var pieceSize = cellSize * G.PIECE_SIZE_RATIO;
@@ -335,13 +439,6 @@ var Gomoku = window.Gomoku || {};
         var y = row * cellSize + margin;
         moveNum = moveNum || 0;
         isLast = isLast || false;
-        if (isLast) {
-            G.onlineCtx.beginPath();
-            G.onlineCtx.arc(x, y, pieceSize / 2 + 4, 0, 2 * Math.PI);
-            G.onlineCtx.strokeStyle = '#FF6B6B';
-            G.onlineCtx.lineWidth = 2;
-            G.onlineCtx.stroke();
-        }
         G.onlineCtx.beginPath();
         G.onlineCtx.arc(x, y, pieceSize / 2 + 2, 0, 2 * Math.PI);
         G.onlineCtx.fillStyle = 'rgba(0,0,0,0.2)';
@@ -361,6 +458,26 @@ var Gomoku = window.Gomoku || {};
         G.onlineCtx.strokeStyle = player === 1 ? '#333' : '#ccc';
         G.onlineCtx.lineWidth = 1;
         G.onlineCtx.stroke();
+        if (isLast) {
+            G.onlineCtx.save();
+            G.onlineCtx.beginPath();
+            G.onlineCtx.arc(x, y, pieceSize / 2 + 4, 0, 2 * Math.PI);
+            G.onlineCtx.strokeStyle = '#FF3366';
+            G.onlineCtx.lineWidth = 3;
+            G.onlineCtx.shadowColor = '#FF3366';
+            G.onlineCtx.shadowBlur = 10;
+            G.onlineCtx.stroke();
+            G.onlineCtx.restore();
+            var dotColor = player === 1 ? '#FF6B6B' : '#FF3366';
+            var dotRadius = Math.max(3, pieceSize / 6);
+            G.onlineCtx.beginPath();
+            G.onlineCtx.arc(x, y, dotRadius, 0, 2 * Math.PI);
+            G.onlineCtx.fillStyle = dotColor;
+            G.onlineCtx.fill();
+            G.onlineCtx.strokeStyle = 'rgba(255,255,255,0.6)';
+            G.onlineCtx.lineWidth = 0.5;
+            G.onlineCtx.stroke();
+        }
         };
 
     // 管理员监控棋盘绘制（支持高 DPI 显示）

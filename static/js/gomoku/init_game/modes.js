@@ -140,6 +140,15 @@
         });
     }
 
+    // AI 落子延迟开关
+    var aiDelay = $('aiDelay');
+    if (aiDelay) {
+        aiDelay.addEventListener('change', function(e) {
+            G.aiDelayEnabled = e.target.checked;
+            G.showToast(G.aiDelayEnabled ? '已启用AI思考延迟' : '已关闭AI思考延迟');
+        });
+    }
+
     // 禁手规则开关
     var pvpForbidden = $('pvpForbidden');
     if (pvpForbidden) {

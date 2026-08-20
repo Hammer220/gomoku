@@ -47,7 +47,7 @@ var Gomoku = window.Gomoku || {};
         G.moveHistory.push({ row: row, col: col, player: player });
         G.drawBoard();
 
-        if (G.checkWin(row, col, player)) { G.handleGameOver(player); return true; }
+        if (G.checkWin(row, col, player)) { G.drawBoard(); G.handleGameOver(player); return true; }
         if (G.checkDraw()) { G.handleGameOver(0); return true; }
 
         G.currentPlayer = (player === 1 ? 2 : 1);
@@ -245,7 +245,7 @@ var Gomoku = window.Gomoku || {};
             aiDifficulty: G.aiDifficulty,
             timestamp: Math.floor(Date.now() / 1000),
             moveHistory: G.moveHistory.map(function(m) { return { row: m.row, col: m.col, player: m.player }; }),
-            moves: G.moveHistory.length,
+            moves: G.moveHistory.map(function(m) { return { row: m.row, col: m.col, player: m.player }; }),
             playerColor: G.playerColor,
             boardSize: G.BOARD_SIZE
         };

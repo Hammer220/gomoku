@@ -239,6 +239,9 @@ var Gomoku = window.Gomoku || {};
                     <h2 class="text-2xl font-bold ' + resultColor + ' mb-2">' + resultText + '</h2>\
                     <p class="text-gray-600 mb-6">' + (message || '') + '</p>\
                     <div class="flex gap-3">\
+                        <button id="hideEndDialogBtn" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-medium transition-colors">\
+                            <i class="fa-solid fa-eye mr-2"></i>查看棋盘\
+                        </button>\
                         <button id="playAgainBtn" class="flex-1 bg-primary hover:bg-primary-dark text-white py-3 rounded-lg font-medium transition-colors">\
                             <i class="fa-solid fa-redo mr-2"></i>再玩一次\
                         </button>\
@@ -253,6 +256,11 @@ var Gomoku = window.Gomoku || {};
 
         var playAgainBtn = dialog.querySelector('#playAgainBtn');
         var backToLobbyBtn = dialog.querySelector('#backToLobbyBtn');
+        var hideEndDialogBtn = dialog.querySelector('#hideEndDialogBtn');
+
+        hideEndDialogBtn.addEventListener('click', function() {
+            document.body.removeChild(dialog);
+        });
 
         playAgainBtn.addEventListener('click', function() {
             document.body.removeChild(dialog);
@@ -476,6 +484,8 @@ var Gomoku = window.Gomoku || {};
                 G.stopOnlineTimer();
                 G.stopTimedCountdown();
                 var myWin = res.winner === G.onlineMyColor;
+                G.winningCells = G.findWinningCells(G.onlineBoard, res.winner);
+                if (G.drawOnlineBoard) G.drawOnlineBoard();
                 G.showGameEndDialog(myWin, myWin ? '五子连珠！' : '对手五子连珠');
             }
             G.updateOnlineUI();

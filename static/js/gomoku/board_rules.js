@@ -15,14 +15,17 @@ var Gomoku = window.Gomoku || {};
     G.checkWin = function(row, col, player, board) {
         var dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
         var checkBoard = G.gameBoard;
+        var isRealBoard = true;
         if (Array.isArray(row)) {
             checkBoard = row;
             row = col;
             col = player;
             player = board;
+            isRealBoard = false;
         }
         if (board !== undefined && Array.isArray(board)) {
             checkBoard = board;
+            isRealBoard = false;
         }
         for (var d = 0; d < dirs.length; d++) {
             var dx = dirs[d][0], dy = dirs[d][1];
@@ -39,7 +42,10 @@ var Gomoku = window.Gomoku || {};
                 count++;
                 cells.push({ row: nr, col: nc });
             }
-            if (count >= 5) { G.winningCells = cells; return true; }
+            if (count >= 5) {
+                if (isRealBoard) G.winningCells = cells;
+                return true;
+            }
         }
         return false;
     };
@@ -47,6 +53,32 @@ var Gomoku = window.Gomoku || {};
     // 检查是否平局（棋盘已满）
     G.checkDraw = function() {
         return G.gameBoard.every(function(row) { return row.every(function(v) { return v !== 0; }); });
+    };
+
+    // 扫描棋盘查找获胜连线，返回获胜棋子位置数组
+    G.findWinningCells = function(board, player) {
+        var dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
+        for (var r = 0; r < G.BOARD_SIZE; r++) {
+            for (var c = 0; c < G.BOARD_SIZE; c++) {
+                if (board[r][c] !== player) continue;
+                for (var d = 0; d < dirs.length; d++) {
+                    var dx = dirs[d][0], dy = dirs[d][1];
+                    var cells = [{ row: r, col: c }];
+                    for (var i = 1; i < 5; i++) {
+                        var nr = r + i * dy, nc = c + i * dx;
+                        if (nr < 0 || nr >= G.BOARD_SIZE || nc < 0 || nc >= G.BOARD_SIZE || board[nr][nc] !== player) break;
+                        cells.push({ row: nr, col: nc });
+                    }
+                    for (var i = 1; i < 5; i++) {
+                        var nr = r - i * dy, nc = c - i * dx;
+                        if (nr < 0 || nr >= G.BOARD_SIZE || nc < 0 || nc >= G.BOARD_SIZE || board[nr][nc] !== player) break;
+                        cells.push({ row: nr, col: nc });
+                    }
+                    if (cells.length >= 5) return cells;
+                }
+            }
+        }
+        return [];
     };
 
     // 检查长连禁手（六子及以上连子，仅对黑棋生效）
@@ -130,5 +162,23 @@ var Gomoku = window.Gomoku || {};
         if (G.gameMode === 'online') return true;
         if (G.gameMode === 'pvp') return G.pvpForbidden;
         return false;
+    };
+
+    // 查找棋盘上所有禁手位置（仅黑棋回合时调用）
+    // 返回 [{row, col, reason}, ...]
+    G.findForbiddenPositions = function(board) {
+        var positions = [];
+        for (var r = 0; r < G.BOARD_SIZE; r++) {
+            for (var c = 0; c < G.BOARD_SIZE; c++) {
+                if (board[r][c] !== 0) continue;
+                var tempBoard = board.map(function(row) { return row.slice(); });
+                tempBoard[r][c] = 1;
+                var result = G.checkForbidden(r, c, tempBoard);
+                if (result.forbidden) {
+                    positions.push({ row: r, col: c, reason: result.reason });
+                }
+            }
+        }
+        return positions;
     };
 })();

@@ -74,7 +74,7 @@
         ctx.fillStyle = '#C4955A';
         ctx.fillRect(0, 0, w, h);
 
-        // 网格线
+        // 网格�?
         ctx.strokeStyle = '#8B6914';
         ctx.lineWidth = 1;
         for (var i = 0; i < BOARD_SIZE; i++) {
@@ -89,7 +89,7 @@
             ctx.stroke();
         }
 
-        // 星位点
+        // 星位�?
         var starPoints = [3, 7, 11];
         for (var si = 0; si < starPoints.length; si++) {
             for (var sj = 0; sj < starPoints.length; sj++) {
@@ -133,7 +133,7 @@
             }
         }
 
-        // 最后一手标记
+        // 最后一手标�?
         if (moves.length > 0) {
             var lastMove = moves[moves.length - 1];
             var lx = PADDING + lastMove.col * CELL_SIZE;
@@ -154,7 +154,7 @@
         if (header) {
             var blackPlayer = creatorColor === 1 ? creator : opponent;
             var whitePlayer = creatorColor === 1 ? opponent : creator;
-            var currentText = currentPlayer === 1 ? '● 黑棋' : '○ 白棋';
+            var currentText = currentPlayer === 1 ? '�?黑棋' : '�?白棋';
             var currentName = currentPlayer === 1 ? blackPlayer : whitePlayer;
             header.innerHTML =
                 '<p class="font-bold text-lg">' +
@@ -168,16 +168,16 @@
         var statusEl = $('gameStatus');
         if (statusEl) {
             if (!gameActive) {
-                statusEl.textContent = '已结束';
+                statusEl.textContent = '已结�?;
                 statusEl.className = 'text-red-500 font-bold';
             } else {
-                statusEl.textContent = '观战中...';
+                statusEl.textContent = '观战�?..';
                 statusEl.className = 'text-green-500';
             }
         }
     }
 
-    // 加载对局状态
+    // 加载对局状�?
     async function loadGameState() {
         if (!roomId || !token) return;
         try {
@@ -199,7 +199,7 @@
             creatorColor = data.creatorColor;
             creator = data.creator;
             opponent = data.opponent;
-            gameActive = data.status === 'playing' || data.status === 'waiting_for_reconnect';
+            gameActive = data.status === 'playing';
             lastRestartVersion = data.restartVersion || 0;
 
             drawBoard();
@@ -247,12 +247,12 @@
                 board = data.board.map(function(r) { return r.slice(); });
                 moves = data.moves.slice();
                 currentPlayer = data.currentPlayer;
-                gameActive = data.status === 'playing' || data.status === 'waiting_for_reconnect';
+                gameActive = data.status === 'playing';
                 drawBoard();
                 updateUI();
             }
 
-            // 检查结束
+            // 检查结�?
             if (data.winner !== undefined && data.winner !== null) {
                 gameActive = false;
                 updateUI();
@@ -270,7 +270,7 @@
         if (errorMsg) errorMsg.textContent = msg;
     }
 
-    // 初始化
+    // 初始�?
     function init() {
         var params = getUrlParams();
         roomId = params.room || '';
@@ -298,3 +298,4 @@
         init();
     }
 })();
+

@@ -1,4 +1,4 @@
-"""对局查询与心跳模块
+"""对局查询与心跳模�?
 负责：用户对局查询、可用对局列表、心跳保活、管理员对局查询
 """
 
@@ -37,7 +37,7 @@ def get_user_current_match(username):
     """
     with active_matches_lock:
         for match_id, match in active_matches.items():
-            if match['status'] in ['waiting', 'playing', 'waiting_for_reconnect'] and (
+            if match['status'] in ['waiting', 'playing', ] and (
                 match['creator'] == username or match.get('opponent') == username
             ):
                 return match_id
@@ -46,14 +46,14 @@ def get_user_current_match(username):
 
 def heartbeat(user):
     """处理用户心跳
-    更新用户的连接状态和最后活跃时间
+    更新用户的连接状态和最后活跃时�?
     """
     username = user['username']
     update_user_connection(username)
 
     with active_matches_lock:
         for match in active_matches.values():
-            if match['status'] in ['waiting', 'playing', 'waiting_for_reconnect'] and (
+            if match['status'] in ['waiting', 'playing', ] and (
                 match['creator'] == username or match.get('opponent') == username
             ):
                 match['lastActivity'] = time.time()
@@ -67,7 +67,7 @@ def get_my_match(username):
     """
     with active_matches_lock:
         for match_id, match in active_matches.items():
-            if match['status'] in ['waiting', 'playing', 'waiting_for_reconnect'] and (
+            if match['status'] in ['waiting', 'playing', ] and (
                 match['creator'] == username or match.get('opponent') == username
             ):
                 my_color = None
@@ -142,7 +142,7 @@ def list_available_matches(username):
 
 def get_all_matches():
     """获取所有活跃对局列表（管理员用）
-    返回所有对局的概览信息
+    返回所有对局的概览信�?
     """
     with active_matches_lock:
         all_list = []
@@ -170,7 +170,7 @@ def get_match_detail(match_id):
     """
     with active_matches_lock:
         if not match_id or match_id not in active_matches:
-            return {'error': '房间不存在'}, 404
+            return {'error': '房间不存�?}, 404
 
         match = active_matches[match_id]
         return {
@@ -189,3 +189,4 @@ def get_match_detail(match_id):
             'restartRequestedBy': match.get('restartRequestedBy'),
             'restartVersion': match.get('restartVersion', 0),
         }, 200
+

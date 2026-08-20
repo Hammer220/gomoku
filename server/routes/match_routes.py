@@ -1,12 +1,12 @@
 """联机匹配路由模块
-处理联机对战相关请求：创建/加入/离开房间、获取房间列表、
-执行落子操作、超时处理、悔棋、和棋、观战等。
+处理联机对战相关请求：创�?加入/离开房间、获取房间列表�?
+执行落子操作、超时处理、悔棋、和棋、观战等�?
 
-主要功能：
-- 房间管理：创建、加入、离开、关闭房间
+主要功能�?
+- 房间管理：创建、加入、离开、关闭房�?
 - 游戏操作：落子、悔棋、和棋、重开
-- 观战功能：获取观战列表、加入/离开观战
-- Socket.IO 广播：实时同步游戏状态
+- 观战功能：获取观战列表、加�?离开观战
+- Socket.IO 广播：实时同步游戏状�?
 """
 
 import time
@@ -46,10 +46,10 @@ match_bp = Blueprint('match', __name__)
 
 def _build_match_event(match):
     """
-    构建用于 Socket.IO 广播的赛事数据
+    构建用于 Socket.IO 广播的赛事数�?
     包含对局的所有状态信息：棋盘、玩家、时间、交互状态等
     :param match: 对局数据字典
-    :return: 包含对局事件的字典
+    :return: 包含对局事件的字�?
     """
     return {
         'match_id': match['id'],
@@ -94,7 +94,7 @@ def _build_match_event(match):
 
 def _emit_match_update(match_id):
     """
-    通过 Socket.IO 向房间广播赛事更新
+    通过 Socket.IO 向房间广播赛事更�?
     当对局状态发生变化时调用，通知房间内所有客户端
     :param match_id: 对局 ID
     """
@@ -463,7 +463,7 @@ def api_get_spectate_token(user):
         match_id = request.args.get('matchId', '')
         with active_matches_lock:
             if match_id not in active_matches:
-                return jsonify({'error': '房间不存在'}), 404
+                return jsonify({'error': '房间不存�?}), 404
             match = active_matches[match_id]
             username = user['username']
             if match['creator'] != username and match.get('opponent') != username:
@@ -482,11 +482,11 @@ def api_public_spectate():
         token = request.args.get('token', '')
         with active_matches_lock:
             if match_id not in active_matches:
-                return jsonify({'error': '房间不存在'}), 404
+                return jsonify({'error': '房间不存�?}), 404
             match = active_matches[match_id]
             if match.get('spectateToken') != token:
-                return jsonify({'error': '无效的观战链接'}), 403
-            if match['status'] not in ['playing', 'waiting_for_reconnect']:
+                return jsonify({'error': '无效的观战链�?}), 403
+            if match['status'] not in ['playing', ]:
                 return jsonify({'error': '该对局不可观看'}), 400
             if not match.get('allowSpectate', True):
                 return jsonify({'error': '该房间不允许观战'}), 403
@@ -521,7 +521,7 @@ def api_invite_friends_to_match(user, match_id):
     try:
         data = request.get_json()
         if not data:
-            return jsonify({'error': '无效的请求数据'}), 400
+            return jsonify({'error': '无效的请求数�?}), 400
 
         friends_to_invite = data.get('friends', [])
         if not friends_to_invite:
@@ -531,13 +531,13 @@ def api_invite_friends_to_match(user, match_id):
 
         with active_matches_lock:
             if match_id not in active_matches:
-                return jsonify({'error': '房间不存在'}), 404
+                return jsonify({'error': '房间不存�?}), 404
 
             match = active_matches[match_id]
             if match['creator'] != user['username']:
-                return jsonify({'error': '只有房主可以邀请好友'}), 403
+                return jsonify({'error': '只有房主可以邀请好�?}), 403
             if match['status'] != 'waiting':
-                return jsonify({'error': '房间已开始或已结束，无法邀请'}), 400
+                return jsonify({'error': '房间已开始或已结束，无法邀�?}), 400
 
             invited = []
             already_invited = []
@@ -582,7 +582,7 @@ def api_get_match_invites(user, match_id):
     try:
         with active_matches_lock:
             if match_id not in active_matches:
-                return jsonify({'error': '房间不存在'}), 404
+                return jsonify({'error': '房间不存�?}), 404
 
             match = active_matches[match_id]
             return jsonify(
@@ -667,7 +667,7 @@ def api_set_invite_only(user, match_id):
 
         with active_matches_lock:
             if match_id not in active_matches:
-                return jsonify({'error': '房间不存在'}), 404
+                return jsonify({'error': '房间不存�?}), 404
 
             match = active_matches[match_id]
             if match['creator'] != user['username']:
@@ -683,3 +683,5 @@ def api_set_invite_only(user, match_id):
     except Exception as e:  # noqa: BLE001
         logger.error(f'Set invite only error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
+
+

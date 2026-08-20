@@ -35,6 +35,17 @@ var Gomoku = window.Gomoku || {};
     // containerId: 验证码容器 DOM ID（'geetestLoginWidget' 或 'geetestRegisterWidget'）
     // callback: 验证码初始化完成后的回调函数（可选）
     G.initGeetestWidget = function(containerId, callback) {
+        if (G.captchaEnabled === false) {
+            if (containerId === 'geetestLoginWidget') {
+                G.loginGeetestToken = 'disabled';
+            } else if (containerId === 'geetestGuestWidget') {
+                G.guestGeetestToken = 'disabled';
+            } else {
+                G.registerGeetestToken = 'disabled';
+            }
+            if (callback) callback();
+            return;
+        }
         var container = document.getElementById(containerId);
         if (!container) return;
         container.innerHTML = '';
@@ -214,6 +225,7 @@ var Gomoku = window.Gomoku || {};
     // 刷新极验验证码（重新初始化）
     // isLogin: true=登录验证码, false=注册验证码
     G.refreshGeetestCaptcha = function(isLogin) {
+        if (G.captchaEnabled === false) return;
         var containerId = isLogin ? 'geetestLoginWidget' : 'geetestRegisterWidget';
         var container = document.getElementById(containerId);
         if (container) {

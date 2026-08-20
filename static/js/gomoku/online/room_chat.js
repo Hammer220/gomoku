@@ -1,6 +1,6 @@
 // ============================================================
 // 联机对战模块 - 房间聊天
-// 负责：房间内实时聊天、消息显示、发送消息
+// 负责：房间内实时聊天、消息显示、发送消�?
 // ============================================================
 
 var Gomoku = window.Gomoku || {};
@@ -53,7 +53,7 @@ var Gomoku = window.Gomoku || {};
 
     G.sendRoomChatMessage = function() {
         if (G.spectateMatchId) {
-            G.showToast('观战模式下无法发送消息', true);
+            G.showToast('观战模式下无法发送消�?, true);
             return;
         }
 
@@ -113,7 +113,7 @@ var Gomoku = window.Gomoku || {};
 
         var statusLabel = $('onlineStatusLabel');
         if (statusLabel) {
-            statusLabel.textContent = '对手已离开，你获得胜利！';
+            statusLabel.textContent = '对手已离开，你获得胜利�?;
         }
         var statusLight = $('onlineStatusLight');
         if (statusLight) {
@@ -140,3 +140,4 @@ var Gomoku = window.Gomoku || {};
         }
     };
 })();
+

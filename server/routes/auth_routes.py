@@ -13,6 +13,7 @@ from flask import Blueprint, jsonify, make_response, request
 
 from ..auth import geetest_verify, require_auth
 from ..config import (
+    CAPTCHA_ENABLED,
     GT4_CAPTCHA_ID,
     GT4_LOGIN_CAPTCHA_ID,
     GT4_LOGIN_CAPTCHA_KEY,
@@ -65,6 +66,7 @@ def api_config():
         {
             'captchaId': GT4_CAPTCHA_ID,
             'loginCaptchaId': GT4_LOGIN_CAPTCHA_ID,
+            'captchaEnabled': CAPTCHA_ENABLED,
             # 'turnstileSiteKey': TURNSTILE_SITE_KEY
         }
     )
@@ -95,19 +97,14 @@ def register():
         if len(password) < 6:
             return jsonify({'error': '密码长度至少为6个字符'}), 400
 
-        if not geetest_lot:
+        if not geetest_lot and CAPTCHA_ENABLED:
             return jsonify({'error': '请完成验证码验证'}), 400
 
-        # if turnstile_token:
-        #     turnstile_success, turnstile_msg = turnstile_verify(turnstile_token)
-        #     if not turnstile_success:
-        #         return jsonify({'error': turnstile_msg}), 400
-        #     logger.info(f'Turnstile验证通过，用户名: {username}')
-        # else:
-        geetest_success, geetest_msg = geetest_verify(geetest_lot, geetest_output, geetest_pass, geetest_gen_time)
-        if not geetest_success:
-            return jsonify({'error': geetest_msg}), 400
-        logger.info(f'极验验证通过，用户名: {username}')
+        if CAPTCHA_ENABLED:
+            geetest_success, geetest_msg = geetest_verify(geetest_lot, geetest_output, geetest_pass, geetest_gen_time)
+            if not geetest_success:
+                return jsonify({'error': geetest_msg}), 400
+            logger.info(f'极验验证通过，用户名: {username}')
 
         existing_user = get_user(username)
         if existing_user:
@@ -177,27 +174,22 @@ def login():
         if not username or not password:
             return jsonify({'error': '用户名和密码不能为空'}), 400
 
-        if not geetest_lot:
+        if not geetest_lot and CAPTCHA_ENABLED:
             return jsonify({'error': '请完成验证码验证'}), 400
 
-        # if turnstile_token:
-        #     turnstile_success, turnstile_msg = turnstile_verify(turnstile_token)
-        #     if not turnstile_success:
-        #         return jsonify({'error': turnstile_msg}), 400
-        #     logger.info(f'Turnstile登录验证通过，用户名: {username}')
-        # else:
-        geetest_success, geetest_msg = geetest_verify(
-            geetest_lot,
-            geetest_output,
-            geetest_pass,
-            geetest_gen_time,
-            captcha_id=GT4_LOGIN_CAPTCHA_ID,
-            captcha_key=GT4_LOGIN_CAPTCHA_KEY,
-            verify_url=LOGIN_VERIFY_URL,
-        )
-        if not geetest_success:
-            return jsonify({'error': geetest_msg}), 400
-        logger.info(f'极验登录验证通过，用户名: {username}')
+        if CAPTCHA_ENABLED:
+            geetest_success, geetest_msg = geetest_verify(
+                geetest_lot,
+                geetest_output,
+                geetest_pass,
+                geetest_gen_time,
+                captcha_id=GT4_LOGIN_CAPTCHA_ID,
+                captcha_key=GT4_LOGIN_CAPTCHA_KEY,
+                verify_url=LOGIN_VERIFY_URL,
+            )
+            if not geetest_success:
+                return jsonify({'error': geetest_msg}), 400
+            logger.info(f'极验登录验证通过，用户名: {username}')
 
         user = get_user(username)
         if not user:
@@ -304,21 +296,22 @@ def guest_login():
         if not username:
             return jsonify({'error': '访客用户名不能为空'}), 400
 
-        if not geetest_lot:
+        if not geetest_lot and CAPTCHA_ENABLED:
             return jsonify({'error': '请完成验证码验证'}), 400
 
-        geetest_success, geetest_msg = geetest_verify(
-            geetest_lot,
-            geetest_output,
-            geetest_pass,
-            geetest_gen_time,
-            captcha_id=GT4_LOGIN_CAPTCHA_ID,
-            captcha_key=GT4_LOGIN_CAPTCHA_KEY,
-            verify_url=LOGIN_VERIFY_URL,
-        )
-        if not geetest_success:
-            return jsonify({'error': geetest_msg}), 400
-        logger.info(f'极验访客登录验证通过，用户名: {username}')
+        if CAPTCHA_ENABLED:
+            geetest_success, geetest_msg = geetest_verify(
+                geetest_lot,
+                geetest_output,
+                geetest_pass,
+                geetest_gen_time,
+                captcha_id=GT4_LOGIN_CAPTCHA_ID,
+                captcha_key=GT4_LOGIN_CAPTCHA_KEY,
+                verify_url=LOGIN_VERIFY_URL,
+            )
+            if not geetest_success:
+                return jsonify({'error': geetest_msg}), 400
+            logger.info(f'极验访客登录验证通过，用户名: {username}')
 
         existing_user = get_user(username)
         if existing_user:

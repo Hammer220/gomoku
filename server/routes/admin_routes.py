@@ -50,9 +50,6 @@ def _batch_operate(admin_user, usernames, operation, **kwargs):
             if user.get('isSuperAdmin'):
                 failed_count += 1
                 continue
-            if username == admin_user['username']:
-                failed_count += 1
-                continue
 
             if operation == 'ban':
                 minutes = kwargs.get('minutes', 0)

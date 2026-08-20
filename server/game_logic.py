@@ -28,6 +28,14 @@ def check_win(board, row, col, player):
     return False
 
 
+def check_draw(board):
+    for row in board:
+        for cell in row:
+            if cell == 0:
+                return False
+    return True
+
+
 RULE_MODE_STANDARD = 'standard'
 RULE_MODE_RENJU = 'renju'
 RULE_MODE_FREE = 'free'

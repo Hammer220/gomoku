@@ -396,7 +396,6 @@ select:focus {
   -webkit-transform: translateZ(0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  animation: modalSlideIn 0.25s ease-out;
 }
 @keyframes modalSlideIn {
   from {
@@ -1770,6 +1769,15 @@ select:focus {
   }
 }
 
+/* ----- 棋盘隐藏时，侧边栏占满全宽 ----- */
+.sidebar-layout:has(.sidebar-main.hidden) {
+  justify-content: center;
+}
+.sidebar-layout:has(.sidebar-main.hidden) .sidebar-aside {
+  width: 100% !important;
+  max-width: 48rem;
+}
+
 /* ----- 侧边栏卡片组 ----- */
 .aside-cards {
   display: flex;
@@ -3115,10 +3123,11 @@ input[type="color"]::-webkit-color-swatch {
   background-color: rgba(255, 255, 255, 0.5);
   color: var(--color-gray-900);
 }
-.tab-group .tab-btn.active {
+.tab-group .tab-btn.tab-active {
   background-color: var(--color-white);
   color: var(--color-primary);
   box-shadow: var(--shadow-sm);
+  border-bottom: none;
 }
 
 /* ============================================================

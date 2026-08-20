@@ -1,7 +1,7 @@
 // ============================================================
 // 联机对战模块 - WebSocket实时同步
-// 负责：通过WebSocket实时更新对局状态、自动重连、心跳
-// 已移除HTTP轮询，所有状态更新通过WebSocket推送
+// 负责：通过WebSocket实时更新对局状态、心�?
+// 所有状态更新通过WebSocket推�?
 // ============================================================
 
 var Gomoku = window.Gomoku || {};
@@ -15,15 +15,12 @@ var Gomoku = window.Gomoku || {};
         return document.getElementById(id);
     };
 
-    G.basePollingInterval = 2000;
-    G.maxPollingInterval = 10000;
-
     G.startOnlinePolling = function() {
-        // WebSocket模式下不需要轮询
+        // WebSocket模式下不需要轮�?
     };
 
     G.stopOnlinePolling = function() {
-        // WebSocket模式下不需要轮询
+        // WebSocket模式下不需要轮�?
     };
 
     G.startHeartbeat = function() {
@@ -46,12 +43,12 @@ var Gomoku = window.Gomoku || {};
                 await G.apiCall('/api/match/heartbeat', 'POST', {});
             }
         } catch (e) {
-            console.error('心跳发送失败:', e);
+            console.error('心跳发送失�?', e);
         }
     };
 
     G.pollOnlineMatch = async function() {
-        // WebSocket模式下不需要轮询
+        // WebSocket模式下不需要轮�?
     };
 
     G.processMatchData = function(res) {
@@ -63,17 +60,18 @@ var Gomoku = window.Gomoku || {};
             G.stopOnlineTimer();
             G.stopTimedCountdown();
             G.stopHeartbeat();
-            var message = '对局已结束';
+            var message = '对局已结�?;
             if (res.winner === 0) {
-                G.showGameEndDialog(null, '双方同意和棋');
+                var drawMsg1 = res.draw ? '棋盘已满，平局�? : '双方同意和棋';
+                G.showGameEndDialog(null, drawMsg1);
                 return;
             }
             if (res.finishedReason === 'opponent_left') {
-                message = '对手已离开，' + (res.winner === G.onlineMyColor ? '你获胜了！' : '你输了');
+                message = '对手已离开�? + (res.winner === G.onlineMyColor ? '你获胜了�? : '你输�?);
             } else if (res.status === 'closed') {
                 message = '房间已被关闭，已自动返回大厅';
             } else if (res.winner) {
-                message = '游戏结束，' + (res.winner === G.onlineMyColor ? '你获胜了！' : '你输了');
+                message = '游戏结束�? + (res.winner === G.onlineMyColor ? '你获胜了�? : '你输�?);
             }
             var matchIdDisplay = $('onlineMatchIdDisplay');
             var roomInfo = $('roomInfo');
@@ -82,7 +80,7 @@ var Gomoku = window.Gomoku || {};
             var onlineCreateBtn = $('onlineCreateBtn');
             var onlineJoinBtn = $('onlineJoinBtn');
             if (matchIdDisplay) matchIdDisplay.textContent = '-';
-            if (roomInfo) roomInfo.innerHTML = '<p class="text-gray-500">未加入房间</p>';
+            if (roomInfo) roomInfo.innerHTML = '<p class="text-gray-500">未加入房�?/p>';
             if (roomActions) roomActions.classList.add('hidden');
             if (onlineLeaveBtn) onlineLeaveBtn.classList.add('hidden');
             if (onlineCreateBtn) onlineCreateBtn.classList.remove('hidden');
@@ -109,11 +107,6 @@ var Gomoku = window.Gomoku || {};
             return;
         }
 
-        if (res.status === 'waiting_for_reconnect') {
-            G.showToast('对手已离开，等待重连...', true);
-            return;
-        }
-
         if (res.restartRequested && !res.restartAccepted && !res.restartDeclinedBy) {
             if (!G.restartCountdownTimer && G.onlineGameActive && res.winner) {
                 G.showRestartCountdown(30);
@@ -123,7 +116,7 @@ var Gomoku = window.Gomoku || {};
         if (res.restartRequested && res.restartDeclinedBy && !res.restartAccepted) {
             G.hideRestartCountdown();
             if (res.restartDeclinedBy !== G.username) {
-                G.showToast('对手拒绝了重新开始请求');
+                G.showToast('对手拒绝了重新开始请�?);
             }
         }
 
@@ -167,8 +160,16 @@ var Gomoku = window.Gomoku || {};
             var myWin = res.winner === G.onlineMyColor;
 
             if (res.winner === 0) {
-                G.showGameEndDialog(null, '双方同意和棋');
+                var drawMsg2 = res.draw ? '棋盘已满，平局�? : '双方同意和棋';
+                G.showGameEndDialog(null, drawMsg2);
                 return;
+            }
+
+            if (res.winner !== 0) {
+                G.winningCells = G.findWinningCells(G.onlineBoard, res.winner);
+                if (G.drawOnlineBoard && res.winReason !== 'resign' && res.winReason !== 'opponent_left' && !res.timeout) {
+                    G.drawOnlineBoard();
+                }
             }
 
             var message = '';
@@ -179,7 +180,7 @@ var Gomoku = window.Gomoku || {};
             } else if (res.timeout) {
                 message = myWin ? '对手超时' : '你超时了';
             } else {
-                message = myWin ? '五子连珠！' : '对手五子连珠';
+                message = myWin ? '五子连珠�? : '对手五子连珠';
             }
 
             G.showGameEndDialog(myWin, message);
@@ -188,8 +189,6 @@ var Gomoku = window.Gomoku || {};
 
         if (boardChanged) {
             G.updateOnlineUI();
-            G.reconnectAttempts = 0;
-            G.currentPollingInterval = G.basePollingInterval;
         }
 
         G.updateOnlineTimers();
@@ -245,14 +244,14 @@ var Gomoku = window.Gomoku || {};
         if (res.undoDeclined && !res.undoRequested) {
             G.hideUndoRequestPrompt();
             if (res.undoDeclinedBy !== G.username) {
-                G.showToast('对手拒绝了悔棋请求');
+                G.showToast('对手拒绝了悔棋请�?);
             }
         }
 
         if (res.drawDeclined && !res.drawRequested) {
             G.hideDrawRequestPrompt();
             if (res.drawDeclinedBy !== G.username) {
-                G.showToast('对手拒绝了和棋请求');
+                G.showToast('对手拒绝了和棋请�?);
             }
         }
     };
@@ -304,20 +303,8 @@ var Gomoku = window.Gomoku || {};
             console.log('WebSocket离开房间:', data);
         });
 
-        G.WebSocketManager.on('opponent_disconnected', function(data) {
-            console.log('对手WebSocket断开:', data);
-            if (data.match_id === G.onlineMatchId) {
-                G.showToast('对手连接断开，等待重连...', true);
-            }
-        });
-
         G.WebSocketManager.on('connected', function() {
-            console.log('WebSocket已连接');
-        });
-
-        G.WebSocketManager.on('disconnected', function() {
-            console.log('WebSocket连接断开，尝试重连...');
-            G.showToast('WebSocket连接断开，正在重连...', true);
+            console.log('WebSocket已连�?);
         });
 
         G.WebSocketManager.on('not_authenticated', function() {
@@ -340,17 +327,22 @@ var Gomoku = window.Gomoku || {};
                 G.stopTimedCountdown();
                 var myWin = data.winner === G.onlineMyColor;
                 var message = data.reason || '游戏结束';
+                if (data.winner && data.winner !== 0) {
+                    G.winningCells = G.findWinningCells(G.onlineBoard, data.winner);
+                    if (G.drawOnlineBoard) G.drawOnlineBoard();
+                }
                 G.showGameEndDialog(myWin, message);
             }
         });
 
         G.WebSocketManager.on('match_started', function(data) {
-            console.log('WebSocket收到对局开始:', data);
+            console.log('WebSocket收到对局开�?', data);
             if (data.match_id === G.onlineMatchId) {
                 G.onlineGameActive = true;
                 G.onlineBoard = data.board.map(function(r) { return r.slice(); });
                 G.onlineCurrentPlayer = data.currentPlayer;
                 G.onlineMoveHistory = [];
+                G.winningCells = [];
                 if (G.drawOnlineBoard) G.drawOnlineBoard();
                 G.updateOnlineUI();
                 G.startOnlineTimer();
@@ -391,7 +383,7 @@ var Gomoku = window.Gomoku || {};
         var onlineCreateBtn = $('onlineCreateBtn');
         var onlineJoinBtn = $('onlineJoinBtn');
         if (matchIdDisplay) matchIdDisplay.textContent = '-';
-        if (roomInfo) roomInfo.innerHTML = '<p class="text-gray-500">未加入房间</p>';
+        if (roomInfo) roomInfo.innerHTML = '<p class="text-gray-500">未加入房�?/p>';
         if (roomActions) roomActions.classList.add('hidden');
         if (onlineLeaveBtn) onlineLeaveBtn.classList.add('hidden');
         if (onlineCreateBtn) onlineCreateBtn.classList.remove('hidden');
@@ -435,3 +427,12 @@ var Gomoku = window.Gomoku || {};
     };
 
 })();
+
+
+
+
+
+
+
+
+

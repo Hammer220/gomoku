@@ -47,11 +47,17 @@ var Gomoku = window.Gomoku || {};
             if (G.handleRouteChange) G.handleRouteChange();
         } else {
             document.getElementById('loginModal').classList.remove('hidden');
-            await new Promise(function(resolve) {
-                G.initGeetestWidget('geetestLoginWidget', function() {
-                    resolve();
+            var config = await G.apiCall('/api/config', 'GET');
+            G.captchaEnabled = config.captchaEnabled !== false;
+            if (G.captchaEnabled) {
+                await new Promise(function(resolve) {
+                    G.initGeetestWidget('geetestLoginWidget', function() {
+                        resolve();
+                    });
                 });
-            });
+            } else {
+                G.loginGeetestToken = 'disabled';
+            }
         }
     };
 

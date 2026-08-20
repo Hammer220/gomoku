@@ -126,8 +126,6 @@ def admin_ban_user(admin_user, username):
         user = get_user(username)
         if not user:
             return jsonify({'error': '用户不存在'}), 404
-        if username == admin_user['username']:
-            return jsonify({'error': '不能封禁自己'}), 403
         if user.get('isSuperAdmin'):
             return jsonify({'error': '不能封禁超级管理员'}), 403
 
@@ -206,8 +204,6 @@ def admin_set_captcha(admin_user):
         user = get_user(username)
         if not user:
             return jsonify({'error': '用户不存在'}), 404
-        if username == admin_user['username']:
-            return jsonify({'error': '不能修改自己'}), 403
         if user.get('isSuperAdmin'):
             return jsonify({'error': '不能修改超级管理员'}), 403
 
@@ -234,8 +230,6 @@ def admin_set_password_free(admin_user):
         user = get_user(username)
         if not user:
             return jsonify({'error': '用户不存在'}), 404
-        if username == admin_user['username']:
-            return jsonify({'error': '不能修改自己'}), 403
         if user.get('isSuperAdmin'):
             return jsonify({'error': '不能修改超级管理员'}), 403
 
@@ -312,8 +306,6 @@ def admin_ban(admin_user):
         user = get_user(username)
         if not user:
             return jsonify({'error': '用户不存在'}), 404
-        if username == admin_user['username']:
-            return jsonify({'error': '不能封禁自己'}), 403
         if user.get('isSuperAdmin'):
             return jsonify({'error': '不能封禁超级管理员'}), 403
 
@@ -383,8 +375,6 @@ def admin_kick(admin_user):
         user = get_user(username)
         if not user:
             return jsonify({'error': '用户不存在'}), 404
-        if username == admin_user['username']:
-            return jsonify({'error': '不能强制登出自己'}), 403
         if user.get('isSuperAdmin'):
             return jsonify({'error': '不能强制登出超级管理员'}), 403
 
@@ -406,8 +396,6 @@ def admin_delete_user(admin_user, username):
         user = get_user(username)
         if not user:
             return jsonify({'error': '用户不存在'}), 404
-        if username == admin_user['username']:
-            return jsonify({'error': '不能注销自己'}), 403
         if user.get('isSuperAdmin'):
             return jsonify({'error': '不能注销超级管理员'}), 403
 

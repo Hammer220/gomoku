@@ -443,7 +443,7 @@ def load_records():
             'player1': row['player1'],
             'player2': row['player2'],
             'winner': row['winner'],
-            'moves': json.loads(row['moves']),
+            'moves': (lambda m: m if isinstance(m, list) else [])(json.loads(row['moves'])),
             'board': json.loads(row['board']),
             'timeMode': row['time_mode'],
             'moveTime': row['move_time'],
@@ -483,7 +483,7 @@ def save_record(record):
             record.get('player1', record.get('player', '')),
             record.get('player2', record.get('opponent', '')),
             record.get('winner', ''),
-            json.dumps(record.get('moves', record.get('moveHistory', [])), ensure_ascii=False),
+            json.dumps(record.get('moveHistory') if isinstance(record.get('moveHistory'), list) else (record.get('moves') if isinstance(record.get('moves'), list) else []), ensure_ascii=False),
             json.dumps(record.get('board', []), ensure_ascii=False),
             record.get('timeMode', record.get('mode', 'ai')),
             record.get('moveTime', 30),
@@ -495,7 +495,7 @@ def save_record(record):
             record.get('duration', 0),
             record.get('boardSize', record.get('board_size', 15)),
             record.get('playerColor', record.get('player_color', 1)),
-            record.get('moveCount', len(record.get('moves', record.get('moveHistory', [])))),
+            record.get('moveCount', len(record.get('moveHistory') if isinstance(record.get('moveHistory'), list) else (record.get('moves') if isinstance(record.get('moves'), list) else []))),
         ),
     )
     conn.commit()

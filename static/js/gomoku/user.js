@@ -224,14 +224,21 @@ var Gomoku = window.Gomoku || {};
 
     // 密码登录
     G.login = async function(username, password, captchaToken) {
-        var parts = JSON.parse(captchaToken);
+        var geetestLot = '', geetestCaptchaOutput = '', geetestPassToken = '', geetestGenTime = '';
+        if (captchaToken && captchaToken !== 'disabled') {
+            var parts = JSON.parse(captchaToken);
+            geetestLot = parts[0];
+            geetestCaptchaOutput = parts[1];
+            geetestPassToken = parts[2];
+            geetestGenTime = parts[3];
+        }
         var res = await G.apiCall('/api/login', 'POST', {
             username: username,
             password: password,
-            geetestLot: parts[0],
-            geetestCaptchaOutput: parts[1],
-            geetestPassToken: parts[2],
-            geetestGenTime: parts[3]
+            geetestLot: geetestLot,
+            geetestCaptchaOutput: geetestCaptchaOutput,
+            geetestPassToken: geetestPassToken,
+            geetestGenTime: geetestGenTime
         }, true);
         G.token = res.token;
         localStorage.setItem('token', G.token);
@@ -293,14 +300,21 @@ var Gomoku = window.Gomoku || {};
 
     // 用户注册
     G.register = async function(username, password, captchaToken) {
-        var parts = JSON.parse(captchaToken);
+        var geetestLot = '', geetestCaptchaOutput = '', geetestPassToken = '', geetestGenTime = '';
+        if (captchaToken && captchaToken !== 'disabled') {
+            var parts = JSON.parse(captchaToken);
+            geetestLot = parts[0];
+            geetestCaptchaOutput = parts[1];
+            geetestPassToken = parts[2];
+            geetestGenTime = parts[3];
+        }
         await G.apiCall('/api/register', 'POST', {
             username: username,
             password: password,
-            geetestLot: parts[0],
-            geetestCaptchaOutput: parts[1],
-            geetestPassToken: parts[2],
-            geetestGenTime: parts[3]
+            geetestLot: geetestLot,
+            geetestCaptchaOutput: geetestCaptchaOutput,
+            geetestPassToken: geetestPassToken,
+            geetestGenTime: geetestGenTime
         }, true);
         await G.resetGuestData();
         G.showToast(G.i18n.t('registerSuccess'));
@@ -363,7 +377,6 @@ var Gomoku = window.Gomoku || {};
         var guestUsername = G.getGuestUsername();
         G.saveGuestUsername(guestUsername);
 
-        // 如果启用了验证码，调用服务端接口验证验证码并创建访客会话
         if (G.captchaEnabled && G.guestGeetestToken && G.guestGeetestToken !== 'disabled') {
             try {
                 var parts = JSON.parse(G.guestGeetestToken);
@@ -383,6 +396,22 @@ var Gomoku = window.Gomoku || {};
                     G.guestGeetestToken = '';
                     G.initGeetestWidget('geetestGuestWidget', function() {});
                 }
+                return;
+            }
+        } else if (!G.captchaEnabled) {
+            try {
+                var res = await G.apiCall('/api/guest/login', 'POST', {
+                    username: guestUsername,
+                    geetestLot: '',
+                    geetestCaptchaOutput: '',
+                    geetestPassToken: '',
+                    geetestGenTime: ''
+                }, true);
+                G.token = res.token;
+                localStorage.setItem('token', G.token);
+                G.currentUser = res.user;
+            } catch (err) {
+                G.showToast(err.message, true);
                 return;
             }
         }

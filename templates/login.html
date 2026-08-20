@@ -82,7 +82,7 @@
     </div>
 
     <!-- Logo 和标题区域 -->
-    <div class="text-center mb-6 md:mb-8 animate-bounce-in relative">
+    <div class="text-center mb-6 md:mb-8 relative">
         <div class="inline-flex items-center justify-center w-20 h-20 mb-4 rounded-2xl bg-gradient-to-br from-[#C4955A] to-[#8B5A2B] shadow-xl card-3d-hover">
             <i class="fa-solid fa-chess-board text-white text-3xl"></i>
         </div>
@@ -220,13 +220,17 @@
             var registerModal = document.getElementById('registerModal');
             if (loginModal) loginModal.classList.add('hidden');
             if (registerModal) registerModal.classList.remove('hidden');
-            setTimeout(function() {
-                var regContainer = document.getElementById('geetestRegisterWidget');
-                if (regContainer && !regContainer.hasAttribute('data-initialized') && window.Gomoku) {
-                    regContainer.setAttribute('data-initialized', 'true');
-                    window.Gomoku.initGeetestWidget('geetestRegisterWidget', function() {});
-                }
-            }, 300);
+            if (Gomoku.captchaEnabled) {
+                setTimeout(function() {
+                    var regContainer = document.getElementById('geetestRegisterWidget');
+                    if (regContainer && !regContainer.hasAttribute('data-initialized') && window.Gomoku) {
+                        regContainer.setAttribute('data-initialized', 'true');
+                        window.Gomoku.initGeetestWidget('geetestRegisterWidget', function() {});
+                    }
+                }, 300);
+            } else {
+                Gomoku.registerGeetestToken = 'disabled';
+            }
         }
     })();
     </script>

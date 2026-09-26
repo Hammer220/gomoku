@@ -6,16 +6,26 @@
 - 房间管理：创建、加入、离开、关闭房间
 - 游戏操作：落子、悔棋、和棋、重开
 - 观战功能：获取观战列表、加入/离开观战
-- Socket.IO 广播：实时同步游戏状态
+- Socket.IO 广播：通过 storage.broadcast_match_update 统一推送
+
+所有对局变更的广播都走 storage.broadcast_match_update，避免
+HTTP 路由层与 WS handler 各自维护一套广播逻辑。
 """
 
+import secrets
 import time
 
 from flask import Blueprint, jsonify, request
 
 from ..auth import require_auth
 from ..logger import logger
-from ..match.storage import active_matches, active_matches_lock, save_matches
+from ..match.storage import (
+    active_matches,
+    active_matches_lock,
+    broadcast_match_update,
+    get_room_chat_messages,
+    save_matches,
+)
 from ..match_manager import (
     accept_draw,
     accept_undo,
@@ -42,72 +52,6 @@ from ..match_manager import (
 )
 
 match_bp = Blueprint('match', __name__)
-
-
-def _build_match_event(match):
-    """
-    构建用于 Socket.IO 广播的赛事数据
-    包含对局的所有状态信息：棋盘、玩家、时间、交互状态等
-    :param match: 对局数据字典
-    :return: 包含对局事件的字典
-    """
-    return {
-        'match_id': match['id'],
-        'id': match['id'],
-        'status': match['status'],
-        'board': [row[:] for row in match['board']],
-        'currentPlayer': match['currentPlayer'],
-        'moves': match['moves'][:],
-        'winner': match.get('winner'),
-        'creatorColor': match.get('creatorColor'),
-        'creator': match.get('creator'),
-        'opponent': match.get('opponent'),
-        'timeMode': match.get('timeMode', 'untimed'),
-        'blackTime': match.get('blackTime', 600),
-        'whiteTime': match.get('whiteTime', 600),
-        'moveDeadline': match.get('moveDeadline', 0),
-        'totalTime': match.get('totalTime', 600),
-        'moveTime': match.get('moveTime', 30),
-        'restartRequested': match.get('restartRequested', False),
-        'restartRequestedBy': match.get('restartRequestedBy'),
-        'restartDeclinedBy': match.get('restartDeclinedBy'),
-        'restartAccepted': match.get('restartAccepted', False),
-        'restartInitiated': match.get('restartInitiated', False),
-        'restartVersion': match.get('restartVersion', 0),
-        'undoRequested': match.get('undoRequested', False),
-        'undoRequestedBy': match.get('undoRequestedBy'),
-        'undoAccepted': match.get('undoAccepted', False),
-        'undoDeclined': match.get('undoDeclined', False),
-        'undoDeclinedBy': match.get('undoDeclinedBy'),
-        'drawRequested': match.get('drawRequested', False),
-        'drawRequestedBy': match.get('drawRequestedBy'),
-        'drawAccepted': match.get('drawAccepted', False),
-        'drawDeclined': match.get('drawDeclined', False),
-        'drawDeclinedBy': match.get('drawDeclinedBy'),
-        'spectatorCount': len(match.get('spectators', [])),
-        'ruleMode': match.get('ruleMode', 'standard'),
-        'inviteOnly': match.get('inviteOnly', False),
-        'invitedFriends': match.get('invitedFriends', []),
-        'timestamp': time.time(),
-    }
-
-
-def _emit_match_update(match_id):
-    """
-    通过 Socket.IO 向房间广播赛事更新
-    当对局状态发生变化时调用，通知房间内所有客户端
-    :param match_id: 对局 ID
-    """
-    try:
-        from .. import socketio
-
-        with active_matches_lock:
-            if match_id in active_matches:
-                match = active_matches[match_id]
-                event_data = _build_match_event(match)
-        socketio.emit('match_updated', event_data, room=match_id)
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f'Socket.IO emit failed for match {match_id}: {e}')
 
 
 def _emit_match_list_changed():
@@ -167,10 +111,10 @@ def api_join_match(user):
         if isinstance(result, tuple):
             resp, code = result
             if code == 200:
-                _emit_match_update(match_id)
+                broadcast_match_update(match_id)
                 _emit_match_list_changed()
             return resp, code
-        _emit_match_update(match_id)
+        broadcast_match_update(match_id)
         _emit_match_list_changed()
         return result
     except Exception as e:  # noqa: BLE001
@@ -187,7 +131,7 @@ def api_make_move(user):
         row = data.get('row')
         col = data.get('col')
         result = make_move(user, match_id, row, col)
-        _emit_match_update(match_id)
+        broadcast_match_update(match_id)
         return result
     except Exception as e:  # noqa: BLE001
         logger.error(f'Move error for user {user.get("username", "unknown")}: {e}')
@@ -232,7 +176,7 @@ def api_leave_match(user):
         data = request.get_json()
         match_id = data.get('matchId', '')
         result = leave_match(user, match_id)
-        _emit_match_update(match_id)
+        broadcast_match_update(match_id)
         _emit_match_list_changed()
         return result
     except Exception as e:  # noqa: BLE001
@@ -246,8 +190,8 @@ def api_close_match(user):
     try:
         data = request.get_json()
         match_id = data.get('matchId', '')
-        _emit_match_update(match_id)
         result = close_match(user, match_id)
+        broadcast_match_update(match_id)
         _emit_match_list_changed()
         return result
     except Exception as e:  # noqa: BLE001
@@ -262,7 +206,7 @@ def api_restart_match(user):
         data = request.get_json()
         match_id = data.get('matchId', '')
         result = restart_match(user, match_id)
-        _emit_match_update(match_id)
+        broadcast_match_update(match_id)
         return result
     except Exception as e:  # noqa: BLE001
         logger.error(f'Restart match error for user {user.get("username", "unknown")}: {e}')
@@ -303,7 +247,7 @@ def api_decline_restart(user):
         data = request.get_json()
         match_id = data.get('matchId', '')
         result = decline_restart(user, match_id)
-        _emit_match_update(match_id)
+        broadcast_match_update(match_id)
         return result
     except Exception as e:  # noqa: BLE001
         logger.error(f'Decline restart error: {e}')
@@ -320,7 +264,7 @@ def api_request_undo(user):
         data = request.get_json()
         match_id = data.get('matchId', '')
         result = request_undo(user, match_id)
-        _emit_match_update(match_id)
+        broadcast_match_update(match_id)
         return result
     except Exception as e:  # noqa: BLE001
         logger.error(f'Request undo error: {e}')
@@ -334,7 +278,7 @@ def api_accept_undo(user):
         data = request.get_json()
         match_id = data.get('matchId', '')
         result = accept_undo(user, match_id)
-        _emit_match_update(match_id)
+        broadcast_match_update(match_id)
         return result
     except Exception as e:  # noqa: BLE001
         logger.error(f'Accept undo error: {e}')
@@ -348,7 +292,7 @@ def api_decline_undo(user):
         data = request.get_json()
         match_id = data.get('matchId', '')
         result = decline_undo(user, match_id)
-        _emit_match_update(match_id)
+        broadcast_match_update(match_id)
         return result
     except Exception as e:  # noqa: BLE001
         logger.error(f'Decline undo error: {e}')
@@ -365,7 +309,7 @@ def api_request_draw(user):
         data = request.get_json()
         match_id = data.get('matchId', '')
         result = request_draw(user, match_id)
-        _emit_match_update(match_id)
+        broadcast_match_update(match_id)
         return result
     except Exception as e:  # noqa: BLE001
         logger.error(f'Request draw error: {e}')
@@ -379,7 +323,7 @@ def api_accept_draw(user):
         data = request.get_json()
         match_id = data.get('matchId', '')
         result = accept_draw(user, match_id)
-        _emit_match_update(match_id)
+        broadcast_match_update(match_id)
         return result
     except Exception as e:  # noqa: BLE001
         logger.error(f'Accept draw error: {e}')
@@ -393,7 +337,7 @@ def api_decline_draw(user):
         data = request.get_json()
         match_id = data.get('matchId', '')
         result = decline_draw(user, match_id)
-        _emit_match_update(match_id)
+        broadcast_match_update(match_id)
         return result
     except Exception as e:  # noqa: BLE001
         logger.error(f'Decline draw error: {e}')
@@ -407,7 +351,7 @@ def api_resign(user):
         data = request.get_json()
         match_id = data.get('matchId', '')
         result = resign(user, match_id)
-        _emit_match_update(match_id)
+        broadcast_match_update(match_id)
         return result
     except Exception as e:  # noqa: BLE001
         logger.error(f'Resign error: {e}')
@@ -438,9 +382,9 @@ def api_spectate_join(user):
         if isinstance(result, tuple):
             resp, code = result
             if code == 200:
-                _emit_match_update(match_id)
+                broadcast_match_update(match_id)
             return resp, code
-        _emit_match_update(match_id)
+        broadcast_match_update(match_id)
         return result
     except Exception as e:  # noqa: BLE001
         logger.error(f'Spectate join error: {e}')
@@ -454,7 +398,7 @@ def api_spectate_leave(user):
         data = request.get_json()
         match_id = data.get('matchId', '')
         result = leave_spectate(user, match_id)
-        _emit_match_update(match_id)
+        broadcast_match_update(match_id)
         return result
     except Exception as e:  # noqa: BLE001
         logger.error(f'Spectate leave error: {e}')
@@ -475,6 +419,11 @@ def api_spectate_status(user):
 @match_bp.route('/api/spectate/token', methods=['GET'])
 @require_auth
 def api_get_spectate_token(user):
+    """获取（并轮换）公开观战 token。
+
+    每次调用都会生成新 token 并落库，使先前分享的链接在新 token 生效后
+    自动失效，避免链接被长期扩散。
+    """
     try:
         match_id = request.args.get('matchId', '')
         with active_matches_lock:
@@ -484,10 +433,31 @@ def api_get_spectate_token(user):
             username = user['username']
             if match['creator'] != username and match.get('opponent') != username:
                 return jsonify({'error': '您不在这个房间中'}), 403
-            token = match.get('spectateToken', '')
-        return jsonify({'success': True, 'token': token, 'matchId': match_id})
+            new_token = secrets.token_hex(20)
+            match['spectateToken'] = new_token
+        save_matches()
+        return jsonify({'success': True, 'token': new_token, 'matchId': match_id})
     except Exception as e:  # noqa: BLE001
         logger.error(f'Get spectate token error: {e}')
+        return jsonify({'error': 'Internal server error'}), 500
+
+
+@match_bp.route('/api/match/chat/<match_id>', methods=['GET'])
+@require_auth
+def api_get_room_chat_history(user, match_id):
+    """获取房间聊天历史。仅对局参与者可访问。"""
+    try:
+        username = user['username']
+        with active_matches_lock:
+            match = active_matches.get(match_id)
+            if not match:
+                return jsonify({'error': '房间不存在'}), 404
+            if match['creator'] != username and match.get('opponent') != username:
+                return jsonify({'error': '您不在这个房间中'}), 403
+        messages = get_room_chat_messages(match_id, limit=100)
+        return jsonify({'success': True, 'matchId': match_id, 'messages': messages})
+    except Exception as e:  # noqa: BLE001
+        logger.error(f'Get room chat history error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
 

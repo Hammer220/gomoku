@@ -14,8 +14,9 @@ from ...match_manager import (
     get_all_matches,
     get_match_detail,
 )
+from ...match.storage import broadcast_match_update
 from ..admin_routes import admin_bp, require_permission
-from ..match_routes import _emit_match_list_changed, _emit_match_update
+from ..match_routes import _emit_match_list_changed
 
 
 @admin_bp.route('/api/admin/matches', methods=['GET'])
@@ -42,7 +43,7 @@ def admin_get_match(admin_user, match_id):
 def admin_close_match(admin_user, match_id):
     logger.info(f'管理员 {admin_user["username"]} 强制关闭房间 {match_id}')
     result = force_close_match(match_id)
-    _emit_match_update(match_id)
+    broadcast_match_update(match_id)
     _emit_match_list_changed()
     return result
 
@@ -63,7 +64,7 @@ def admin_close_all_matches(admin_user):
 def admin_restart_match(admin_user, match_id):
     logger.info(f'管理员 {admin_user["username"]} 强制重新开始房间 {match_id}')
     result = force_restart_match(match_id)
-    _emit_match_update(match_id)
+    broadcast_match_update(match_id)
     return result
 
 
@@ -84,7 +85,7 @@ def admin_force_move(admin_user, match_id):
 
         logger.info(f'管理员 {admin_user["username"]} 强制落子 房间 {match_id} ({row},{col}) player={player}')
         result = force_move(match_id, row, col, player)
-        _emit_match_update(match_id)
+        broadcast_match_update(match_id)
         return result
     except Exception as e:  # noqa: BLE001
         logger.error(f'强制落子错误: {e!s}')

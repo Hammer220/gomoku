@@ -97,72 +97,10 @@ def create_app():
     return app
 
 
-def _build_match_event(match):
-    """构建用于 Socket.IO 广播的赛事数据"""
-    return {
-        'match_id': match['id'],
-        'id': match['id'],
-        'status': match['status'],
-        'board': [row[:] for row in match['board']],
-        'currentPlayer': match['currentPlayer'],
-        'moves': match['moves'][:],
-        'winner': match.get('winner'),
-        'creatorColor': match.get('creatorColor'),
-        'creator': match.get('creator'),
-        'opponent': match.get('opponent'),
-        'timeMode': match.get('timeMode', 'untimed'),
-        'blackTime': match.get('blackTime', 600),
-        'whiteTime': match.get('whiteTime', 600),
-        'moveDeadline': match.get('moveDeadline', 0),
-        'totalTime': match.get('totalTime', 600),
-        'moveTime': match.get('moveTime', 30),
-        'restartRequested': match.get('restartRequested', False),
-        'restartRequestedBy': match.get('restartRequestedBy'),
-        'restartDeclinedBy': match.get('restartDeclinedBy'),
-        'restartAccepted': match.get('restartAccepted', False),
-        'restartInitiated': match.get('restartInitiated', False),
-        'restartVersion': match.get('restartVersion', 0),
-        'undoRequested': match.get('undoRequested', False),
-        'undoRequestedBy': match.get('undoRequestedBy'),
-        'undoAccepted': match.get('undoAccepted', False),
-        'undoDeclined': match.get('undoDeclined', False),
-        'undoDeclinedBy': match.get('undoDeclinedBy'),
-        'drawRequested': match.get('drawRequested', False),
-        'drawRequestedBy': match.get('drawRequestedBy'),
-        'drawAccepted': match.get('drawAccepted', False),
-        'drawDeclined': match.get('drawDeclined', False),
-        'drawDeclinedBy': match.get('drawDeclinedBy'),
-        'spectatorCount': len(match.get('spectators', [])),
-        'ruleMode': match.get('ruleMode', 'standard'),
-        'inviteOnly': match.get('inviteOnly', False),
-        'invitedFriends': match.get('invitedFriends', []),
-        'timestamp': __import__('time').time(),
-    }
-
-
-def _emit_match_update(sio, match_id):
-    """通过 Socket.IO 向房间广播赛事更新
-
-    除向房间内玩家推送完整状态外，同时向全局广播一条轻量的 match_activity
-    事件，供管理员监控面板等场景实时感知对局变化（不含棋盘数据）。
-    """
-    try:
-        from .match.storage import active_matches, active_matches_lock
-
-        event_data = None
-        with active_matches_lock:
-            if match_id in active_matches:
-                match = active_matches[match_id]
-                event_data = _build_match_event(match)
-        if event_data is not None:
-            sio.emit('match_updated', event_data, room=match_id)
-        sio.emit('match_activity', {'match_id': match_id})
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f'Socket.IO emit failed for match {match_id}: {e}')
-
-
 def register_socket_events(sio):
     """注册Socket.IO事件处理器，包括游戏动作的WebSocket处理"""
+
+    from .match.storage import broadcast_match_update
 
     sid_to_match = {}
     sid_to_user = {}
@@ -264,23 +202,31 @@ def register_socket_events(sio):
     @sio.on('join')
     def handle_join(data):
         match_id = data.get('match_id')
-        username = data.get('username')
-        if match_id:
-            join_room(match_id)
-            sid_to_match[socket_request.sid] = match_id
-            if username:
-                sid_to_user[socket_request.sid] = username
-            logger.info(f'客户端加入房间: {match_id}, sid: {socket_request.sid}, username: {username}')
+        if not match_id:
+            return
+        sid = socket_request.sid
+        # 只允许已通过 register_user 认证的 SID 绑定房间；不接受客户端声称的 username
+        authenticated_username = sid_to_user.get(sid)
+        join_room(match_id)
+        sid_to_match[sid] = match_id
+        logger.info(
+            f'客户端加入房间: {match_id}, sid: {sid}, '
+            f'username: {authenticated_username or "(未注册，公共观战或匿名)"}'
+        )
 
     @sio.on('leave')
     def handle_leave(data):
         match_id = data.get('match_id')
-        username = data.get('username')
-        if match_id:
-            leave_room(match_id)
-            sid_to_match.pop(socket_request.sid, None)
-            sid_to_user.pop(socket_request.sid, None)
-            logger.info(f'客户端离开房间: {match_id}, sid: {socket_request.sid}, username: {username}')
+        if not match_id:
+            return
+        sid = socket_request.sid
+        authenticated_username = sid_to_user.get(sid)
+        leave_room(match_id)
+        sid_to_match.pop(sid, None)
+        logger.info(
+            f'客户端离开房间: {match_id}, sid: {sid}, '
+            f'username: {authenticated_username or "(未注册)"}'
+        )
 
     @sio.on('spectate_join')
     def handle_spectate_join(data):
@@ -336,7 +282,7 @@ def register_socket_events(sio):
             if isinstance(result_data, dict) and result_data.get('error'):
                 return _ws_error_response(sid, result_data['error'])
 
-            _emit_match_update(sio, match_id)
+            broadcast_match_update(match_id)
             _ws_success_response(sid, {'action': 'move', 'result': result_data})
         except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket落子错误: {e}')
@@ -359,7 +305,7 @@ def register_socket_events(sio):
 
             result = request_undo(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
-            _emit_match_update(sio, match_id)
+            broadcast_match_update(match_id)
             _ws_success_response(sid, {'action': 'undo_request', 'result': result_data})
         except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket悔棋请求错误: {e}')
@@ -382,7 +328,7 @@ def register_socket_events(sio):
 
             result = accept_undo(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
-            _emit_match_update(sio, match_id)
+            broadcast_match_update(match_id)
             _ws_success_response(sid, {'action': 'undo_accept', 'result': result_data})
         except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket接受悔棋错误: {e}')
@@ -405,7 +351,7 @@ def register_socket_events(sio):
 
             result = decline_undo(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
-            _emit_match_update(sio, match_id)
+            broadcast_match_update(match_id)
             _ws_success_response(sid, {'action': 'undo_decline', 'result': result_data})
         except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket拒绝悔棋错误: {e}')
@@ -428,7 +374,7 @@ def register_socket_events(sio):
 
             result = request_draw(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
-            _emit_match_update(sio, match_id)
+            broadcast_match_update(match_id)
             _ws_success_response(sid, {'action': 'draw_request', 'result': result_data})
         except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket和棋请求错误: {e}')
@@ -451,7 +397,7 @@ def register_socket_events(sio):
 
             result = accept_draw(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
-            _emit_match_update(sio, match_id)
+            broadcast_match_update(match_id)
             _ws_success_response(sid, {'action': 'draw_accept', 'result': result_data})
         except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket接受和棋错误: {e}')
@@ -474,7 +420,7 @@ def register_socket_events(sio):
 
             result = decline_draw(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
-            _emit_match_update(sio, match_id)
+            broadcast_match_update(match_id)
             _ws_success_response(sid, {'action': 'draw_decline', 'result': result_data})
         except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket拒绝和棋错误: {e}')
@@ -497,7 +443,7 @@ def register_socket_events(sio):
 
             result = resign(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
-            _emit_match_update(sio, match_id)
+            broadcast_match_update(match_id)
             _ws_success_response(sid, {'action': 'resign', 'result': result_data})
         except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket认输错误: {e}')
@@ -520,7 +466,7 @@ def register_socket_events(sio):
 
             result = restart_match(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
-            _emit_match_update(sio, match_id)
+            broadcast_match_update(match_id)
             _ws_success_response(sid, {'action': 'restart', 'result': result_data})
         except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket重开请求错误: {e}')
@@ -543,7 +489,7 @@ def register_socket_events(sio):
 
             result = decline_restart(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
-            _emit_match_update(sio, match_id)
+            broadcast_match_update(match_id)
             _ws_success_response(sid, {'action': 'restart_decline', 'result': result_data})
         except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket拒绝重开错误: {e}')
@@ -564,7 +510,7 @@ def register_socket_events(sio):
         try:
             from .match_manager import close_match
 
-            _emit_match_update(sio, match_id)
+            broadcast_match_update(match_id)
             result = close_match(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _ws_success_response(sid, {'action': 'close_room', 'result': result_data})
@@ -589,7 +535,7 @@ def register_socket_events(sio):
             from .match_manager import leave_match
 
             result = leave_match(user, match_id)
-            _emit_match_update(sio, match_id)
+            broadcast_match_update(match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _ws_success_response(sid, {'action': 'leave_room', 'result': result_data})
             sio.push_match_list_changed()
@@ -640,14 +586,19 @@ def register_socket_events(sio):
 
     @sio.on('room_chat')
     def handle_room_chat(data):
-        """处理房间聊天消息"""
+        """处理房间聊天消息。
+
+        用户名一律从当前 SID 的注册记录反查，拒绝客户端自带的 username。
+        这样即使 SID 没走 register_user（极少见），也不会出现用户名伪造。
+        """
         from .match.storage import add_room_chat_message
 
-        match_id = data.get('match_id')
-        username = data.get('username')
-        message = data.get('message', '').strip()
+        sid = socket_request.sid
+        username = sid_to_user.get(sid)
+        match_id = (data or {}).get('match_id')
+        message = (data or {}).get('message', '').strip()
 
-        if not match_id or not username or not message:
+        if not username or not match_id or not message:
             return
 
         chat_msg = add_room_chat_message(match_id, username, message)

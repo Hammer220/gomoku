@@ -557,16 +557,4 @@ var Gomoku = window.Gomoku || {};
         }
     };
 
-    G.showReconnectPrompt = function() {
-        var overlay = $('reconnectOverlay');
-        if (overlay) {
-            overlay.classList.remove('hidden');
-            overlay.addEventListener('click', function(e) {
-                if (e.target === overlay) {
-                    overlay.classList.add('hidden');
-                }
-            });
-        }
-    };
-
 })();

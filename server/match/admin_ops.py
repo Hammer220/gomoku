@@ -1,5 +1,5 @@
 """管理员对局操作模块
-负责：强制关闭、强制重启、强制落子等管理员操�?
+负责：强制关闭、强制重启、强制落子等管理员操作
 """
 
 import time
@@ -11,19 +11,19 @@ from .storage import active_matches, active_matches_lock, save_matches
 
 def force_close_match(match_id):
     """强制关闭对局（管理员用）
-    直接关闭指定对局，标记为已关�?
+    直接关闭指定对局，标记为已关闭
     """
     with active_matches_lock:
         if not match_id or match_id not in active_matches:
-            return {'error': '房间不存�?}, 404
+            return {'error': '房间不存在'}, 404
 
         match = active_matches[match_id]
         match['status'] = 'closed'
         match['closed_at'] = int(time.time())
         match['closed_by'] = 'admin'
         save_matches()
-    logger.info(f'管理员强制关闭房�? {match_id}')
-    return {'success': True, 'message': '房间已关�?}, 200
+    logger.info(f'管理员强制关闭房间: {match_id}')
+    return {'success': True, 'message': '房间已关闭'}, 200
 
 
 def force_close_all_matches():
@@ -39,8 +39,8 @@ def force_close_all_matches():
                 match['closed_by'] = 'admin'
                 closed_count += 1
         save_matches()
-    logger.info(f'管理员强制关闭所有房间，共关�?{closed_count} �?)
-    return {'success': True, 'message': f'已关�?{closed_count} 个房�?, 'closed_count': closed_count}, 200
+    logger.info(f'管理员强制关闭所有房间，共关闭{closed_count} 个')
+    return {'success': True, 'message': f'已关闭{closed_count} 个房间', 'closed_count': closed_count}, 200
 
 
 def force_restart_match(match_id):
@@ -49,7 +49,7 @@ def force_restart_match(match_id):
     """
     with active_matches_lock:
         if not match_id or match_id not in active_matches:
-            return {'error': '房间不存�?}, 404
+            return {'error': '房间不存在'}, 404
 
         match = active_matches[match_id]
         original_creator_color = match['creatorColor']
@@ -70,14 +70,14 @@ def force_restart_match(match_id):
         match['restartVersion'] = match.get('restartVersion', 0) + 1
         match['lastActivity'] = time.time()
         save_matches()
-    logger.info(f'管理员强制重新开始房�? {match_id}')
+    logger.info(f'管理员强制重新开始房间: {match_id}')
     return {
         'success': True,
         'restartInitiated': True,
         'restartVersion': match['restartVersion'],
         'creatorColor': match['creatorColor'],
         'currentPlayer': match['currentPlayer'],
-        'message': '对局已强制重新开�?,
+        'message': '对局已强制重新开始',
     }, 200
 
 
@@ -87,15 +87,15 @@ def force_move(match_id, row, col, player):
     """
     with active_matches_lock:
         if not match_id or match_id not in active_matches:
-            return {'error': '房间不存�?}, 404
+            return {'error': '房间不存在'}, 404
 
         match = active_matches[match_id]
         if match['status'] not in ['playing', ]:
-            return {'error': '游戏未在进行�?}, 400
+            return {'error': '游戏未在进行中'}, 400
         if row < 0 or row >= 15 or col < 0 or col >= 15:
             return {'error': '坐标超出棋盘范围'}, 400
         if match['board'][row][col] != 0:
-            return {'error': '该位置已有棋�?}, 400
+            return {'error': '该位置已有棋子'}, 400
 
         match['board'][row][col] = player
         match['moves'].append({'row': row, 'col': col, 'player': player})
@@ -110,6 +110,5 @@ def force_move(match_id, row, col, player):
 
         match['currentPlayer'] = 2 if player == 1 else 1
         save_matches()
-    logger.info(f'管理员强制落�? {match_id}, ({row},{col}), player={player}')
+    logger.info(f'管理员强制落子: {match_id}, ({row},{col}), player={player}')
     return {'success': True, 'win': False, 'board': [r[:] for r in match['board']]}, 200
-

@@ -1,5 +1,5 @@
 // ============================================================
-// WebSocket 通信管理�?(Socket.IO)
+// WebSocket 通信管理(Socket.IO)
 // ============================================================
 
 var Gomoku = window.Gomoku || {};
@@ -10,7 +10,7 @@ var Gomoku = window.Gomoku || {};
     var G = Gomoku;
 
     G.WebSocketManager = {
-        // 连接状�?
+        // 连接状态
         connected: false,
         connecting: false,
         usingWebSocket: false,
@@ -24,7 +24,7 @@ var Gomoku = window.Gomoku || {};
         // 事件回调
         eventHandlers: {},
 
-        // 初始�?
+        // 初开始
         init: function() {
             this.tryConnect();
         },
@@ -35,7 +35,7 @@ var Gomoku = window.Gomoku || {};
             this.connecting = true;
 
             if (typeof io === 'undefined') {
-                console.log('Socket.IO未加�?);
+                console.log('Socket.IO未加载');
                 this.connecting = false;
                 return;
             }
@@ -66,7 +66,7 @@ var Gomoku = window.Gomoku || {};
                     self.connecting = false;
                 });
 
-                // 注册服务端事件监�?
+                // 注册服务端事件监
                 this.socket.on('connected', function(data) {
                     self.emit('server_connected', data);
                 });
@@ -138,7 +138,7 @@ var Gomoku = window.Gomoku || {};
                 this.connecting = false;
 
             } catch (error) {
-                console.log('WebSocket初始化失�?', error);
+                console.log('WebSocket初始化失败', error);
                 this.connecting = false;
             }
         },
@@ -161,35 +161,35 @@ var Gomoku = window.Gomoku || {};
             }
         },
 
-        // 发送落�?
+        // 发送落
         sendMove: function(data) {
             if (this.socket && this.connected) {
                 this.socket.emit('ws_game_move', data);
             }
         },
 
-        // 发送悔棋请�?
+        // 发送悔棋请求
         sendUndoRequest: function(data) {
             if (this.socket && this.connected) {
                 this.socket.emit('ws_undo_request', data);
             }
         },
 
-        // 发送和棋请�?
+        // 发送和棋请求
         sendDrawRequest: function(data) {
             if (this.socket && this.connected) {
                 this.socket.emit('ws_draw_request', data);
             }
         },
 
-        // 发送心�?
+        // 发送心
         sendHeartbeat: function() {
             if (this.socket && this.connected) {
                 this.socket.emit('ws_heartbeat', {timestamp: Date.now()});
             }
         },
 
-        // 发送房间聊天消�?
+        // 发送房间聊天消息
         sendRoomChat: function(matchId, username, message) {
             if (this.socket && this.connected) {
                 this.socket.emit('room_chat', {
@@ -208,7 +208,7 @@ var Gomoku = window.Gomoku || {};
             }
         },
 
-        // 注册事件处理�?
+        // 注册事件处理
         on: function(event, handler) {
             if (!this.eventHandlers[event]) {
                 this.eventHandlers[event] = [];
@@ -216,7 +216,7 @@ var Gomoku = window.Gomoku || {};
             this.eventHandlers[event].push(handler);
         },
 
-        // 移除事件处理�?
+        // 移除事件处理
         off: function(event, handler) {
             if (!this.eventHandlers[event]) return;
             var index = this.eventHandlers[event].indexOf(handler);
@@ -232,12 +232,12 @@ var Gomoku = window.Gomoku || {};
                 try {
                     handler(data);
                 } catch (err) {
-                    console.error('事件处理器执行错�?', err);
+                    console.error('事件处理器执行错', err);
                 }
             });
         },
 
-        // 获取连接状�?
+        // 获取连接状态
         getStatus: function() {
             return {
                 connected: this.connected,
@@ -256,14 +256,3 @@ var Gomoku = window.Gomoku || {};
     };
 
 })();
-
-
-
-
-
-
-
-
-
-
-

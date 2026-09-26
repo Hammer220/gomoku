@@ -478,185 +478,179 @@ var Gomoku = window.Gomoku || {};
             var ai = G.getAIColor();
             var hu = ai === 1 ? 2 : 1;
             var startTime = Date.now();
-
             if (!G.gameBoard || !Array.isArray(G.gameBoard) || G.gameBoard.length !== 15) {
-                console.warn('[Master] Invalid game board, returning center');
                 return { row: 7, col: 7 };
             }
+            var forbidden = (G.shouldCheckForbidden && G.shouldCheckForbidden() && ai === 1);
 
-            var rootMoves = G.findCandidateMoves(ai, 2);
-
-            if (!rootMoves || rootMoves.length === 0) {
-                console.warn('[Master] No candidate moves found');
-                return { row: 7, col: 7 };
-            }
-
-            if (G.shouldCheckForbidden && G.shouldCheckForbidden() && ai === 1) {
-                var filtered = [];
-                for (var i = 0; i < rootMoves.length; i++) {
-                    var checkBoard = G.gameBoard.map(function(row) { return row.slice(); });
-                    checkBoard[rootMoves[i].row][rootMoves[i].col] = 1;
-                    var fb = G.checkForbidden(rootMoves[i].row, rootMoves[i].col, checkBoard);
-                    if (!fb.forbidden) {
-                        filtered.push(rootMoves[i]);
+            var BS = 15;
+            var SP = { FIVE: 1000000, OPEN_FOUR: 100000, FOUR: 10000, OPEN_THREE: 5000, THREE: 1000, OPEN_TWO: 500, TWO: 100 };
+            var analyze = function(board, row, col, player) {
+                var dirs = [[1,0],[0,1],[1,1],[1,-1]];
+                var total = 0;
+                var info = { five:0, openFour:0, four:0, openThree:0, three:0, openTwo:0, two:0 };
+                for (var d = 0; d < 4; d++) {
+                    var dx = dirs[d][0], dy = dirs[d][1];
+                    var line = [];
+                    for (var i = -4; i <= 4; i++) {
+                        var nr = row + i*dy, nc = col + i*dx;
+                        if (nr < 0 || nr >= BS || nc < 0 || nc >= BS) line.push(-1);
+                        else if (nr === row && nc === col) line.push(player);
+                        else line.push(board[nr][nc]);
                     }
+                    var s = line.map(function(v){
+                        if (v === -1) return 'X'; if (v === 0) return '_';
+                        if (v === player) return 'O'; return 'X';
+                    }).join('');
+                    if (s.indexOf('OOOOO') !== -1) { info.five++; total += SP.FIVE; }
+                    else if (s.indexOf('_OOOO_') !== -1) { info.openFour++; total += SP.OPEN_FOUR; }
+                    else if (~s.indexOf('_OOOOX') || ~s.indexOf('XOOOO_') || ~s.indexOf('OO_OO') || ~s.indexOf('O_OOO') || ~s.indexOf('OOO_O')) { info.four++; total += SP.FOUR; }
+                    else if (~s.indexOf('_OOO_') || ~s.indexOf('_O_OO_') || ~s.indexOf('_OO_O_')) { info.openThree++; total += SP.OPEN_THREE; }
+                    else if (~s.indexOf('_OOOX') || ~s.indexOf('XOOO_') || ~s.indexOf('_O_OOX') || ~s.indexOf('XOO_O_') || ~s.indexOf('X_OOO_') || ~s.indexOf('_OOO_X') || ~s.indexOf('O_O_O')) { info.three++; total += SP.THREE; }
+                    else if (~s.indexOf('__OO__') || ~s.indexOf('_O_O_')) { info.openTwo++; total += SP.OPEN_TWO; }
+                    else if (~s.indexOf('_OO__X') || ~s.indexOf('X__OO_') || ~s.indexOf('_O_OX') || ~s.indexOf('XO_O_')) { info.two++; total += SP.TWO; }
                 }
-                if (filtered.length > 0) {
-                    rootMoves = filtered;
-                }
-            }
-
-            console.log('[Master] Candidate moves:', rootMoves.length, 'AI color:', ai, 'Human color:', hu);
-
-            var blockMove = G.findSmartMove(G.gameBoard, ai, hu, 2);
-            if (blockMove) {
-                var testBoard = G.gameBoard.map(function(row) { return row.slice(); });
-                testBoard[blockMove.row][blockMove.col] = hu;
-                if (G.checkWin(testBoard, blockMove.row, blockMove.col, hu)) {
-                    console.log('[Master] Blocking via findSmartMove at', blockMove.row, blockMove.col);
-                    return blockMove;
-                }
-            }
-
-            for (var r = 0; r < 15; r++) {
-                for (var c = 0; c < 15; c++) {
-                    if (G.gameBoard[r][c] === hu) {
-                        var dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
-                        for (var d = 0; d < 4; d++) {
-                            var dx = dirs[d][0], dy = dirs[d][1];
-                            var count = 1, cells = [];
-                            for (var i = 1; i < 5; i++) {
-                                var nr = r + i * dy, nc = c + i * dx;
-                                if (nr < 0 || nr >= 15 || nc < 0 || nc >= 15 || G.gameBoard[nr][nc] !== hu) break;
-                                count++;
-                                cells.push({ row: nr, col: nc });
-                            }
-                            for (var i = 1; i < 5; i++) {
-                                var nr = r - i * dy, nc = c - i * dx;
-                                if (nr < 0 || nr >= 15 || nc < 0 || nc >= 15 || G.gameBoard[nr][nc] !== hu) break;
-                                count++;
-                                cells.push({ row: nr, col: nc });
-                            }
-                            if (count >= 4) {
-                                var emptyCount = 0, emptyPos = null;
-                                for (var i = 1; i <= 4; i++) {
-                                    var nr1 = r + i * dy, nc1 = c + i * dx;
-                                    if (nr1 >= 0 && nr1 < 15 && nc1 >= 0 && nc1 < 15 && G.gameBoard[nr1][nc1] === 0) { emptyCount++; emptyPos = { row: nr1, col: nc1 }; }
-                                    var nr2 = r - i * dy, nc2 = c - i * dx;
-                                    if (nr2 >= 0 && nr2 < 15 && nc2 >= 0 && nc2 < 15 && G.gameBoard[nr2][nc2] === 0) { emptyCount++; if (!emptyPos) emptyPos = { row: nr2, col: nc2 }; }
-                                }
-                                if (count >= 5) {
-                                    console.log('[Master] CRITICAL: opponent has 5+ at', r, c, 'direction', d);
-                                    return cells[0];
-                                }
-                                if (count === 4 && emptyCount === 1) {
-                                    console.log('[Master] Blocking opponent 4-in-a-row at', emptyPos.row, emptyPos.col);
-                                    return emptyPos;
-                                }
+                if (info.five) total = SP.FIVE;
+                else if (info.openFour >= 2) total = SP.OPEN_FOUR * 1.5;
+                else if (info.openFour && info.four) total = SP.OPEN_FOUR * 1.2;
+                else if (info.four >= 2) total = SP.FOUR * 1.5;
+                else if (info.openThree >= 2) total = SP.OPEN_THREE * 1.5;
+                return { score: total, shapes: info };
+            };
+            var genCandidates = function(board, topK) {
+                var scored = [];
+                var hasPiece = false;
+                for (var r = 0; r < BS; r++) { for (var c = 0; c < BS; c++) { if (board[r][c] !== 0) { hasPiece = true; break; } } if (hasPiece) break; }
+                if (!hasPiece) return [{ row:7, col:7, score:999999 }];
+                var added = {};
+                for (var r = 0; r < BS; r++) {
+                    for (var c = 0; c < BS; c++) {
+                        if (board[r][c] !== 0) continue;
+                        var near = false;
+                        for (var dr = -2; dr <= 2 && !near; dr++) {
+                            for (var dc = -2; dc <= 2; dc++) {
+                                var nr = r + dr, nc = c + dc;
+                                if (nr >= 0 && nr < BS && nc >= 0 && nc < BS && board[nr][nc] !== 0) { near = true; break; }
                             }
                         }
+                        if (!near) continue;
+                        var b1 = board.map(function(row){ return row.slice(); }); b1[r][c] = ai;
+                        var sAi = analyze(b1, r, c, ai).score;
+                        var b2 = board.map(function(row){ return row.slice(); }); b2[r][c] = hu;
+                        var sHu = analyze(b2, r, c, hu).score;
+                        var k = r + ',' + c;
+                        if (!added[k]) { added[k] = 1; scored.push({ row:r, col:c, score: sAi * 1.1 + sHu, sAi:sAi, sHu:sHu }); }
                     }
+                }
+                scored.sort(function(a,b){ return b.score - a.score; });
+                if (!scored.length) return [{ row:7, col:7, score:0 }];
+                if (topK && scored.length > topK) scored.length = topK;
+                return scored;
+            };
+            var candidates = genCandidates(G.gameBoard, 15);
+            if (!candidates.length) return { row: 7, col: 7 };
+
+            var i, j;
+            for (i = 0; i < candidates.length; i++) {
+                var mv = candidates[i];
+                var b1 = G.gameBoard.map(function(r){ return r.slice(); });
+                b1[mv.row][mv.col] = ai;
+                if (G.checkWin(b1, mv.row, mv.col, ai)) {
+                    if (forbidden && G.checkForbidden(mv.row, mv.col, b1).forbidden) continue;
+                    return { row: mv.row, col: mv.col };
                 }
             }
 
-            for (var i = 0; i < rootMoves.length; i++) {
-                var testBoard = G.gameBoard.map(function(row) { return row.slice(); });
-                testBoard[rootMoves[i].row][rootMoves[i].col] = ai;
-                if (G.checkWin(testBoard, rootMoves[i].row, rootMoves[i].col, ai)) {
-                    console.log('[Master] Immediate win at', rootMoves[i].row, rootMoves[i].col);
-                    return rootMoves[i];
+            var blockList = [];
+            for (i = 0; i < candidates.length; i++) {
+                var mv = candidates[i];
+                var b2 = G.gameBoard.map(function(r){ return r.slice(); });
+                b2[mv.row][mv.col] = hu;
+                if (G.checkWin(b2, mv.row, mv.col, hu)) blockList.push(mv);
+            }
+            if (blockList.length > 0) {
+                for (i = 0; i < blockList.length; i++) {
+                    var blk = blockList[i];
+                    if (!forbidden) return { row: blk.row, col: blk.col };
+                    var fbt = G.gameBoard.map(function(r){ return r.slice(); }); fbt[blk.row][blk.col] = 1;
+                    if (!G.checkForbidden(blk.row, blk.col, fbt).forbidden) return { row: blk.row, col: blk.col };
+                }
+                return { row: blockList[0].row, col: blockList[0].col };
+            }
+
+            for (i = 0; i < candidates.length; i++) {
+                var mv = candidates[i];
+                var b3 = G.gameBoard.map(function(r){ return r.slice(); }); b3[mv.row][mv.col] = ai;
+                if (forbidden && G.checkForbidden(mv.row, mv.col, b3).forbidden) continue;
+                var op4 = 0, f4 = 0;
+                var c2 = genCandidates(b3, 20);
+                for (j = 0; j < c2.length; j++) {
+                    var mv2 = c2[j];
+                    var b32 = b3.map(function(r){ return r.slice(); }); b32[mv2.row][mv2.col] = ai;
+                    if (forbidden && G.checkForbidden(mv2.row, mv2.col, b32).forbidden) continue;
+                    var a = analyze(b32, mv2.row, mv2.col, ai);
+                    if (a.shapes.openFour || a.shapes.five) op4++;
+                    if (a.shapes.four) f4++;
+                    if (G.checkWin(b32, mv2.row, mv2.col, ai)) op4 += 2;
+                }
+                if (op4 >= 2) return { row: mv.row, col: mv.col };
+                if (f4 >= 3) return { row: mv.row, col: mv.col };
+            }
+
+            var oppT2 = [];
+            for (i = 0; i < candidates.length; i++) {
+                var mv = candidates[i];
+                var b4 = G.gameBoard.map(function(r){ return r.slice(); }); b4[mv.row][mv.col] = hu;
+                var ha = analyze(b4, mv.row, mv.col, hu);
+                if (ha.shapes.openFour) oppT2.push({ mv: mv, pri: 2 });
+                else if (ha.shapes.four || ha.shapes.openThree >= 2) oppT2.push({ mv: mv, pri: 1 });
+            }
+            if (oppT2.length > 0) {
+                oppT2.sort(function(a,b){ return b.pri - a.pri; });
+                var tt = oppT2[0];
+                if (tt.pri >= 2) {
+                    if (!forbidden) return { row: tt.mv.row, col: tt.mv.col };
+                    var fbt2 = G.gameBoard.map(function(r){ return r.slice(); }); fbt2[tt.mv.row][tt.mv.col] = 1;
+                    if (!G.checkForbidden(tt.mv.row, tt.mv.col, fbt2).forbidden) return { row: tt.mv.row, col: tt.mv.col };
                 }
             }
 
-            var numSims = 500;
-            var scores = {};
-            for (var i = 0; i < rootMoves.length; i++) {
-                scores[i] = { wins: 0, visits: 0 };
+            var topN = Math.min(10, candidates.length);
+            var bestMove = null, bestFinal = -Infinity;
+            for (i = 0; i < topN; i++) {
+                var mv = candidates[i];
+                if (forbidden) {
+                    var bfb = G.gameBoard.map(function(r){ return r.slice(); }); bfb[mv.row][mv.col] = 1;
+                    if (G.checkForbidden(mv.row, mv.col, bfb).forbidden) continue;
+                }
+                var b5 = G.gameBoard.map(function(r){ return r.slice(); }); b5[mv.row][mv.col] = ai;
+                if (G.checkWin(b5, mv.row, mv.col, ai)) { bestMove = mv; break; }
+                var obc = genCandidates(b5, 8);
+                var obs = -Infinity, obm = null;
+                for (j = 0; j < obc.length; j++) {
+                    var omv = obc[j];
+                    var ob = b5.map(function(r){ return r.slice(); }); ob[omv.row][omv.col] = hu;
+                    var hw = G.checkWin(ob, omv.row, omv.col, hu);
+                    var hs = analyze(ob, omv.row, omv.col, hu).score + (hw ? 1000000 : 0);
+                    if (hs > obs) { obs = hs; obm = omv; }
+                }
+                var myS = analyze(b5, mv.row, mv.col, ai).score;
+                var defS = obm ? analyze(G.gameBoard, obm.row, obm.col, hu).score : 0;
+                var fin = myS * 1.2 + defS * 0.9 - obs * 1.0;
+                fin += (BS / 2 - Math.hypot(mv.row - BS/2, mv.col - BS/2));
+                if (fin > bestFinal) { bestFinal = fin; bestMove = mv; }
             }
-
-            for (var sim = 0; sim < numSims; sim++) {
-                var moveIdx = sim % rootMoves.length;
-                var move = rootMoves[moveIdx];
-
-                var simBoard = [];
-                for (var r = 0; r < 15; r++) {
-                    simBoard[r] = [];
-                    for (var c = 0; c < 15; c++) {
-                        simBoard[r][c] = G.gameBoard[r][c];
-                    }
-                }
-
-                simBoard[move.row][move.col] = ai;
-                var simPlayer = ai === 1 ? 2 : 1;
-
-                if (G.checkWin(simBoard, move.row, move.col, ai)) {
-                    scores[moveIdx].wins += 1;
-                    scores[moveIdx].visits += 1;
-                    continue;
-                }
-
-                var passes = 0;
-                var scored = false;
-                for (var step = 0; step < 50 && passes < 2; step++) {
-                    var smartMove = G.findSmartMove(simBoard, simPlayer, simPlayer === ai ? hu : ai, 2);
-                    if (!smartMove) {
-                        passes++;
-                        simPlayer = simPlayer === 1 ? 2 : 1;
-                        continue;
-                    }
-
-                    simBoard[smartMove.row][smartMove.col] = simPlayer;
-
-                    if (G.checkWin(simBoard, smartMove.row, smartMove.col, simPlayer)) {
-                        var win = (simPlayer === ai) ? 1 : 0;
-                        scores[moveIdx].wins += win;
-                        scores[moveIdx].visits += 1;
-                        scored = true;
-                        break;
-                    }
-
-                    simPlayer = simPlayer === 1 ? 2 : 1;
-                }
-
-                if (!scored) {
-                    var aiScore = 0, huScore = 0;
-                    for (var r = 0; r < 15; r++) {
-                        for (var c = 0; c < 15; c++) {
-                            if (simBoard[r][c] === ai) aiScore += G.evaluatePositionForBoard(r, c, ai, simBoard);
-                            else if (simBoard[r][c] === hu) huScore += G.evaluatePositionForBoard(r, c, hu, simBoard);
-                        }
-                    }
-                    var result = aiScore > huScore ? 1 : (aiScore < huScore ? 0 : 0.5);
-                    scores[moveIdx].wins += result;
-                    scores[moveIdx].visits += 1;
-                }
+            if (!bestMove) {
+                var filt = candidates.filter(function(m){
+                    if (!forbidden) return true;
+                    var fb = G.gameBoard.map(function(r){ return r.slice(); }); fb[m.row][m.col] = 1;
+                    return !G.checkForbidden(m.row, m.col, fb).forbidden;
+                });
+                bestMove = filt.length > 0 ? filt[0] : candidates[0];
             }
-
-            var bestIdx = -1;
-            var bestScore = -Infinity;
-            for (var i = 0; i < rootMoves.length; i++) {
-                if (scores[i] && scores[i].visits > 0) {
-                    var totalSims = numSims;
-                    var ucb = (scores[i].wins / scores[i].visits) + Math.sqrt(2 * Math.log(totalSims) / scores[i].visits);
-                    if (ucb > bestScore) {
-                        bestScore = ucb;
-                        bestIdx = i;
-                    }
-                }
-            }
-
-            if (bestIdx === -1) {
-                console.warn('[Master] No valid move found, returning center');
-                return { row: 7, col: 7 };
-            }
-
-            var result = rootMoves[bestIdx];
             var elapsed = Date.now() - startTime;
-            console.log('[Master] Selected move:', result.row, result.col,
-                'win rate:', (scores[bestIdx].wins / scores[bestIdx].visits).toFixed(3),
-                'visits:', scores[bestIdx].visits,
-                'time:', elapsed + 'ms');
-            return result;
+            console.log('[Master-local]', bestMove.row, bestMove.col, 'score:', bestFinal ? bestFinal.toFixed(1) : '-', 'time:', elapsed + 'ms');
+            return { row: bestMove.row, col: bestMove.col };
         } catch (e) {
             console.error('Master move error:', e);
             return { row: 7, col: 7 };
@@ -698,22 +692,61 @@ var Gomoku = window.Gomoku || {};
         return candidates;
     };
 
-    // AI 执行落子（根据当前难度选择策略，难度越高随机延迟越大）
+    G.aiWorker = null;
+    G.aiWorkerBusy = false;
+    G.aiWorkerPending = null;
+
+    G.getOrCreateWorker = function() {
+        if (G.aiWorker) return G.aiWorker;
+        try {
+            G.aiWorker = new Worker('static/js/gomoku/ai_worker.js');
+            G.aiWorker.onmessage = function(e) {
+                G.aiWorkerBusy = false;
+                var result = e.data || {};
+                var pending = G.aiWorkerPending;
+                G.aiWorkerPending = null;
+                if (result.error) {
+                    console.warn('[AI Worker] returned error:', result.error, 'fallback to local');
+                    if (pending) pending.useFallback = true;
+                }
+                if (pending && typeof pending.callback === 'function') {
+                    pending.callback(result);
+                }
+            };
+            G.aiWorker.onerror = function(err) {
+                console.error('[AI Worker] error event:', err);
+                G.aiWorkerBusy = false;
+                var pending = G.aiWorkerPending;
+                G.aiWorkerPending = null;
+                if (pending) {
+                    pending.useFallback = true;
+                    if (typeof pending.callback === 'function') pending.callback(null);
+                }
+            };
+        } catch (e) {
+            console.warn('[AI Worker] creation failed, using local calculation:', e);
+            G.aiWorker = null;
+        }
+        return G.aiWorker;
+    };
+
     G.aiMove = function() {
         if (!G.gameActive || G.gameMode !== 'ai' || G.currentPlayer !== G.getAIColor()) return;
-        // 根据难度计算随机延迟（毫秒）
         var delay = 0;
         if (G.aiDelayEnabled) {
             switch (G.aiDifficulty) {
-                case 'easy':    delay = Math.random() * 1000;          break; // 0~1秒
-                case 'medium':  delay = 500 + Math.random() * 1500;   break; // 0.5~2秒
-                case 'hard':    delay = 1000 + Math.random() * 2000;  break; // 1~3秒
-                case 'master':  delay = 2000 + Math.random() * 3000;  break; // 2~5秒
+                case 'easy':    delay = Math.random() * 1000;          break;
+                case 'medium':  delay = 500 + Math.random() * 1500;   break;
+                case 'hard':    delay = 1000 + Math.random() * 2000;  break;
+                case 'master':  delay = 2000 + Math.random() * 3000;  break;
                 default: delay = 0;
             }
         }
-        setTimeout(function() {
-            if (!G.gameActive || G.gameMode !== 'ai' || G.currentPlayer !== G.getAIColor()) return;
+
+        var worker = G.getOrCreateWorker();
+
+        var tryLocalFallback = function() {
+            console.log('[AI] using local fallback (difficulty=' + G.aiDifficulty + ')');
             var move = null;
             if (G.aiDifficulty === 'easy') move = G.findEasyMove();
             else if (G.aiDifficulty === 'medium') move = G.findMediumMove();
@@ -724,6 +757,64 @@ var Gomoku = window.Gomoku || {};
                 if (!placed && G.gameActive && G.gameBoard[7][7] === 0) {
                     G.placePiece(7, 7, G.getAIColor());
                 }
+            }
+        };
+
+        setTimeout(function() {
+            if (!G.gameActive || G.gameMode !== 'ai' || G.currentPlayer !== G.getAIColor()) return;
+
+            if (!worker || G.aiWorkerBusy) {
+                tryLocalFallback();
+                return;
+            }
+
+            var aiForbidden = false;
+            if (G.shouldCheckForbidden && typeof G.shouldCheckForbidden === 'function') {
+                aiForbidden = !!G.shouldCheckForbidden();
+            } else if (typeof G.aiForbidden !== 'undefined') {
+                aiForbidden = !!G.aiForbidden;
+            }
+
+            var boardCopy = G.gameBoard.map(function(r) { return r.slice(); });
+            G.aiWorkerBusy = true;
+            G.aiWorkerPending = {
+                useFallback: false,
+                callback: function(result) {
+                    if (!G.gameActive || G.gameMode !== 'ai' || G.currentPlayer !== G.getAIColor()) return;
+                    var pendingObj = G.aiWorkerPending || {};
+                    if (!result || pendingObj.useFallback) {
+                        tryLocalFallback();
+                        return;
+                    }
+                    if (typeof result.row !== 'number' || typeof result.col !== 'number') {
+                        tryLocalFallback();
+                        return;
+                    }
+                    if (result.elapsedMs !== undefined) {
+                        console.log('[AI Worker] difficulty=' + (result.difficulty || G.aiDifficulty),
+                            'move=(' + result.row + ',' + result.col + ')',
+                            'time=' + result.elapsedMs + 'ms');
+                    }
+                    var placed = G.placePiece(result.row, result.col, G.getAIColor());
+                    if (!placed && G.gameActive && G.gameBoard[7][7] === 0) {
+                        G.placePiece(7, 7, G.getAIColor());
+                    }
+                }
+            };
+
+            try {
+                worker.postMessage({
+                    type: 'findMove',
+                    difficulty: G.aiDifficulty,
+                    playerColor: G.playerColor,
+                    board: boardCopy,
+                    aiForbidden: aiForbidden
+                });
+            } catch (e) {
+                console.error('[AI Worker] postMessage failed:', e);
+                G.aiWorkerBusy = false;
+                G.aiWorkerPending = null;
+                tryLocalFallback();
             }
         }, delay);
     };

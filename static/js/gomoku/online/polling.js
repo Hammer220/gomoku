@@ -1,7 +1,7 @@
 // ============================================================
 // 联机对战模块 - WebSocket实时同步
-// 负责：通过WebSocket实时更新对局状态、心�?
-// 所有状态更新通过WebSocket推�?
+// 负责：通过WebSocket实时更新对局状态、心
+// 所有状态更新通过WebSocket推
 // ============================================================
 
 var Gomoku = window.Gomoku || {};
@@ -16,11 +16,11 @@ var Gomoku = window.Gomoku || {};
     };
 
     G.startOnlinePolling = function() {
-        // WebSocket模式下不需要轮�?
+        // WebSocket模式下不需要轮
     };
 
     G.stopOnlinePolling = function() {
-        // WebSocket模式下不需要轮�?
+        // WebSocket模式下不需要轮
     };
 
     G.startHeartbeat = function() {
@@ -43,12 +43,12 @@ var Gomoku = window.Gomoku || {};
                 await G.apiCall('/api/match/heartbeat', 'POST', {});
             }
         } catch (e) {
-            console.error('心跳发送失�?', e);
+            console.error('心跳发送失', e);
         }
     };
 
     G.pollOnlineMatch = async function() {
-        // WebSocket模式下不需要轮�?
+        // WebSocket模式下不需要轮
     };
 
     G.processMatchData = function(res) {
@@ -60,18 +60,18 @@ var Gomoku = window.Gomoku || {};
             G.stopOnlineTimer();
             G.stopTimedCountdown();
             G.stopHeartbeat();
-            var message = '对局已结�?;
+            var message = '对局已结束;
             if (res.winner === 0) {
-                var drawMsg1 = res.draw ? '棋盘已满，平局�? : '双方同意和棋';
+                var drawMsg1 = res.draw ? '棋盘已满，平局 : '双方同意和棋';
                 G.showGameEndDialog(null, drawMsg1);
                 return;
             }
             if (res.finishedReason === 'opponent_left') {
-                message = '对手已离开�? + (res.winner === G.onlineMyColor ? '你获胜了�? : '你输�?);
+                message = '对手已离开 + (res.winner === G.onlineMyColor ? '你获胜了 : '你输了);
             } else if (res.status === 'closed') {
                 message = '房间已被关闭，已自动返回大厅';
             } else if (res.winner) {
-                message = '游戏结束�? + (res.winner === G.onlineMyColor ? '你获胜了�? : '你输�?);
+                message = '游戏结束 + (res.winner === G.onlineMyColor ? '你获胜了 : '你输了);
             }
             var matchIdDisplay = $('onlineMatchIdDisplay');
             var roomInfo = $('roomInfo');
@@ -80,7 +80,7 @@ var Gomoku = window.Gomoku || {};
             var onlineCreateBtn = $('onlineCreateBtn');
             var onlineJoinBtn = $('onlineJoinBtn');
             if (matchIdDisplay) matchIdDisplay.textContent = '-';
-            if (roomInfo) roomInfo.innerHTML = '<p class="text-gray-500">未加入房�?/p>';
+            if (roomInfo) roomInfo.innerHTML = '<p class="text-gray-500">未加入房间/p>';
             if (roomActions) roomActions.classList.add('hidden');
             if (onlineLeaveBtn) onlineLeaveBtn.classList.add('hidden');
             if (onlineCreateBtn) onlineCreateBtn.classList.remove('hidden');
@@ -116,7 +116,7 @@ var Gomoku = window.Gomoku || {};
         if (res.restartRequested && res.restartDeclinedBy && !res.restartAccepted) {
             G.hideRestartCountdown();
             if (res.restartDeclinedBy !== G.username) {
-                G.showToast('对手拒绝了重新开始请�?);
+                G.showToast('对手拒绝了重新开始请求);
             }
         }
 
@@ -160,7 +160,7 @@ var Gomoku = window.Gomoku || {};
             var myWin = res.winner === G.onlineMyColor;
 
             if (res.winner === 0) {
-                var drawMsg2 = res.draw ? '棋盘已满，平局�? : '双方同意和棋';
+                var drawMsg2 = res.draw ? '棋盘已满，平局 : '双方同意和棋';
                 G.showGameEndDialog(null, drawMsg2);
                 return;
             }
@@ -180,7 +180,7 @@ var Gomoku = window.Gomoku || {};
             } else if (res.timeout) {
                 message = myWin ? '对手超时' : '你超时了';
             } else {
-                message = myWin ? '五子连珠�? : '对手五子连珠';
+                message = myWin ? '五子连珠 : '对手五子连珠';
             }
 
             G.showGameEndDialog(myWin, message);
@@ -244,14 +244,14 @@ var Gomoku = window.Gomoku || {};
         if (res.undoDeclined && !res.undoRequested) {
             G.hideUndoRequestPrompt();
             if (res.undoDeclinedBy !== G.username) {
-                G.showToast('对手拒绝了悔棋请�?);
+                G.showToast('对手拒绝了悔棋请求);
             }
         }
 
         if (res.drawDeclined && !res.drawRequested) {
             G.hideDrawRequestPrompt();
             if (res.drawDeclinedBy !== G.username) {
-                G.showToast('对手拒绝了和棋请�?);
+                G.showToast('对手拒绝了和棋请求);
             }
         }
     };
@@ -304,7 +304,7 @@ var Gomoku = window.Gomoku || {};
         });
 
         G.WebSocketManager.on('connected', function() {
-            console.log('WebSocket已连�?);
+            console.log('WebSocket已连珠);
         });
 
         G.WebSocketManager.on('not_authenticated', function() {
@@ -336,7 +336,7 @@ var Gomoku = window.Gomoku || {};
         });
 
         G.WebSocketManager.on('match_started', function(data) {
-            console.log('WebSocket收到对局开�?', data);
+            console.log('WebSocket收到对局开', data);
             if (data.match_id === G.onlineMatchId) {
                 G.onlineGameActive = true;
                 G.onlineBoard = data.board.map(function(r) { return r.slice(); });
@@ -383,7 +383,7 @@ var Gomoku = window.Gomoku || {};
         var onlineCreateBtn = $('onlineCreateBtn');
         var onlineJoinBtn = $('onlineJoinBtn');
         if (matchIdDisplay) matchIdDisplay.textContent = '-';
-        if (roomInfo) roomInfo.innerHTML = '<p class="text-gray-500">未加入房�?/p>';
+        if (roomInfo) roomInfo.innerHTML = '<p class="text-gray-500">未加入房间/p>';
         if (roomActions) roomActions.classList.add('hidden');
         if (onlineLeaveBtn) onlineLeaveBtn.classList.add('hidden');
         if (onlineCreateBtn) onlineCreateBtn.classList.remove('hidden');

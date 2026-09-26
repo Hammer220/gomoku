@@ -1,6 +1,6 @@
 // ============================================================
 // 联机对战模块 - 房间列表
-// 负责：可用房间列表、自动刷新、点击加�?
+// 负责：可用房间列表、自动刷新、点击加载
 // ============================================================
 
 var Gomoku = window.Gomoku || {};
@@ -19,7 +19,7 @@ var Gomoku = window.Gomoku || {};
             var res = await G.apiCall('/api/match/my', 'GET');
             if (res.match) {
                 var match = res.match;
-                if (match.status === 'waiting' || match.status === 'playing' || match.status === 'waiting_for_reconnect') {
+                if (match.status === 'waiting' || match.status === 'playing') {
                     var dialog = document.createElement('div');
                     dialog.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
                     dialog.id = 'existingMatchDialog';
@@ -27,7 +27,7 @@ var Gomoku = window.Gomoku || {};
                         <div class="bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl">\
                             <h3 class="text-lg font-bold text-gray-800 mb-2">发现未完成对局</h3>\
                             <p class="text-gray-600 mb-4">你已有一个未完成的联机对局，是否继续？</p>\
-                            <p class="text-sm text-gray-500 mb-6">房间�? ' + match.id + '</p>\
+                            <p class="text-sm text-gray-500 mb-6">房间号: ' + match.id + '</p>\
                             <div class="flex gap-3">\
                                 <button id="cancelExistingMatch" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">忽略</button>\
                                 <button id="continueExistingMatch" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">继续对局</button>\
@@ -99,13 +99,13 @@ var Gomoku = window.Gomoku || {};
                 container.innerHTML = '<div class="text-center text-gray-500 py-8 text-sm">暂无可用房间，请自己创建一个吧</div>';
                 return;
             }
-            var timeModeNames = {untimed: '无计�?, move: '每步限时', total: '总时�?, both: '每步+总时�?};
+            var timeModeNames = {untimed: '无计时', move: '每步限时', total: '总计时', both: '每步+总计时'};
             var html = '<div class="space-y-2 max-h-64 overflow-y-auto">';
             matches.forEach(function(match) {
                 var lockIcon = match.hasPassword ? '<i class="fa-solid fa-lock text-amber-500 mr-1"></i>' : '';
                 var spectateBtn = match.allowSpectate && match.spectateToken ?
                     '<button onclick="event.stopPropagation();Gomoku.spectateFromList(\'' + match.id + '\', \'' + match.spectateToken + '\')" class="text-blue-500 hover:text-blue-700 transition-colors ml-1" title="观战"><i class="fa-solid fa-eye"></i></button>' : '';
-                var timeModeLabel = timeModeNames[match.timeMode] || '无计�?;
+                var timeModeLabel = timeModeNames[match.timeMode] || '无计时';
                 
                 if (match.hasPassword) {
                     html += '\
@@ -120,7 +120,7 @@ var Gomoku = window.Gomoku || {};
                                 </div>\
                             </div>\
                             <div class="text-sm text-gray-600 mt-1">\
-                                创建�? ' + match.creator + '\
+                                创建者: ' + match.creator + '\
                                 <span class="text-xs text-gray-400 ml-2">' + timeModeLabel + '</span>\
                             </div>\
                             <button onclick="Gomoku.clickAvailableMatch(\'' + match.id + '\', true)" class="mt-2 w-full bg-amber-500 hover:bg-amber-600 text-white py-1.5 rounded-lg text-sm transition-colors">输入密码加入</button>\
@@ -138,7 +138,7 @@ var Gomoku = window.Gomoku || {};
                                 </div>\
                             </div>\
                             <div class="text-sm text-gray-600 mt-1">\
-                                创建�? ' + match.creator + '\
+                                创建者: ' + match.creator + '\
                                 <span class="text-xs text-gray-400 ml-2">' + timeModeLabel + '</span>\
                             </div>\
                         </div>\
@@ -170,4 +170,3 @@ var Gomoku = window.Gomoku || {};
     G.loadOnlineAvailableMatches = G.loadAvailableMatches;
 
 })();
-

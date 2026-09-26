@@ -58,7 +58,7 @@ var Gomoku = window.Gomoku || {};
             if (matchIdDisplay) matchIdDisplay.textContent = matchId;
             if (roomInfo) {
                 roomInfo.innerHTML =
-                    '<p>房间�? <span class="font-mono font-bold text-lg">' + matchId + '</span></p>' +
+                    '<p>房间 <span class="font-mono font-bold text-lg">' + matchId + '</span></p>' +
                     '<p>你的棋子: <span class="font-bold">' + (res.yourColor === 1 ? '黑棋' : '白棋') + '</span></p>' +
                     '<p>对手: <span class="font-bold">' + res.opponent + '</span></p>';
             }
@@ -109,7 +109,7 @@ var Gomoku = window.Gomoku || {};
             if (matchIdDisplay) matchIdDisplay.textContent = match.id;
             if (roomInfo) {
                 roomInfo.innerHTML =
-                    '<p>房间�? <span class="font-mono font-bold text-lg">' + match.id + '</span></p>' +
+                    '<p>房间号: <span class="font-mono font-bold text-lg">' + match.id + '</span></p>' +
                     '<p>你的棋子: <span class="font-bold">' + (match.myColor === 1 ? '黑棋' : '白棋') + '</span></p>' +
                     '<p>对手: <span class="font-bold">' + (match.opponent || '等待对手...') + '</span></p>';
             }
@@ -128,10 +128,7 @@ var Gomoku = window.Gomoku || {};
                 G.showToast('已恢复到之前的房间，等待对手...');
                 history.replaceState(null, '', '/online/' + match.id);
             } else if (match.status === 'playing') {
-                G.showToast('已恢复到房间 ' + match.id + '，对�? ' + match.opponent);
-                history.replaceState(null, '', '/online/' + match.id);
-            } else if (match.status === 'waiting_for_reconnect') {
-                G.showToast('已恢复到房间，对手暂时离开，等待重�?..', true);
+                G.showToast('已恢复到房间 ' + match.id + '，对手: ' + match.opponent);
                 history.replaceState(null, '', '/online/' + match.id);
             } else if (match.status === 'closed' || match.status === 'finished') {
                 G.onlineMatchId = null;
@@ -140,7 +137,7 @@ var Gomoku = window.Gomoku || {};
                 G.gameMode = 'ai';
                 G.initOnlineBoard();
                 if (matchIdDisplay) matchIdDisplay.textContent = '-';
-                if (roomInfo) roomInfo.innerHTML = '<p class="text-gray-500">未加入房�?/p>';
+                if (roomInfo) roomInfo.innerHTML = '<p class="text-gray-500">未加入房间/p>';
                 if (onlineCreateBtn) onlineCreateBtn.classList.remove('hidden');
                 if (onlineJoinBtn) onlineJoinBtn.parentElement.classList.remove('hidden');
                 if (onlineLeaveBtn) onlineLeaveBtn.classList.add('hidden');
@@ -149,7 +146,7 @@ var Gomoku = window.Gomoku || {};
                 if (G.drawOnlineBoard) G.drawOnlineBoard();
                 G.updateOnlineUI();
                 history.replaceState(null, '', '/online');
-                var message = match.status === 'closed' ? '房间已被关闭' : '对局已结束，已自动关�?;
+                var message = match.status === 'closed' ? '房间已被关闭' : '对局已结束，已自动关闭;
                 G.showToast(message, true);
             } else {
                 G.onlineMatchId = null;
@@ -158,7 +155,7 @@ var Gomoku = window.Gomoku || {};
                 G.gameMode = 'ai';
                 G.initOnlineBoard();
                 if (matchIdDisplay) matchIdDisplay.textContent = '-';
-                if (roomInfo) roomInfo.innerHTML = '<p class="text-gray-500">未加入房�?/p>';
+                if (roomInfo) roomInfo.innerHTML = '<p class="text-gray-500">未加入房间/p>';
                 if (onlineCreateBtn) onlineCreateBtn.classList.remove('hidden');
                 if (onlineJoinBtn) onlineJoinBtn.parentElement.classList.remove('hidden');
                 if (onlineLeaveBtn) onlineLeaveBtn.classList.add('hidden');
@@ -167,7 +164,7 @@ var Gomoku = window.Gomoku || {};
                 if (G.drawOnlineBoard) G.drawOnlineBoard();
                 G.updateOnlineUI();
                 history.replaceState(null, '', '/online');
-                G.showToast('未知房间状�?"' + match.status + '"，已自动关闭', true);
+                G.showToast('未知房间状态"' + match.status + '"，已自动关闭', true);
             }
         } catch (e) {
             console.error('恢复联机房间失败:', e);
@@ -202,7 +199,7 @@ var Gomoku = window.Gomoku || {};
             G.lastRestartVersion = 0;
             G.stopMatchListRefresh();
 
-            // 加入WebSocket房间，接收实时更�?
+            // 加入WebSocket房间，接收实时更新
             if (G.WebSocketManager) {
                 G.WebSocketManager.joinRoom(res.matchId);
             }
@@ -215,20 +212,20 @@ var Gomoku = window.Gomoku || {};
             var onlineJoinBtn = $('onlineJoinBtn');
             if (matchIdDisplay) matchIdDisplay.textContent = res.matchId;
             if (roomInfo) {
-                var modeNames = {untimed: '无计�?, move: '每步限时', total: '总时�?, both: '每步+总时�?};
+                var modeNames = {untimed: '无计时', move: '每步限时', total: '总计时', both: '每步+总计时'};
                 roomInfo.innerHTML =
-                    '<p>房间�? <span class="font-mono font-bold text-lg">' + res.matchId + '</span></p>' +
+                    '<p>房间 <span class="font-mono font-bold text-lg">' + res.matchId + '</span></p>' +
                     '<p>你的棋子: <span class="font-bold">' + (res.creatorColor === 1 ? '黑棋' : '白棋') + '</span></p>' +
-                    '<p>计时模式: <span class="text-amber-600">' + (modeNames[config.timeMode] || '无计�?) + '</span></p>' +
-                    '<p>状�? <span class="text-amber-600">等待对手加入...</span></p>' +
-                    '<p class="text-sm text-gray-500">你是房间创建�?/p>';
+                    '<p>计时模式: <span class="text-amber-600">' + (modeNames[config.timeMode] || '无计时') + '</span></p>' +
+                    '<p>状态: <span class="text-amber-600">等待对手加入...</span></p>' +
+                    '<p class="text-sm text-gray-500">你是房间创建/p>';
             }
             if (roomActions) roomActions.classList.remove('hidden');
             if (onlineLeaveBtn) onlineLeaveBtn.classList.remove('hidden');
             if (onlineCreateBtn) onlineCreateBtn.classList.add('hidden');
             if (onlineJoinBtn) onlineJoinBtn.parentElement.classList.add('hidden');
             G.hideOnlineLobby();
-            G.showToast('房间已创�? ' + res.matchId);
+            G.showToast('房间已创 ' + res.matchId);
             if (G.calcOnlineCanvasSize) G.calcOnlineCanvasSize();
             var boardContainer = $('onlineBoardContainer');
             if (boardContainer) boardContainer.classList.remove('hidden');
@@ -274,7 +271,7 @@ var Gomoku = window.Gomoku || {};
             G.lastRestartVersion = 0;
             G.stopMatchListRefresh();
 
-            // 加入WebSocket房间，接收实时更�?
+            // 加入WebSocket房间，接收实时更新
             if (G.WebSocketManager) {
                 G.WebSocketManager.joinRoom(matchId);
             }
@@ -288,7 +285,7 @@ var Gomoku = window.Gomoku || {};
             if (matchIdDisplay) matchIdDisplay.textContent = matchId;
             if (roomInfo) {
                 roomInfo.innerHTML =
-                    '<p>房间�? <span class="font-mono font-bold text-lg">' + matchId + '</span></p>' +
+                    '<p>房间 <span class="font-mono font-bold text-lg">' + matchId + '</span></p>' +
                     '<p>你的棋子: <span class="font-bold">' + (res.yourColor === 1 ? '黑棋' : '白棋') + '</span></p>' +
                     '<p>对手: <span class="font-bold">' + res.opponent + '</span></p>';
             }
@@ -335,7 +332,7 @@ var Gomoku = window.Gomoku || {};
 
     G.shareSpectateLink = async function() {
         if (!G.onlineMatchId) {
-            G.showToast('请先创建或加入房�?, true);
+            G.showToast('请先创建或加入房间, true);
             return;
         }
         try {
@@ -344,7 +341,7 @@ var Gomoku = window.Gomoku || {};
                 var link = window.location.origin + '/spectate?room=' + G.onlineMatchId + '&token=' + res.token;
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     await navigator.clipboard.writeText(link);
-                    G.showToast('观战链接已复制到剪贴�?);
+                    G.showToast('观战链接已复制到剪贴);
                 } else {
                     var textarea = document.createElement('textarea');
                     textarea.value = link;
@@ -354,7 +351,7 @@ var Gomoku = window.Gomoku || {};
                     textarea.select();
                     document.execCommand('copy');
                     document.body.removeChild(textarea);
-                    G.showToast('观战链接已复制到剪贴�?);
+                    G.showToast('观战链接已复制到剪贴);
                 }
             } else {
                 G.showToast('获取观战链接失败', true);
@@ -378,7 +375,7 @@ var Gomoku = window.Gomoku || {};
         roomActions.classList.remove('hidden');
         roomActions.innerHTML =
             '<button id="shareSpectateBtn" class="action-btn-full action-btn-spectate btn-ripple"><i class="fa-solid fa-link mr-1"></i>复制观战链接</button>' +
-            '<button id="requestRestartBtn" class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 rounded-lg text-sm mb-2 font-medium shadow-md transition-all">重新开�?/button>';
+            '<button id="requestRestartBtn" class="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-3 rounded-lg text-sm mb-2 font-medium shadow-md transition-all">重新开/button>';
         var requestRestartBtn = $('requestRestartBtn');
         requestRestartBtn.addEventListener('click', G.requestOnlineRestart);
         G.attachShareSpectateHandler();
@@ -410,7 +407,7 @@ var Gomoku = window.Gomoku || {};
                 G.showToast('对局已重新开始！');
             } else if (res.restartCancelled) {
                 G.hideRestartCountdown();
-                G.showToast('已取消重新开始请�?);
+                G.showToast('已取消重新开始请求);
             } else if (res.restartRequested) {
                 G.showRestartCountdown(15);
                 G.showToast('已请求重新开始，等待对手确认...');
@@ -430,7 +427,7 @@ var Gomoku = window.Gomoku || {};
         try {
             var res = await G.apiCall('/api/match/restart/decline', 'POST', { matchId: G.onlineMatchId });
             G.hideRestartCountdown();
-            G.showToast('已拒绝重新开始请�?);
+            G.showToast('已拒绝重新开始请求);
         } catch (err) {
             G.showToast(err.message, true);
         }
@@ -481,7 +478,7 @@ var Gomoku = window.Gomoku || {};
             var onlineCreateBtn = $('onlineCreateBtn');
             var onlineJoinBtn = $('onlineJoinBtn');
             if (matchIdDisplay) matchIdDisplay.textContent = '-';
-            if (roomInfo) roomInfo.innerHTML = '<p class="text-gray-500">未加入房�?/p>';
+            if (roomInfo) roomInfo.innerHTML = '<p class="text-gray-500">未加入房间/p>';
             if (roomActions) roomActions.classList.add('hidden');
             if (onlineLeaveBtn) onlineLeaveBtn.classList.add('hidden');
             if (onlineCreateBtn) onlineCreateBtn.classList.remove('hidden');
@@ -503,7 +500,7 @@ var Gomoku = window.Gomoku || {};
             if (G.drawOnlineBoard) G.drawOnlineBoard();
             G.updateOnlineUI();
             G.startMatchListRefresh();
-            G.showToast('房间已关�?);
+            G.showToast('房间已关闭);
             history.replaceState(null, '', '/online');
         } catch (err) {
             G.showToast(err.message, true);
@@ -531,7 +528,7 @@ var Gomoku = window.Gomoku || {};
             var onlineCreateBtn = $('onlineCreateBtn');
             var onlineJoinBtn = $('onlineJoinBtn');
             if (matchIdDisplay) matchIdDisplay.textContent = '-';
-            if (roomInfo) roomInfo.innerHTML = '<p class="text-gray-500">未加入房�?/p>';
+            if (roomInfo) roomInfo.innerHTML = '<p class="text-gray-500">未加入房间/p>';
             if (roomActions) roomActions.classList.add('hidden');
             if (onlineLeaveBtn) onlineLeaveBtn.classList.add('hidden');
             if (onlineCreateBtn) onlineCreateBtn.classList.remove('hidden');
@@ -573,8 +570,3 @@ var Gomoku = window.Gomoku || {};
     };
 
 })();
-
-
-
-
-

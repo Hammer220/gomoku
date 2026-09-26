@@ -1,12 +1,12 @@
 """联机匹配路由模块
-处理联机对战相关请求：创�?加入/离开房间、获取房间列表�?
-执行落子操作、超时处理、悔棋、和棋、观战等�?
+处理联机对战相关请求：创建/加入/离开房间、获取房间列表、
+执行落子操作、超时处理、悔棋、和棋、观战等。
 
-主要功能�?
-- 房间管理：创建、加入、离开、关闭房�?
+主要功能：
+- 房间管理：创建、加入、离开、关闭房间
 - 游戏操作：落子、悔棋、和棋、重开
-- 观战功能：获取观战列表、加�?离开观战
-- Socket.IO 广播：实时同步游戏状�?
+- 观战功能：获取观战列表、加入/离开观战
+- Socket.IO 广播：实时同步游戏状态
 """
 
 import time
@@ -46,10 +46,10 @@ match_bp = Blueprint('match', __name__)
 
 def _build_match_event(match):
     """
-    构建用于 Socket.IO 广播的赛事数�?
+    构建用于 Socket.IO 广播的赛事数据
     包含对局的所有状态信息：棋盘、玩家、时间、交互状态等
     :param match: 对局数据字典
-    :return: 包含对局事件的字�?
+    :return: 包含对局事件的字典
     """
     return {
         'match_id': match['id'],
@@ -94,7 +94,7 @@ def _build_match_event(match):
 
 def _emit_match_update(match_id):
     """
-    通过 Socket.IO 向房间广播赛事更�?
+    通过 Socket.IO 向房间广播赛事更新
     当对局状态发生变化时调用，通知房间内所有客户端
     :param match_id: 对局 ID
     """
@@ -463,7 +463,7 @@ def api_get_spectate_token(user):
         match_id = request.args.get('matchId', '')
         with active_matches_lock:
             if match_id not in active_matches:
-                return jsonify({'error': '房间不存�?}), 404
+                return jsonify({'error': '房间不存在'}), 404
             match = active_matches[match_id]
             username = user['username']
             if match['creator'] != username and match.get('opponent') != username:
@@ -482,10 +482,10 @@ def api_public_spectate():
         token = request.args.get('token', '')
         with active_matches_lock:
             if match_id not in active_matches:
-                return jsonify({'error': '房间不存�?}), 404
+                return jsonify({'error': '房间不存在'}), 404
             match = active_matches[match_id]
             if match.get('spectateToken') != token:
-                return jsonify({'error': '无效的观战链�?}), 403
+                return jsonify({'error': '无效的观战链接'}), 403
             if match['status'] not in ['playing', ]:
                 return jsonify({'error': '该对局不可观看'}), 400
             if not match.get('allowSpectate', True):
@@ -521,7 +521,7 @@ def api_invite_friends_to_match(user, match_id):
     try:
         data = request.get_json()
         if not data:
-            return jsonify({'error': '无效的请求数�?}), 400
+            return jsonify({'error': '无效的请求数据'}), 400
 
         friends_to_invite = data.get('friends', [])
         if not friends_to_invite:
@@ -531,13 +531,13 @@ def api_invite_friends_to_match(user, match_id):
 
         with active_matches_lock:
             if match_id not in active_matches:
-                return jsonify({'error': '房间不存�?}), 404
+                return jsonify({'error': '房间不存在'}), 404
 
             match = active_matches[match_id]
             if match['creator'] != user['username']:
-                return jsonify({'error': '只有房主可以邀请好�?}), 403
+                return jsonify({'error': '只有房主可以邀请好友'}), 403
             if match['status'] != 'waiting':
-                return jsonify({'error': '房间已开始或已结束，无法邀�?}), 400
+                return jsonify({'error': '房间已开始或已结束，无法邀请'}), 400
 
             invited = []
             already_invited = []
@@ -549,139 +549,25 @@ def api_invite_friends_to_match(user, match_id):
                 if friend in match.get('invitedFriends', []):
                     already_invited.append(friend)
                     continue
-                if 'invitedFriends' not in match:
-                    match['invitedFriends'] = []
-                match['invitedFriends'].append(friend)
+                match.setdefault('invitedFriends', []).append(friend)
                 invited.append(friend)
-                send_match_invitation(user['username'], friend, match_id)
-
-            if not invited:
-                return jsonify(
-                    {
-                        'success': False,
-                        'error': '无可邀请的好友',
-                        'notFriends': not_friends,
-                        'alreadyInvited': already_invited,
-                    }
-                ), 400
 
             save_matches()
-            _emit_match_update(match_id)
 
-            return jsonify(
-                {'success': True, 'invited': invited, 'alreadyInvited': already_invited, 'notFriends': not_friends}
-            )
+        for friend in invited:
+            try:
+                send_match_invitation(user['username'], friend, match_id)
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f'Failed to send match invitation from {user["username"]} to {friend}: {e}')
+
+        return jsonify(
+            {
+                'success': True,
+                'invited': invited,
+                'alreadyInvited': already_invited,
+                'notFriends': not_friends,
+            }
+        )
     except Exception as e:  # noqa: BLE001
         logger.error(f'Invite friends error: {e}')
         return jsonify({'error': 'Internal server error'}), 500
-
-
-@match_bp.route('/api/match/<match_id>/invites', methods=['GET'])
-@require_auth
-def api_get_match_invites(user, match_id):
-    try:
-        with active_matches_lock:
-            if match_id not in active_matches:
-                return jsonify({'error': '房间不存�?}), 404
-
-            match = active_matches[match_id]
-            return jsonify(
-                {'inviteOnly': match.get('inviteOnly', False), 'invitedFriends': match.get('invitedFriends', [])}
-            )
-    except Exception as e:  # noqa: BLE001
-        logger.error(f'Get match invites error: {e}')
-        return jsonify({'error': 'Internal server error'}), 500
-
-
-@match_bp.route('/api/poll/events', methods=['POST'])
-@require_auth
-def api_poll_events(user):
-    try:
-        data = request.get_json() or {}
-        requested_events = data.get('events', [])
-        result_events = []
-        username = user['username']
-
-        with active_matches_lock:
-            for match_id, match in active_matches.items():
-                is_player = match.get('creator') == username or match.get('opponent') == username
-                is_spectator = username in match.get('spectators', [])
-
-                if not is_player and not is_spectator:
-                    continue
-
-                if 'match_updated' in requested_events:
-                    result_events.append({'type': 'match_updated', 'data': _build_match_event(match)})
-
-                if 'move_made' in requested_events and len(match['moves']) > 0:
-                    last_move = match['moves'][-1]
-                    result_events.append(
-                        {
-                            'type': 'move_made',
-                            'data': {
-                                'match_id': match_id,
-                                'row': last_move['row'],
-                                'col': last_move['col'],
-                                'player': last_move['player'],
-                                'currentPlayer': match['currentPlayer'],
-                            },
-                        }
-                    )
-
-                if (
-                    'undo_requested' in requested_events
-                    and match.get('undoRequested')
-                    and match.get('undoRequestedBy') != username
-                ):
-                    result_events.append(
-                        {
-                            'type': 'undo_requested',
-                            'data': {'match_id': match_id, 'undoRequestedBy': match.get('undoRequestedBy')},
-                        }
-                    )
-
-                if (
-                    'draw_requested' in requested_events
-                    and match.get('drawRequested')
-                    and match.get('drawRequestedBy') != username
-                ):
-                    result_events.append(
-                        {
-                            'type': 'draw_requested',
-                            'data': {'match_id': match_id, 'drawRequestedBy': match.get('drawRequestedBy')},
-                        }
-                    )
-
-        return jsonify({'events': result_events})
-    except Exception as e:  # noqa: BLE001
-        logger.error(f'Poll events error: {e}')
-        return jsonify({'events': []})
-
-
-@match_bp.route('/api/match/<match_id>/set-invite-only', methods=['POST'])
-@require_auth
-def api_set_invite_only(user, match_id):
-    try:
-        data = request.get_json() or {}
-        invite_only = data.get('inviteOnly', False)
-
-        with active_matches_lock:
-            if match_id not in active_matches:
-                return jsonify({'error': '房间不存�?}), 404
-
-            match = active_matches[match_id]
-            if match['creator'] != user['username']:
-                return jsonify({'error': '只有房主可以设置房间模式'}), 403
-            if match['status'] != 'waiting':
-                return jsonify({'error': '房间已开始或已结束，无法修改'}), 400
-
-            match['inviteOnly'] = invite_only
-            save_matches()
-            _emit_match_update(match_id)
-
-            return jsonify({'success': True, 'inviteOnly': invite_only})
-    except Exception as e:  # noqa: BLE001
-        logger.error(f'Set invite only error: {e}')
-        return jsonify({'error': 'Internal server error'}), 500
-
-

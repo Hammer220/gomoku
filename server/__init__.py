@@ -1,5 +1,5 @@
 """Flask 应用工厂模块
-创建并配�?Flask 应用实例，注册路由蓝图，设置密钥和静态文件目录�?
+创建并配置Flask应用实例，注册路由蓝图，设置密钥和静态文件目录。
 """
 
 import json
@@ -50,7 +50,7 @@ def create_app():
 
 
 def _build_match_event(match):
-    """构建用于 Socket.IO 广播的赛事数�?""
+    """构建用于 Socket.IO 广播的赛事数据"""
     return {
         'match_id': match['id'],
         'id': match['id'],
@@ -93,7 +93,7 @@ def _build_match_event(match):
 
 
 def _emit_match_update(sio, match_id):
-    """通过 Socket.IO 向房间广播赛事更�?""
+    """通过 Socket.IO 向房间广播赛事更新"""
     try:
         from .match.storage import active_matches, active_matches_lock
 
@@ -114,7 +114,7 @@ def register_socket_events(sio):
     username_to_sids = {}
 
     def _get_user_from_sid(sid):
-        """�?sid 获取用户对象"""
+        """从sid获取用户对象"""
         username = sid_to_user.get(sid)
         if not username:
             return None
@@ -123,11 +123,11 @@ def register_socket_events(sio):
         return get_user(username)
 
     def _ws_error_response(sid, error_msg):
-        """向单个客户端发送错误响�?""
+        """向单个客户端发送错误响应"""
         sio.emit('ws_error', {'error': error_msg}, room=sid)
 
     def _ws_success_response(sid, data):
-        """向单个客户端发送成功响�?""
+        """向单个客户端发送成功响应"""
         sio.emit('ws_response', data, room=sid)
 
     @sio.on('connect')
@@ -148,7 +148,7 @@ def register_socket_events(sio):
                 del username_to_sids[username]
 
         if match_id and username:
-            logger.info(f'断线客户端所在房�? {match_id}，用�? {username}，通知房间内其他用�?)
+            logger.info(f'断线客户端所在房间: {match_id}，用户: {username}，通知房间内其他用户')
             emit(
                 'opponent_disconnected',
                 {'match_id': match_id, 'username': username, 'message': f'{username} 已断开连接'},
@@ -174,7 +174,7 @@ def register_socket_events(sio):
             sid_to_match[socket_request.sid] = match_id
             if username:
                 sid_to_user[socket_request.sid] = username
-            logger.info(f'客户端加入房�? {match_id}, sid: {socket_request.sid}, username: {username}')
+            logger.info(f'客户端加入房间: {match_id}, sid: {socket_request.sid}, username: {username}')
 
     @sio.on('leave')
     def handle_leave(data):
@@ -186,7 +186,7 @@ def register_socket_events(sio):
             sid_to_user.pop(socket_request.sid, None)
             logger.info(f'客户端离开房间: {match_id}, sid: {socket_request.sid}, username: {username}')
 
-    # ==================== WebSocket 游戏动作处理�?====================
+    # ==================== WebSocket 游戏动作处理 ====================
 
     @sio.on('ws_game_move')
     def handle_ws_game_move(data):
@@ -194,14 +194,14 @@ def register_socket_events(sio):
         sid = socket_request.sid
         user = _get_user_from_sid(sid)
         if not user:
-            return _ws_error_response(sid, '未登�?)
+            return _ws_error_response(sid, '未登录')
 
         match_id = data.get('matchId') or data.get('match_id')
         row = data.get('row')
         col = data.get('col')
 
         if match_id is None or row is None or col is None:
-            return _ws_error_response(sid, '参数不完�?)
+            return _ws_error_response(sid, '参数不完整')
 
         try:
             from .match_manager import make_move
@@ -223,11 +223,11 @@ def register_socket_events(sio):
         sid = socket_request.sid
         user = _get_user_from_sid(sid)
         if not user:
-            return _ws_error_response(sid, '未登�?)
+            return _ws_error_response(sid, '未登录')
 
         match_id = data.get('matchId') or data.get('match_id')
         if not match_id:
-            return _ws_error_response(sid, '缺少房间�?)
+            return _ws_error_response(sid, '缺少房间ID')
 
         try:
             from .match_manager import request_undo
@@ -246,11 +246,11 @@ def register_socket_events(sio):
         sid = socket_request.sid
         user = _get_user_from_sid(sid)
         if not user:
-            return _ws_error_response(sid, '未登�?)
+            return _ws_error_response(sid, '未登录')
 
         match_id = data.get('matchId') or data.get('match_id')
         if not match_id:
-            return _ws_error_response(sid, '缺少房间�?)
+            return _ws_error_response(sid, '缺少房间ID')
 
         try:
             from .match_manager import accept_undo
@@ -269,11 +269,11 @@ def register_socket_events(sio):
         sid = socket_request.sid
         user = _get_user_from_sid(sid)
         if not user:
-            return _ws_error_response(sid, '未登�?)
+            return _ws_error_response(sid, '未登录')
 
         match_id = data.get('matchId') or data.get('match_id')
         if not match_id:
-            return _ws_error_response(sid, '缺少房间�?)
+            return _ws_error_response(sid, '缺少房间ID')
 
         try:
             from .match_manager import decline_undo
@@ -292,11 +292,11 @@ def register_socket_events(sio):
         sid = socket_request.sid
         user = _get_user_from_sid(sid)
         if not user:
-            return _ws_error_response(sid, '未登�?)
+            return _ws_error_response(sid, '未登录')
 
         match_id = data.get('matchId') or data.get('match_id')
         if not match_id:
-            return _ws_error_response(sid, '缺少房间�?)
+            return _ws_error_response(sid, '缺少房间ID')
 
         try:
             from .match_manager import request_draw
@@ -315,11 +315,11 @@ def register_socket_events(sio):
         sid = socket_request.sid
         user = _get_user_from_sid(sid)
         if not user:
-            return _ws_error_response(sid, '未登�?)
+            return _ws_error_response(sid, '未登录')
 
         match_id = data.get('matchId') or data.get('match_id')
         if not match_id:
-            return _ws_error_response(sid, '缺少房间�?)
+            return _ws_error_response(sid, '缺少房间ID')
 
         try:
             from .match_manager import accept_draw
@@ -338,11 +338,11 @@ def register_socket_events(sio):
         sid = socket_request.sid
         user = _get_user_from_sid(sid)
         if not user:
-            return _ws_error_response(sid, '未登�?)
+            return _ws_error_response(sid, '未登录')
 
         match_id = data.get('matchId') or data.get('match_id')
         if not match_id:
-            return _ws_error_response(sid, '缺少房间�?)
+            return _ws_error_response(sid, '缺少房间ID')
 
         try:
             from .match_manager import decline_draw
@@ -361,11 +361,11 @@ def register_socket_events(sio):
         sid = socket_request.sid
         user = _get_user_from_sid(sid)
         if not user:
-            return _ws_error_response(sid, '未登�?)
+            return _ws_error_response(sid, '未登录')
 
         match_id = data.get('matchId') or data.get('match_id')
         if not match_id:
-            return _ws_error_response(sid, '缺少房间�?)
+            return _ws_error_response(sid, '缺少房间ID')
 
         try:
             from .match_manager import resign
@@ -380,15 +380,15 @@ def register_socket_events(sio):
 
     @sio.on('ws_restart')
     def handle_ws_restart(data):
-        """通过WebSocket处理重新开始请�?""
+        """通过WebSocket处理重新开始请求"""
         sid = socket_request.sid
         user = _get_user_from_sid(sid)
         if not user:
-            return _ws_error_response(sid, '未登�?)
+            return _ws_error_response(sid, '未登录')
 
         match_id = data.get('matchId') or data.get('match_id')
         if not match_id:
-            return _ws_error_response(sid, '缺少房间�?)
+            return _ws_error_response(sid, '缺少房间ID')
 
         try:
             from .match_manager import restart_match
@@ -407,11 +407,11 @@ def register_socket_events(sio):
         sid = socket_request.sid
         user = _get_user_from_sid(sid)
         if not user:
-            return _ws_error_response(sid, '未登�?)
+            return _ws_error_response(sid, '未登录')
 
         match_id = data.get('matchId') or data.get('match_id')
         if not match_id:
-            return _ws_error_response(sid, '缺少房间�?)
+            return _ws_error_response(sid, '缺少房间ID')
 
         try:
             from .match_manager import decline_restart
@@ -430,11 +430,11 @@ def register_socket_events(sio):
         sid = socket_request.sid
         user = _get_user_from_sid(sid)
         if not user:
-            return _ws_error_response(sid, '未登�?)
+            return _ws_error_response(sid, '未登录')
 
         match_id = data.get('matchId') or data.get('match_id')
         if not match_id:
-            return _ws_error_response(sid, '缺少房间�?)
+            return _ws_error_response(sid, '缺少房间ID')
 
         try:
             from .match_manager import close_match
@@ -453,11 +453,11 @@ def register_socket_events(sio):
         sid = socket_request.sid
         user = _get_user_from_sid(sid)
         if not user:
-            return _ws_error_response(sid, '未登�?)
+            return _ws_error_response(sid, '未登录')
 
         match_id = data.get('matchId') or data.get('match_id')
         if not match_id:
-            return _ws_error_response(sid, '缺少房间�?)
+            return _ws_error_response(sid, '缺少房间ID')
 
         try:
             from .match_manager import leave_match
@@ -527,10 +527,10 @@ def register_socket_events(sio):
         if chat_msg:
             emit('room_chat_message', chat_msg, room=match_id)
 
-    # ==================== 推送辅助函�?====================
+    # ==================== 推送辅助函数 ====================
 
     def push_user_status_update(username, user_data):
-        """向指定用户推送用户状态更�?""
+        """向指定用户推送用户状态更新"""
         if username in username_to_sids:
             for sid in username_to_sids[username]:
                 sio.emit('user_status_update', user_data, room=sid)
@@ -542,7 +542,7 @@ def register_socket_events(sio):
                 sio.emit('unread_count_update', {'unreadCount': unread_count}, room=sid)
 
     def push_message_read_update(sender_username, message_id, read_by):
-        """向消息发送者推送消息已读状态更�?""
+        """向消息发送者推送消息已读状态更新"""
         if sender_username in username_to_sids:
             for sid in username_to_sids[sender_username]:
                 sio.emit('message_read_update', {'messageId': message_id, 'readBy': read_by}, room=sid)
@@ -557,5 +557,3 @@ def register_socket_events(sio):
     sio.push_unread_count_update = push_unread_count_update
     sio.push_message_read_update = push_message_read_update
     sio.push_ban_notification = push_ban_notification
-
-

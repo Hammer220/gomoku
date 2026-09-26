@@ -34,7 +34,8 @@ def init_matches():
                 match_data = json.loads(row['data'])
                 active_matches[row['id']] = match_data
                 if match_data['status'] == 'playing':
-                    match_data['status'] = except json.JSONDecodeError:
+                    match_data['status'] = 'waiting'
+            except json.JSONDecodeError:
                 logger.error(f'Failed to parse match data for id {row["id"]}')
     else:
         try:
@@ -45,7 +46,8 @@ def init_matches():
                 for match_id, match in content.items():
                     active_matches[match_id] = match
                     if match.get('status') == 'playing':
-                        match['status'] = except Exception as e:  # noqa: BLE001
+                        match['status'] = 'waiting'
+        except Exception as e:  # noqa: BLE001
             logger.error(f'Error loading matches from JSON: {e}')
 
     cleanup_expired_matches()
@@ -124,7 +126,7 @@ def cleanup_expired_matches():
                         and (current_time - match['startTime']) > 3600
                     ):
                         expired_matches.append(match_id)
-                        logger.info(f'清理已结束房�? {match_id}')
+                        logger.info(f'清理已结束房间: {match_id}')
                 except Exception as e:  # noqa: BLE001
                     logger.error(f'Error checking match {match_id}: {e}')
 
@@ -178,9 +180,9 @@ def cleanup_inactive_connections():
 
 
 def handle_player_disconnect_from_match(username):
-    """处理玩家断开连接时的房间状�?
-    如果玩家在等待中或进行中的房间，断开连接后房间进入等待重连状�?
-    如果双方都已断开或离开，删除房�?
+    """处理玩家断开连接时的房间状态
+    如果玩家在等待中或进行中的房间，断开连接后房间进入等待重连状态
+    如果双方都已断开或离开，删除房间
     """
     try:
         with active_matches_lock:
@@ -203,16 +205,17 @@ def handle_player_disconnect_from_match(username):
                         continue
 
                     if match.get('status') == 'playing':
-                        match['status'] = if is_creator:
+                        match['status'] = 'waiting_reconnect'
+                        if is_creator:
                             match['creator_disconnected'] = True
                         else:
                             match['opponent_disconnected'] = True
                         match['lastActivity'] = time.time()
                         save_matches()
-                        logger.info(f'玩家 {username} 断开连接，房�?{match_id} 进入等待重连状�?)
+                        logger.info(f'玩家 {username} 断开连接，房间{match_id} 进入等待重连状态')
                         continue
 
-                    if match.get('status') == :
+                    if match.get('status') == 'waiting_reconnect':
                         if is_creator:
                             match['creator_disconnected'] = True
                         else:
@@ -248,7 +251,7 @@ def start_cleanup_task():
 
     cleanup_thread = threading.Thread(target=cleanup_loop, daemon=True)
     cleanup_thread.start()
-    logger.info('后台清理任务已启�?)
+    logger.info('后台清理任务已启动')
 
 
 def get_active_matches_lock():
@@ -304,8 +307,3 @@ def clear_room_chat(match_id):
             room_chats.pop(match_id, None)
     except Exception as e:  # noqa: BLE001
         logger.error(f'Error clearing room chat: {e}')
-
-
-
-
-

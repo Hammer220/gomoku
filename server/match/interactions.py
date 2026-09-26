@@ -17,7 +17,7 @@ def request_undo(user, match_id):
     """
     with active_matches_lock:
         if not match_id or match_id not in active_matches:
-            return {'error': '房间不存�?}, 404
+            return {'error': '房间不存在'}, 404
 
         match = active_matches[match_id]
         username = user['username']
@@ -25,7 +25,7 @@ def request_undo(user, match_id):
         if match['creator'] != username and match.get('opponent') != username:
             return {'error': '您不在这个房间中'}, 403
         if match['status'] != 'playing':
-            return {'error': '游戏未在进行�?}, 400
+            return {'error': '游戏未在进行中'}, 400
         if len(match['moves']) < 2:
             return {'error': '对局刚开始，无法悔棋'}, 400
 
@@ -36,7 +36,7 @@ def request_undo(user, match_id):
                 match['undoRequestedBy'] = None
                 match['lastActivity'] = time.time()
                 save_matches()
-                return {'success': True, 'undoCancelled': True, 'message': '已取消悔棋请�?}, 200
+                return {'success': True, 'undoCancelled': True, 'message': '已取消悔棋请求'}, 200
             else:
                 return {'error': '已有待处理的悔棋请求'}, 400
 
@@ -44,7 +44,7 @@ def request_undo(user, match_id):
         match['undoRequestedBy'] = username
         match['lastActivity'] = time.time()
         save_matches()
-        return {'success': True, 'undoRequested': True, 'undoRequestedBy': username, 'message': '已请求悔�?}, 200
+        return {'success': True, 'undoRequested': True, 'undoRequestedBy': username, 'message': '已请求悔棋'}, 200
 
 
 def accept_undo(user, match_id):
@@ -53,7 +53,7 @@ def accept_undo(user, match_id):
     """
     with active_matches_lock:
         if not match_id or match_id not in active_matches:
-            return {'error': '房间不存�?}, 404
+            return {'error': '房间不存在'}, 404
 
         match = active_matches[match_id]
         username = user['username']
@@ -63,17 +63,17 @@ def accept_undo(user, match_id):
         if not match.get('undoRequested'):
             return {'error': '没有待处理的悔棋请求'}, 400
         if match.get('undoRequestedBy') == username:
-            return {'error': '不能接受自己的悔棋请�?}, 400
+            return {'error': '不能接受自己的悔棋请求'}, 400
 
         # 回退两步
         moves = match['moves']
         if len(moves) >= 2:
-            # 移除最后两�?
+            # 移除最后两步
             move1 = moves.pop()
             move2 = moves.pop()
             match['board'][move1['row']][move1['col']] = 0
             match['board'][move2['row']][move2['col']] = 0
-            # 恢复轮次到两步之�?
+            # 恢复轮次到两步之前
             match['currentPlayer'] = move2['player']
 
         match['undoRequested'] = False
@@ -84,7 +84,7 @@ def accept_undo(user, match_id):
         match['lastActivity'] = time.time()
         board_copy = [row[:] for row in match['board']]
         save_matches()
-        logger.info(f'悔棋已执�? match={match_id}')
+        logger.info(f'悔棋已执行: match={match_id}')
         return {
             'success': True,
             'undoAccepted': True,
@@ -98,7 +98,7 @@ def decline_undo(user, match_id):
     """拒绝悔棋请求"""
     with active_matches_lock:
         if not match_id or match_id not in active_matches:
-            return {'error': '房间不存�?}, 404
+            return {'error': '房间不存在'}, 404
 
         match = active_matches[match_id]
         username = user['username']
@@ -115,7 +115,7 @@ def decline_undo(user, match_id):
         match['undoDeclinedBy'] = username
         match['lastActivity'] = time.time()
         save_matches()
-        return {'success': True, 'undoDeclined': True, 'message': '已拒绝悔棋请�?}, 200
+        return {'success': True, 'undoDeclined': True, 'message': '已拒绝悔棋请求'}, 200
 
 
 # ==================== 和棋功能 ====================
@@ -125,7 +125,7 @@ def request_draw(user, match_id):
     """请求和棋"""
     with active_matches_lock:
         if not match_id or match_id not in active_matches:
-            return {'error': '房间不存�?}, 404
+            return {'error': '房间不存在'}, 404
 
         match = active_matches[match_id]
         username = user['username']
@@ -133,7 +133,7 @@ def request_draw(user, match_id):
         if match['creator'] != username and match.get('opponent') != username:
             return {'error': '您不在这个房间中'}, 403
         if match['status'] != 'playing':
-            return {'error': '游戏未在进行�?}, 400
+            return {'error': '游戏未在进行中'}, 400
 
         if match.get('drawRequested'):
             if match.get('drawRequestedBy') == username:
@@ -141,7 +141,7 @@ def request_draw(user, match_id):
                 match['drawRequestedBy'] = None
                 match['lastActivity'] = time.time()
                 save_matches()
-                return {'success': True, 'drawCancelled': True, 'message': '已取消和棋请�?}, 200
+                return {'success': True, 'drawCancelled': True, 'message': '已取消和棋请求'}, 200
             else:
                 # 对方也请求和棋，直接同意
                 match['winner'] = 0  # 0=平局
@@ -153,20 +153,20 @@ def request_draw(user, match_id):
                 match['drawDeclinedBy'] = None
                 match['lastActivity'] = time.time()
                 save_matches()
-                return {'success': True, 'drawAccepted': True, 'winner': 0, 'message': '双方同意和棋�?}, 200
+                return {'success': True, 'drawAccepted': True, 'winner': 0, 'message': '双方同意和棋'}, 200
 
         match['drawRequested'] = True
         match['drawRequestedBy'] = username
         match['lastActivity'] = time.time()
         save_matches()
-        return {'success': True, 'drawRequested': True, 'drawRequestedBy': username, 'message': '已请求和�?}, 200
+        return {'success': True, 'drawRequested': True, 'drawRequestedBy': username, 'message': '已请求和棋'}, 200
 
 
 def accept_draw(user, match_id):
     """接受和棋请求"""
     with active_matches_lock:
         if not match_id or match_id not in active_matches:
-            return {'error': '房间不存�?}, 404
+            return {'error': '房间不存在'}, 404
 
         match = active_matches[match_id]
         username = user['username']
@@ -176,7 +176,7 @@ def accept_draw(user, match_id):
         if not match.get('drawRequested'):
             return {'error': '没有待处理的和棋请求'}, 400
         if match.get('drawRequestedBy') == username:
-            return {'error': '不能接受自己的和棋请�?}, 400
+            return {'error': '不能接受自己的和棋请求'}, 400
 
         match['winner'] = 0  # 0=平局
         match['status'] = 'finished'
@@ -187,14 +187,14 @@ def accept_draw(user, match_id):
         match['drawDeclinedBy'] = None
         match['lastActivity'] = time.time()
         save_matches()
-        return {'success': True, 'drawAccepted': True, 'winner': 0, 'message': '和棋�?}, 200
+        return {'success': True, 'drawAccepted': True, 'winner': 0, 'message': '和棋成功'}, 200
 
 
 def decline_draw(user, match_id):
     """拒绝和棋请求"""
     with active_matches_lock:
         if not match_id or match_id not in active_matches:
-            return {'error': '房间不存�?}, 404
+            return {'error': '房间不存在'}, 404
 
         match = active_matches[match_id]
         username = user['username']
@@ -211,7 +211,7 @@ def decline_draw(user, match_id):
         match['drawDeclinedBy'] = username
         match['lastActivity'] = time.time()
         save_matches()
-        return {'success': True, 'drawDeclined': True, 'message': '已拒绝和棋请�?}, 200
+        return {'success': True, 'drawDeclined': True, 'message': '已拒绝和棋请求'}, 200
 
 
 # ==================== 认输功能 ====================
@@ -221,7 +221,7 @@ def resign(user, match_id):
     """认输 - 直接判负"""
     with active_matches_lock:
         if not match_id or match_id not in active_matches:
-            return {'error': '房间不存�?}, 404
+            return {'error': '房间不存在'}, 404
 
         match = active_matches[match_id]
         username = user['username']
@@ -229,7 +229,7 @@ def resign(user, match_id):
         if match['creator'] != username and match.get('opponent') != username:
             return {'error': '您不在这个房间中'}, 403
         if match['status'] != 'playing':
-            return {'error': '游戏未在进行�?}, 400
+            return {'error': '游戏未在进行中'}, 400
 
         my_color = match['creatorColor'] if match['creator'] == username else (2 if match['creatorColor'] == 1 else 1)
 
@@ -255,7 +255,7 @@ def resign(user, match_id):
 
 
 def get_spectatable_matches():
-    """获取所有可观看的对局列表（过滤掉不允许观战的房间�?""
+    """获取所有可观看的对局列表（过滤掉不允许观战的房间）"""
     with active_matches_lock:
         spec_list = []
         for match_id, match in active_matches.items():
@@ -282,13 +282,13 @@ def get_spectatable_matches():
 
 
 def spectate_match(user, match_id, password=None):
-    """开始观�?
+    """开始观战
     检查房间是否允许观战，以及密码（如果设置）
-    返回对局完整信息，将用户加入观战者列�?
+    返回对局完整信息，将用户加入观战者列表
     """
     with active_matches_lock:
         if not match_id or match_id not in active_matches:
-            return {'error': '房间不存�?}, 404
+            return {'error': '房间不存在'}, 404
 
         match = active_matches[match_id]
         username = user['username']
@@ -300,7 +300,7 @@ def spectate_match(user, match_id, password=None):
         if match['creator'] == username or match.get('opponent') == username:
             return {'error': '您是参与者，请直接进入对局'}, 400
 
-        # 检查是否允许观�?
+        # 检查是否允许观战
         if not match.get('allowSpectate', True):
             return {'error': '该房间不允许观战'}, 403
 
@@ -309,7 +309,7 @@ def spectate_match(user, match_id, password=None):
         if room_password is not None and room_password != password:
             return {'error': '密码错误', 'needPassword': True}, 403
 
-        # 加入观战者列�?
+        # 加入观战者列表
         spectators = match.setdefault('spectators', [])
         if username not in spectators:
             spectators.append(username)
@@ -350,7 +350,7 @@ def get_spectate_status(user, match_id):
     """获取观战对局状态（轮询用）"""
     with active_matches_lock:
         if match_id not in active_matches:
-            return {'error': '房间不存�?}, 404
+            return {'error': '房间不存在'}, 404
 
         match = active_matches[match_id]
         spectators = match.get('spectators', [])
@@ -374,4 +374,3 @@ def get_spectate_status(user, match_id):
             'moveDeadline': match.get('moveDeadline', 0),
             'restartVersion': match.get('restartVersion', 0),
         }, 200
-

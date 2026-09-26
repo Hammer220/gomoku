@@ -10,7 +10,14 @@ STATIC_DIR = os.path.join(SCRIPT_DIR, 'static')
 os.makedirs(STATIC_DIR, exist_ok=True)
 
 cfg = configparser.ConfigParser()
-cfg.read(os.path.join(SCRIPT_DIR, 'config.ini'), encoding='utf-8')
+config_path = os.path.join(SCRIPT_DIR, 'config.ini')
+try:
+    cfg.read(config_path, encoding='utf-8')
+except UnicodeDecodeError:
+    try:
+        cfg.read(config_path, encoding='gbk')
+    except UnicodeDecodeError:
+        cfg.read(config_path, encoding='latin-1')
 
 
 def has_valid_geetest_config():

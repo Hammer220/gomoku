@@ -45,7 +45,7 @@ var Gomoku = window.Gomoku || {};
         // 如果已登录，携带JWT令牌
         if (G.token) headers['Authorization'] = 'Bearer ' + G.token;
         try {
-            var res = await fetch(G.API_BASE + url, { method: method, headers: headers, body: body ? JSON.stringify(body) : undefined });
+            var res = await fetch(G.API_BASE + url, { method: method, headers: headers, body: body ? JSON.stringify(body) : undefined, credentials: 'same-origin' });
 
             // 处理401未授权：登录过期，强制退出
             if (res.status === 401 && !skipAuthCheck && G.isLoggedIn) {

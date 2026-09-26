@@ -67,14 +67,13 @@ var Gomoku = window.Gomoku || {};
                 return;
             }
 
-            // 根据容器 ID 选择不同的 captchaId（登录/注册/访客使用不同的验证码）
+            // 根据容器 ID 选择不同的 captchaId（登录/访客用 loginCaptchaId，注册用 captchaId）
+            // 优先使用后端 /api/config 返回的值，保证与后端 config.ini 一致
             var captchaId;
-            if (containerId === 'geetestLoginWidget') {
-                captchaId = '4f9d3983ec3e3f57df82b0ccad9e273a';
-            } else if (containerId === 'geetestGuestWidget') {
-                captchaId = '4f9d3983ec3e3f57df82b0ccad9e273a';
+            if (containerId === 'geetestLoginWidget' || containerId === 'geetestGuestWidget') {
+                captchaId = G.loginCaptchaId || '4f9d3983ec3e3f57df82b0ccad9e273a';
             } else {
-                captchaId = 'a02cc5f652aa762b93710d33448f70b5';
+                captchaId = G.captchaId || 'a02cc5f652aa762b93710d33448f70b5';
             }
 
             var langMap = {

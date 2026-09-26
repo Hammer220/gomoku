@@ -46,6 +46,21 @@ var Gomoku = window.Gomoku || {};
             });
         }
 
+        var guestLoginNavBtn = $('guestLoginNavBtn');
+        if (guestLoginNavBtn) {
+            guestLoginNavBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                G.guestLogoutAndNavigate('/login');
+            });
+        }
+        var guestRegisterNavBtn = $('guestRegisterNavBtn');
+        if (guestRegisterNavBtn) {
+            guestRegisterNavBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                G.guestLogoutAndNavigate('/register');
+            });
+        }
+
         // ==================== 密码修改 ====================
 
         var changePasswordBtn = $('changePasswordBtn');

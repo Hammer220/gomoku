@@ -2,24 +2,36 @@
 负责持久化存储、全局状态管理、连接状态管理和定期清理
 """
 
-import json
 import threading
 import time
+from typing import Any
 
 from ..logger import logger
 
-active_matches: dict = {}
+active_matches: dict[str, dict[str, Any]] = {}
 active_matches_lock = threading.Lock()
 
-user_connections: dict = {}
+user_connections: dict[str, dict[str, Any]] = {}
 user_connections_lock = threading.Lock()
 CONNECT_TIMEOUT = 120
 
-room_chats: dict = {}
+room_chats: dict[str, list[dict[str, Any]]] = {}
 room_chats_lock = threading.Lock()
 
 
-def init_matches():
+def _notify_list_changed() -> None:
+    """房间因清理/断线被移除后，通知所有客户端刷新大厅列表"""
+    try:
+        from .. import socketio
+
+        socketio.push_match_list_changed()
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f'notify list changed skipped: {e}')
+
+
+def init_matches() -> None:
+    import json
+
     from ..db import get_connection
 
     conn = get_connection()
@@ -31,7 +43,7 @@ def init_matches():
     if rows:
         for row in rows:
             try:
-                match_data = json.loads(row['data'])
+                match_data: dict[str, Any] = json.loads(row['data'])
                 active_matches[row['id']] = match_data
                 if match_data['status'] == 'playing':
                     match_data['status'] = 'waiting'
@@ -41,7 +53,7 @@ def init_matches():
         try:
             from ..models import MATCHES_FILE, load_json_with_lock
 
-            content = load_json_with_lock(MATCHES_FILE, {})
+            content: dict[str, dict[str, Any]] = load_json_with_lock(MATCHES_FILE, {})
             if content:
                 for match_id, match in content.items():
                     active_matches[match_id] = match
@@ -53,7 +65,9 @@ def init_matches():
     cleanup_expired_matches()
 
 
-def save_matches():
+def save_matches() -> None:
+    import json
+
     from ..db import get_connection
 
     conn = get_connection()
@@ -81,7 +95,7 @@ def save_matches():
         logger.error(f'Error saving matches: {e}')
 
 
-def update_user_connection(username):
+def update_user_connection(username: str) -> None:
     try:
         with user_connections_lock:
             user_connections[username] = {'lastHeartbeat': time.time(), 'isOnline': True}
@@ -90,7 +104,7 @@ def update_user_connection(username):
         logger.error(f'Error updating user connection for {username}: {e}')
 
 
-def get_user_connection(username):
+def get_user_connection(username: str) -> dict[str, Any] | None:
     try:
         with user_connections_lock:
             return user_connections.get(username)
@@ -99,7 +113,7 @@ def get_user_connection(username):
         return None
 
 
-def remove_user_connection(username):
+def remove_user_connection(username: str) -> None:
     try:
         with user_connections_lock:
             if username in user_connections:
@@ -109,8 +123,8 @@ def remove_user_connection(username):
         logger.error(f'Error removing user connection for {username}: {e}')
 
 
-def cleanup_expired_matches():
-    expired_matches = []
+def cleanup_expired_matches() -> None:
+    expired_matches: list[str] = []
     current_time = time.time()
 
     try:
@@ -147,13 +161,14 @@ def cleanup_expired_matches():
             )
             conn.commit()
             logger.info(f'Cleaned up {len(expired_matches)} expired matches')
+            _notify_list_changed()
     except Exception as e:  # noqa: BLE001
         logger.error(f'Error in cleanup_expired_matches: {e}')
 
 
-def cleanup_inactive_connections():
+def cleanup_inactive_connections() -> list[str]:
     current_time = time.time()
-    inactive_users = []
+    inactive_users: list[str] = []
 
     try:
         with user_connections_lock:
@@ -179,68 +194,62 @@ def cleanup_inactive_connections():
     return inactive_users
 
 
-def handle_player_disconnect_from_match(username):
+def handle_player_disconnect_from_match(username: str) -> None:
     """处理玩家断开连接时的房间状态
-    如果玩家在等待中或进行中的房间，断开连接后房间进入等待重连状态
-    如果双方都已断开或离开，删除房间
+    - waiting + 创建者断开 → 直接删除房间
+    - playing + 一方断开 → 立即判对手获胜（与 leave_match 逻辑一致）
     """
     try:
         with active_matches_lock:
             for match_id, match in list(active_matches.items()):
-                if match.get('status') in ['waiting', 'playing', ]:
-                    is_creator = match['creator'] == username
-                    is_opponent = match.get('opponent') == username
+                status = match.get('status')
+                if status not in ('waiting', 'playing'):
+                    continue
 
-                    if not is_creator and not is_opponent:
-                        continue
+                is_creator = match['creator'] == username
+                is_opponent = match.get('opponent') == username
 
-                    if match.get('status') == 'waiting':
-                        if is_creator:
-                            del active_matches[match_id]
-                            save_matches()
-                            logger.info(f'房间 {match_id} 创建者断开连接，房间已删除')
-                            from .storage import clear_room_chat
+                if not is_creator and not is_opponent:
+                    continue
 
-                            clear_room_chat(match_id)
-                        continue
-
-                    if match.get('status') == 'playing':
-                        match['status'] = 'waiting_reconnect'
-                        if is_creator:
-                            match['creator_disconnected'] = True
-                        else:
-                            match['opponent_disconnected'] = True
-                        match['lastActivity'] = time.time()
+                if status == 'waiting':
+                    if is_creator:
+                        del active_matches[match_id]
                         save_matches()
-                        logger.info(f'玩家 {username} 断开连接，房间{match_id} 进入等待重连状态')
-                        continue
+                        logger.info(f'房间 {match_id} 创建者断开连接，房间已删除')
+                        clear_room_chat(match_id)
+                        _notify_list_changed()
+                    continue
 
-                    if match.get('status') == 'waiting_reconnect':
-                        if is_creator:
-                            match['creator_disconnected'] = True
-                        else:
-                            match['opponent_disconnected'] = True
-                        creator_disconnected = match.get('creator_disconnected', False)
-                        opponent_disconnected = match.get('opponent_disconnected', False)
-                        creator_left = match.get('creator_left', False)
-                        opponent_left = match.get('opponent_left', False)
-                        if (creator_disconnected or creator_left) and (opponent_disconnected or opponent_left):
-                            del active_matches[match_id]
-                            save_matches()
-                            logger.info(f'房间 {match_id} 双方都已离开或断开，房间已删除')
-                            from .storage import clear_room_chat
+                # playing —— 直接判对手获胜
+                opponent_wins = 2 if is_creator else 1
+                match['winner'] = opponent_wins
+                match['status'] = 'finished'
+                match['finishedReason'] = 'opponent_left'
+                match['lastActivity'] = time.time()
+                save_matches()
+                logger.info(f'玩家 {username} 断开连接，房间 {match_id} 判对手获胜')
 
-                            clear_room_chat(match_id)
-                        else:
-                            match['lastActivity'] = time.time()
-                            save_matches()
-                        continue
+                try:
+                    from .. import socketio
+
+                    socketio.emit(
+                        'opponent_disconnected',
+                        {
+                            'match_id': match_id,
+                            'username': username,
+                            'message': f'{username} 已断开连接，判你获胜',
+                        },
+                        room=match_id,
+                    )
+                except Exception as e:  # noqa: BLE001
+                    logger.debug(f'emit opponent_disconnected skipped: {e}')
     except Exception as e:  # noqa: BLE001
         logger.error(f'Error handling player disconnect from match: {e}')
 
 
-def start_cleanup_task():
-    def cleanup_loop():
+def start_cleanup_task() -> None:
+    def cleanup_loop() -> None:
         while True:
             time.sleep(300)
             try:
@@ -254,22 +263,22 @@ def start_cleanup_task():
     logger.info('后台清理任务已启动')
 
 
-def get_active_matches_lock():
+def get_active_matches_lock() -> threading.Lock:
     return active_matches_lock
 
 
-def get_active_matches():
+def get_active_matches() -> dict[str, dict[str, Any]]:
     return active_matches
 
 
-def add_room_chat_message(match_id, username, message):
+def add_room_chat_message(match_id: str, username: str, message: str) -> dict[str, Any] | None:
     """添加房间聊天消息"""
     try:
         with room_chats_lock:
             if match_id not in room_chats:
                 room_chats[match_id] = []
 
-            chat_msg = {
+            chat_msg: dict[str, Any] = {
                 'id': len(room_chats[match_id]) + 1,
                 'username': username,
                 'message': message,
@@ -286,7 +295,7 @@ def add_room_chat_message(match_id, username, message):
         return None
 
 
-def get_room_chat_messages(match_id, limit=50):
+def get_room_chat_messages(match_id: str, limit: int = 50) -> list[dict[str, Any]]:
     """获取房间聊天消息"""
     try:
         with room_chats_lock:
@@ -300,7 +309,7 @@ def get_room_chat_messages(match_id, limit=50):
         return []
 
 
-def clear_room_chat(match_id):
+def clear_room_chat(match_id: str) -> None:
     """清除房间聊天记录"""
     try:
         with room_chats_lock:

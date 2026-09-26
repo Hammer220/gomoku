@@ -85,6 +85,9 @@ var Gomoku = window.Gomoku || {};
         // 获取前端配置
         var config = await G.apiCall('/api/config', 'GET');
         G.captchaEnabled = config.captchaEnabled !== false;
+        // 保存后端返回的 captchaId，确保与后端 config.ini 一致
+        G.captchaId = config.captchaId || '';
+        G.loginCaptchaId = config.loginCaptchaId || '';
 
         // 如果验证码已禁用，隐藏验证码容器
         if (!G.captchaEnabled) {

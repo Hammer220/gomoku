@@ -49,6 +49,9 @@ var Gomoku = window.Gomoku || {};
             document.getElementById('loginModal').classList.remove('hidden');
             var config = await G.apiCall('/api/config', 'GET');
             G.captchaEnabled = config.captchaEnabled !== false;
+            // 保存后端返回的 captchaId，保证与 config.ini 一致
+            G.captchaId = config.captchaId || '';
+            G.loginCaptchaId = config.loginCaptchaId || '';
             if (G.captchaEnabled) {
                 await new Promise(function(resolve) {
                     G.initGeetestWidget('geetestLoginWidget', function() {

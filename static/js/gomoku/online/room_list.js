@@ -91,73 +91,102 @@ var Gomoku = window.Gomoku || {};
 
     G.loadAvailableMatches = async function() {
         var container = $('availableMatchesContainer');
+        var countEl = $('availableCount');
         if (!container) return;
         try {
             var res = await G.apiCall('/api/match/list', 'GET');
             var matches = res.matches || [];
+            if (countEl) countEl.textContent = matches.length;
             if (matches.length === 0) {
-                container.innerHTML = '<div class="text-center text-gray-500 py-8 text-sm">暂无可用房间，请自己创建一个吧</div>';
+                container.innerHTML =
+                    '<div class="room-list-empty">' +
+                        '<i class="fa-regular fa-face-frown"></i>' +
+                        '<p>暂无可用房间，创建一个吧！</p>' +
+                    '</div>';
                 return;
             }
             var timeModeNames = {untimed: '无计时', move: '每步限时', total: '总计时', both: '每步+总计时'};
-            var html = '<div class="space-y-2 max-h-64 overflow-y-auto">';
+            var html = '';
             matches.forEach(function(match) {
-                var lockIcon = match.hasPassword ? '<i class="fa-solid fa-lock text-amber-500 mr-1"></i>' : '';
-                var spectateBtn = match.allowSpectate && match.spectateToken ?
-                    '<button onclick="event.stopPropagation();Gomoku.spectateFromList(\'' + match.id + '\', \'' + match.spectateToken + '\')" class="text-blue-500 hover:text-blue-700 transition-colors ml-1" title="观战"><i class="fa-solid fa-eye"></i></button>' : '';
                 var timeModeLabel = timeModeNames[match.timeMode] || '无计时';
-                
-                if (match.hasPassword) {
-                    html += '\
-                        <div class="border border-amber-200 rounded-lg p-3 bg-amber-50">\
-                            <div class="flex justify-between items-center">\
-                                <div class="flex items-center">\
-                                    ' + lockIcon + '<span class="font-mono font-bold text-gray-800">' + match.id + '</span>\
-                                </div>\
-                                <div class="flex items-center gap-2">\
-                                    ' + spectateBtn + '\
-                                    <span class="text-xs px-2 py-1 bg-amber-200 text-amber-800 rounded-full">私人</span>\
-                                </div>\
-                            </div>\
-                            <div class="text-sm text-gray-600 mt-1">\
-                                创建者: ' + match.creator + '\
-                                <span class="text-xs text-gray-400 ml-2">' + timeModeLabel + '</span>\
-                            </div>\
-                            <button onclick="Gomoku.clickAvailableMatch(\'' + match.id + '\', true)" class="mt-2 w-full bg-amber-500 hover:bg-amber-600 text-white py-1.5 rounded-lg text-sm transition-colors">输入密码加入</button>\
-                        </div>\
-                    ';
-                } else {
-                    html += '\
-                        <div class="border border-gray-200 rounded-lg p-3 hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition-colors"\
-                             onclick="Gomoku.clickAvailableMatch(\'' + match.id + '\', false)">\
-                            <div class="flex justify-between items-center">\
-                                <span class="font-mono font-bold text-gray-800">' + match.id + '</span>\
-                                <div class="flex items-center gap-2">\
-                                    ' + spectateBtn + '\
-                                    <span class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">公共</span>\
-                                </div>\
-                            </div>\
-                            <div class="text-sm text-gray-600 mt-1">\
-                                创建者: ' + match.creator + '\
-                                <span class="text-xs text-gray-400 ml-2">' + timeModeLabel + '</span>\
-                            </div>\
-                        </div>\
-                    ';
-                }
+                var tagClass = match.hasPassword ? 'room-status-badge private' : 'room-status-badge public';
+                var tagLabel = match.hasPassword ?
+                    '<i class="fa-solid fa-lock"></i> 私人' :
+                    '<i class="fa-solid fa-globe"></i> 公共';
+                var spectateBtn = match.allowSpectate && match.spectateToken ?
+                    '<button onclick="event.stopPropagation();Gomoku.spectateFromList(\'' + match.id + '\', \'' + match.spectateToken + '\')" class="room-list-item-spectate" title="观战"><i class="fa-solid fa-eye"></i></button>' : '';
+                var action = match.hasPassword ?
+                    'event.stopPropagation();Gomoku.clickAvailableMatch(\'' + match.id + '\', true)' :
+                    'Gomoku.clickAvailableMatch(\'' + match.id + '\', false)';
+
+                html +=
+                    '<div class="room-list-item' + (match.hasPassword ? ' is-private' : '') + '"' +
+                         ' onclick="' + action + '">' +
+                        '<span class="room-list-item-accent"></span>' +
+                        '<div class="room-list-item-main">' +
+                            '<div class="room-list-item-head">' +
+                                '<span class="room-list-item-id"><i class="fa-solid fa-hashtag"></i>' + match.id + '</span>' +
+                                '<span class="' + tagClass + '">' + tagLabel + '</span>' +
+                            '</div>' +
+                            '<div class="room-list-item-meta">' +
+                                '<span><i class="fa-solid fa-user"></i>' + match.creator + '</span>' +
+                                '<span class="room-list-item-mode"><i class="fa-regular fa-clock"></i>' + timeModeLabel + '</span>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="room-list-item-side">' + spectateBtn + '</div>' +
+                    '</div>';
             });
-            html += '</div>';
             container.innerHTML = html;
         } catch (e) {
             console.error('加载可用房间错误:', e);
-            container.innerHTML = '<div class="text-center text-red-500 py-8 text-sm">加载失败，请刷新重试</div>';
+            container.innerHTML =
+                '<div class="room-list-empty error">' +
+                    '<i class="fa-solid fa-triangle-exclamation"></i>' +
+                    '<p>加载失败，请刷新重试</p>' +
+                '</div>';
         }
     };
 
+    /**
+     * 大厅列表实时刷新：
+     *   Socket.IO 已连接 —— match_list_changed 事件即时刷新 + 30s 兜底轮询
+     *   Socket.IO 断开   —— 10s 轮询降级
+     */
+    var MATCH_LIST_POLL_CONNECTED = 30000;
+    var MATCH_LIST_POLL_DISCONNECTED = 10000;
+    var matchListEventDebounce = null;
+
+    G.initMatchListRealtime = function() {
+        if (!G.WebSocketManager || G._matchListRealtimeBound) return;
+        G._matchListRealtimeBound = true;
+
+        G.WebSocketManager.on('match_list_changed', function() {
+            // 事件可能短时间内连续到达，合并为一次刷新
+            clearTimeout(matchListEventDebounce);
+            matchListEventDebounce = setTimeout(function() {
+                G.loadAvailableMatches();
+            }, 300);
+        });
+
+        G.WebSocketManager.on('connected', function() {
+            if (G.matchListRefreshTimer) G.startMatchListRefresh();
+        });
+        G.WebSocketManager.on('disconnected', function() {
+            if (G.matchListRefreshTimer) G.startMatchListRefresh();
+        });
+    };
+
     G.startMatchListRefresh = function() {
-        if (G.matchListRefreshTimer) return;
+        G.initMatchListRealtime();
+        if (G.matchListRefreshTimer) {
+            clearInterval(G.matchListRefreshTimer);
+            G.matchListRefreshTimer = null;
+        }
+        var wsConnected = !!(G.WebSocketManager && G.WebSocketManager.isConnected());
+        var interval = wsConnected ? MATCH_LIST_POLL_CONNECTED : MATCH_LIST_POLL_DISCONNECTED;
         G.matchListRefreshTimer = setInterval(function() {
             G.loadAvailableMatches();
-        }, 10000);
+        }, interval);
     };
 
     G.stopMatchListRefresh = function() {
@@ -165,6 +194,7 @@ var Gomoku = window.Gomoku || {};
             clearInterval(G.matchListRefreshTimer);
             G.matchListRefreshTimer = null;
         }
+        clearTimeout(matchListEventDebounce);
     };
 
     G.loadOnlineAvailableMatches = G.loadAvailableMatches;

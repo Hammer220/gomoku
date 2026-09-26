@@ -305,9 +305,21 @@ def get_match_status(user, match_id):
             # 悔棋
             'undoRequested': match.get('undoRequested', False),
             'undoRequestedBy': match.get('undoRequestedBy'),
+            'undoAccepted': match.get('undoAccepted', False),
+            'undoDeclined': match.get('undoDeclined', False),
+            'undoDeclinedBy': match.get('undoDeclinedBy'),
             # 和棋
             'drawRequested': match.get('drawRequested', False),
             'drawRequestedBy': match.get('drawRequestedBy'),
+            'drawAccepted': match.get('drawAccepted', False),
+            'drawDeclined': match.get('drawDeclined', False),
+            'drawDeclinedBy': match.get('drawDeclinedBy'),
+            # 结束原因（认输/离开/超时/平局）
+            'draw': match.get('draw', False),
+            'winReason': match.get('winReason'),
+            'finishedReason': match.get('finishedReason'),
+            'timeoutLoser': match.get('timeoutLoser'),
+            'timeoutReason': match.get('timeoutReason'),
             # 观战列表
             'spectatorCount': len(match.get('spectators', [])),
             # 规则模式

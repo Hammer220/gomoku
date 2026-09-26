@@ -45,10 +45,12 @@ def get_config():
         'GT4_LOGIN_CAPTCHA_ID': cfg.get('GEETEST_LOGIN', 'captcha_id') if has_valid_geetest_login_config() else '',
         'GT4_LOGIN_CAPTCHA_KEY': cfg.get('GEETEST_LOGIN', 'captcha_key') if has_valid_geetest_login_config() else '',
         'LOGIN_VERIFY_URL': cfg.get('GEETEST_LOGIN', 'verify_url') if has_valid_geetest_login_config() else '',
-        'PORT': int(cfg.get('APP', 'port')) if cfg.has_option('APP', 'port') else 8000,
+        'PORT': int(cfg.get('APP', 'port')) if cfg.has_option('APP', 'port') else 8080,
         'CAPTCHA_ENABLED': captcha_enabled,
     }
 
+
+PORT = int(cfg.get('APP', 'port')) if cfg.has_option('APP', 'port') else 8080
 
 GT4_CAPTCHA_ID = cfg.get('GEETEST', 'captcha_id') if has_valid_geetest_config() else ''
 GT4_CAPTCHA_KEY = cfg.get('GEETEST', 'captcha_key') if has_valid_geetest_config() else ''
@@ -56,5 +58,4 @@ VERIFY_URL = cfg.get('GEETEST', 'verify_url') if has_valid_geetest_config() else
 GT4_LOGIN_CAPTCHA_ID = cfg.get('GEETEST_LOGIN', 'captcha_id') if has_valid_geetest_login_config() else ''
 GT4_LOGIN_CAPTCHA_KEY = cfg.get('GEETEST_LOGIN', 'captcha_key') if has_valid_geetest_login_config() else ''
 LOGIN_VERIFY_URL = cfg.get('GEETEST_LOGIN', 'verify_url') if has_valid_geetest_login_config() else ''
-PORT = int(cfg.get('APP', 'port')) if cfg.has_option('APP', 'port') else 8000
 CAPTCHA_ENABLED = has_valid_geetest_config() and has_valid_geetest_login_config()

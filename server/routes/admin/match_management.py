@@ -15,6 +15,7 @@ from ...match_manager import (
     get_match_detail,
 )
 from ..admin_routes import admin_bp, require_permission
+from ..match_routes import _emit_match_list_changed, _emit_match_update
 
 
 @admin_bp.route('/api/admin/matches', methods=['GET'])
@@ -40,7 +41,10 @@ def admin_get_match(admin_user, match_id):
 @require_permission('canManageMatches')
 def admin_close_match(admin_user, match_id):
     logger.info(f'管理员 {admin_user["username"]} 强制关闭房间 {match_id}')
-    return force_close_match(match_id)
+    result = force_close_match(match_id)
+    _emit_match_update(match_id)
+    _emit_match_list_changed()
+    return result
 
 
 @admin_bp.route('/api/admin/matches/close-all', methods=['POST'])
@@ -48,7 +52,9 @@ def admin_close_match(admin_user, match_id):
 @require_permission('canManageMatches')
 def admin_close_all_matches(admin_user):
     logger.info(f'管理员 {admin_user["username"]} 强制关闭所有房间')
-    return force_close_all_matches()
+    result = force_close_all_matches()
+    _emit_match_list_changed()
+    return result
 
 
 @admin_bp.route('/api/admin/match/<match_id>/restart', methods=['POST'])
@@ -56,7 +62,9 @@ def admin_close_all_matches(admin_user):
 @require_permission('canManageMatches')
 def admin_restart_match(admin_user, match_id):
     logger.info(f'管理员 {admin_user["username"]} 强制重新开始房间 {match_id}')
-    return force_restart_match(match_id)
+    result = force_restart_match(match_id)
+    _emit_match_update(match_id)
+    return result
 
 
 @admin_bp.route('/api/admin/match/<match_id>/force-move', methods=['POST'])
@@ -75,7 +83,9 @@ def admin_force_move(admin_user, match_id):
             return jsonify({'error': '玩家编号必须为1或2'}), 400
 
         logger.info(f'管理员 {admin_user["username"]} 强制落子 房间 {match_id} ({row},{col}) player={player}')
-        return force_move(match_id, row, col, player)
+        result = force_move(match_id, row, col, player)
+        _emit_match_update(match_id)
+        return result
     except Exception as e:  # noqa: BLE001
         logger.error(f'强制落子错误: {e!s}')
         return jsonify({'error': '强制落子失败'}), 500

@@ -2,9 +2,9 @@
 负责将所有蓝图（Blueprint）注册到 Flask 应用，并定义页面路由。
 """
 
-from flask import render_template
+from flask import redirect, render_template, url_for
 
-from ..auth import login_required
+from ..auth import get_current_user, login_required
 from .admin_routes import admin_bp
 from .auth_routes import auth_bp
 from .game_routes import game_bp
@@ -28,11 +28,16 @@ def register_routes(app):
     @app.route('/')
     @app.route('/login')
     def login_page():
+        # 已登录（cookie / Authorization 任一有效）则直接进入主页
+        if get_current_user():
+            return redirect(url_for('game_page'))
         return render_template('login.html')
 
     # 注册页面（复用登录页面模板，前端通过 URL 判断显示注册弹窗）
     @app.route('/register')
     def register_page():
+        if get_current_user():
+            return redirect(url_for('game_page'))
         return render_template('login.html')
 
     # 游戏大厅页面

@@ -515,6 +515,7 @@ var Gomoku = window.Gomoku || {};
                 modelTimes: '次游戏机会',
                 guestLimitReachedGame: '访客游戏次数已用完，请注册账号',
                 guestModeExited: '已退出访客模式',
+                exitGuestMode: '退出访客',
                 loggedOut: '已退出登录',
                 guestCannotChangePassword: '访客模式无法修改密码，请注册账号',
                 fillAllPasswordFields: '请填写所有密码字段',
@@ -974,6 +975,7 @@ var Gomoku = window.Gomoku || {};
                 modelTimes: '次游戏机会',
                 guestLimitReachedGame: '访客游戏次数已用完，请注册账号',
                 guestModeExited: '已退出访客模式',
+                exitGuestMode: '退出访客',
                 loggedOut: '已退出登录',
                 guestCannotChangePassword: '访客模式无法修改密码，请注册账号',
                 fillAllPasswordFields: '请填写所有密码字段',
@@ -1533,6 +1535,7 @@ var Gomoku = window.Gomoku || {};
                 modelTimes: '次遊戲機會',
                 guestLimitReachedGame: '訪客遊戲次數已用完，請註冊帳號',
                 guestModeExited: '已退出訪客模式',
+                exitGuestMode: '退出訪客',
                 loggedOut: '已登出',
                 guestCannotChangePassword: '訪客模式無法修改密碼，請註冊帳號',
                 fillAllPasswordFields: '請填寫所有密碼欄位',
@@ -1992,6 +1995,7 @@ var Gomoku = window.Gomoku || {};
                 modelTimes: '次遊戲機會',
                 guestLimitReachedGame: '訪客遊戲次數已用完，請註冊帳號',
                 guestModeExited: '已退出訪客模式',
+                exitGuestMode: '退出訪客',
                 loggedOut: '已登出',
                 guestCannotChangePassword: '訪客模式無法修改密碼，請註冊帳號',
                 fillAllPasswordFields: '請填寫所有密碼欄位',
@@ -2535,6 +2539,7 @@ var Gomoku = window.Gomoku || {};
                 modelTimes: 'games',
                 guestLimitReachedGame: 'Guest game limit reached, please register',
                 guestModeExited: 'Exited guest mode',
+                exitGuestMode: 'Exit Guest',
                 loggedOut: 'Logged out',
                 guestCannotChangePassword: 'Guest cannot change password, please register',
                 fillAllPasswordFields: 'Please fill all password fields',
@@ -2994,6 +2999,7 @@ var Gomoku = window.Gomoku || {};
                 modelTimes: 'games',
                 guestLimitReachedGame: 'Guest game limit reached, please register',
                 guestModeExited: 'Exited guest mode',
+                exitGuestMode: 'Exit Guest',
                 loggedOut: 'Logged out',
                 guestCannotChangePassword: 'Guest cannot change password, please register',
                 fillAllPasswordFields: 'Please fill in all password fields',
@@ -3093,29 +3099,32 @@ var Gomoku = window.Gomoku || {};
             }
             document.documentElement.lang = this.currentLang;
             this.updatePageTranslations();
-            this.loadServerLanguage();
+            // 只有 localStorage 没有记录时才从服务器拉取覆盖
+            var self = this;
+            this.loadServerLanguage(function(serverLang) {
+                if (!localStorage.getItem('language') && serverLang && self.translations[serverLang]) {
+                    self.currentLang = serverLang;
+                    localStorage.setItem('language', serverLang);
+                    document.documentElement.lang = serverLang;
+                    self.updatePageTranslations();
+                }
+            });
         },
 
-        loadServerLanguage: function() {
+        loadServerLanguage: function(done) {
             if (G && G.token && G.currentUser && G.currentUser.language) {
-                if (this.translations[G.currentUser.language]) {
-                    this.currentLang = G.currentUser.language;
-                    localStorage.setItem('language', this.currentLang);
-                    document.documentElement.lang = this.currentLang;
-                    this.updatePageTranslations();
-                }
-            } else if (G && G.token && !G.currentUser) {
-                var self = this;
+                if (typeof done === 'function') done(G.currentUser.language);
+                return;
+            }
+            if (G && G.token && !G.currentUser) {
                 G.apiCall('/api/profile', 'GET', null, true).then(function(profile) {
-                    if (profile.language && self.translations[profile.language]) {
-                        self.currentLang = profile.language;
-                        localStorage.setItem('language', self.currentLang);
-                        document.documentElement.lang = self.currentLang;
-                        self.updatePageTranslations();
-                    }
+                    if (typeof done === 'function') done(profile && profile.language);
                 }).catch(function(err) {
                     console.log('Failed to load language from server:', err);
+                    if (typeof done === 'function') done(null);
                 });
+            } else {
+                if (typeof done === 'function') done(null);
             }
         }
     };

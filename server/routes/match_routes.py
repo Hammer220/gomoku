@@ -110,6 +110,17 @@ def _emit_match_update(match_id):
         logger.warning(f'Socket.IO emit failed for match {match_id}: {e}')
 
 
+def _emit_match_list_changed():
+    """大厅房间列表发生变化时通知所有在线客户端"""
+    try:
+        from .. import socketio
+
+        if hasattr(socketio, 'push_match_list_changed'):
+            socketio.push_match_list_changed()
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f'Socket.IO emit match_list_changed failed: {e}')
+
+
 @match_bp.route('/api/match/create', methods=['POST'])
 @require_auth
 def api_create_match(user):
@@ -126,6 +137,7 @@ def api_create_match(user):
         match_id, creator_color = create_match(
             user, time_mode, move_time, total_time, allow_spectate, password, rule_mode, invite_only, invited_friends
         )
+        _emit_match_list_changed()
         return jsonify(
             {
                 'success': True,
@@ -156,8 +168,10 @@ def api_join_match(user):
             resp, code = result
             if code == 200:
                 _emit_match_update(match_id)
+                _emit_match_list_changed()
             return resp, code
         _emit_match_update(match_id)
+        _emit_match_list_changed()
         return result
     except Exception as e:  # noqa: BLE001
         logger.error(f'Join match error for user {user.get("username", "unknown")}: {e}')
@@ -219,6 +233,7 @@ def api_leave_match(user):
         match_id = data.get('matchId', '')
         result = leave_match(user, match_id)
         _emit_match_update(match_id)
+        _emit_match_list_changed()
         return result
     except Exception as e:  # noqa: BLE001
         logger.error(f'Leave match error for user {user.get("username", "unknown")}: {e}')
@@ -233,6 +248,7 @@ def api_close_match(user):
         match_id = data.get('matchId', '')
         _emit_match_update(match_id)
         result = close_match(user, match_id)
+        _emit_match_list_changed()
         return result
     except Exception as e:  # noqa: BLE001
         logger.error(f'Close match error for user {user.get("username", "unknown")}: {e}')

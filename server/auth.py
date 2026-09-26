@@ -130,12 +130,26 @@ def login_required(f):
     def decorated(*args, **kwargs):
         user = get_current_user()
         if not user:
-            return redirect(url_for('login_page'))
+            resp = redirect(url_for('login_page'))
+            resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+            resp.headers['Pragma'] = 'no-cache'
+            resp.headers['Expires'] = '0'
+            return resp
         if user.get('bannedUntil'):
             banned_until = user['bannedUntil']
             if banned_until and time.time() < banned_until:
-                return redirect(url_for('login_page') + '?banned=1')
-        return f(*args, **kwargs)
+                resp = redirect(url_for('login_page') + '?banned=1')
+                resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+                resp.headers['Pragma'] = 'no-cache'
+                resp.headers['Expires'] = '0'
+                return resp
+        resp = f(*args, **kwargs)
+        # 禁止浏览器缓存受保护页面，防止无登录凭证时访问到旧的已登录缓存
+        if hasattr(resp, 'headers'):
+            resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+            resp.headers['Pragma'] = 'no-cache'
+            resp.headers['Expires'] = '0'
+        return resp
 
     return decorated
 

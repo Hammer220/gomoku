@@ -7,8 +7,46 @@
 
     // ==================== 联机对局监控 ====================
 
+    // ==================== 实时推送（WS 优先，轮询兜底） ====================
+
+    var MONITOR_POLL_CONNECTED = 15000;
+    var MONITOR_POLL_DISCONNECTED = 5000;
+    var monitorListDebounce = null;
+
+    // 绑定监控页的 WebSocket 事件（只需一次）
+    G.initMonitorRealtime = function() {
+        if (!G.WebSocketManager || G._monitorRealtimeBound) return;
+        G._monitorRealtimeBound = true;
+
+        // 房间创建/关闭/加入/离开 → 刷新列表
+        G.WebSocketManager.on('match_list_changed', function() {
+            clearTimeout(monitorListDebounce);
+            monitorListDebounce = setTimeout(function() {
+                if (document.getElementById('matchListContainer')) {
+                    G.loadMatchList();
+                }
+            }, 300);
+        });
+
+        // 对局内有动作（落子等）→ 立即刷新正在监控的棋盘
+        G.WebSocketManager.on('match_activity', function(data) {
+            if (data && data.match_id && data.match_id === G.monitorMatchId) {
+                G.updateMonitor();
+            }
+        });
+
+        // 连接状态变化时调整轮询频率
+        G.WebSocketManager.on('connected', function() {
+            if (G.monitorInterval) G.startMonitor();
+        });
+        G.WebSocketManager.on('disconnected', function() {
+            if (G.monitorInterval) G.startMonitor();
+        });
+    };
+
     // 加载联机对局列表（管理员监控用）
     G.loadMatchList = async function() {
+        G.initMonitorRealtime();
         try {
             const res = await G.apiCall('/api/admin/matches', 'GET');
             const container = document.getElementById('matchListContainer');
@@ -77,13 +115,16 @@
         }, 50);
     }
 
-    // 启动对局监控（定时刷新棋盘数据）
+    // 启动对局监控（WS 活动事件即时刷新；另保留定时轮询兜底，断线时提高频率）
     G.startMonitor = async function() {
+        G.initMonitorRealtime();
         G.stopMonitor();
         if (!G.monitorMatchId) return;
 
         await G.updateMonitor();
-        G.monitorInterval = setInterval(G.updateMonitor, 5000);
+        var wsConnected = !!(G.WebSocketManager && G.WebSocketManager.isConnected());
+        var interval = wsConnected ? MONITOR_POLL_CONNECTED : MONITOR_POLL_DISCONNECTED;
+        G.monitorInterval = setInterval(G.updateMonitor, interval);
     }
 
     // 停止对局监控

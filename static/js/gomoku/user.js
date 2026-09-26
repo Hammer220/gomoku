@@ -238,7 +238,8 @@ var Gomoku = window.Gomoku || {};
             geetestLot: geetestLot,
             geetestCaptchaOutput: geetestCaptchaOutput,
             geetestPassToken: geetestPassToken,
-            geetestGenTime: geetestGenTime
+            geetestGenTime: geetestGenTime,
+            language: G.i18n.getLang()
         }, true);
         G.token = res.token;
         localStorage.setItem('token', G.token);
@@ -251,7 +252,7 @@ var Gomoku = window.Gomoku || {};
 
     // 免密登录
     G.loginPasswordFree = async function(username) {
-        var res = await G.apiCall('/api/login/password_free', 'POST', { username: username }, true);
+        var res = await G.apiCall('/api/login/password_free', 'POST', { username: username, language: G.i18n.getLang() }, true);
         G.token = res.token;
         localStorage.setItem('token', G.token);
         G.currentUser = res.user;
@@ -314,7 +315,8 @@ var Gomoku = window.Gomoku || {};
             geetestLot: geetestLot,
             geetestCaptchaOutput: geetestCaptchaOutput,
             geetestPassToken: geetestPassToken,
-            geetestGenTime: geetestGenTime
+            geetestGenTime: geetestGenTime,
+            language: G.i18n.getLang()
         }, true);
         await G.resetGuestData();
         G.showToast(G.i18n.t('registerSuccess'));
@@ -385,7 +387,8 @@ var Gomoku = window.Gomoku || {};
                     geetestLot: parts[0],
                     geetestCaptchaOutput: parts[1],
                     geetestPassToken: parts[2],
-                    geetestGenTime: parts[3]
+                    geetestGenTime: parts[3],
+                    language: G.i18n.getLang()
                 }, true);
                 G.token = res.token;
                 localStorage.setItem('token', G.token);
@@ -405,7 +408,8 @@ var Gomoku = window.Gomoku || {};
                     geetestLot: '',
                     geetestCaptchaOutput: '',
                     geetestPassToken: '',
-                    geetestGenTime: ''
+                    geetestGenTime: '',
+                    language: G.i18n.getLang()
                 }, true);
                 G.token = res.token;
                 localStorage.setItem('token', G.token);
@@ -444,14 +448,30 @@ var Gomoku = window.Gomoku || {};
     // 访客登出
     G.guestLogout = async function() {
         await G.deleteGuestAccount();
+        try { await G.apiCall('/api/logout', 'POST').catch(function() {}); } catch (e) {}
         G.clearGuestData();
         G.isLoggedIn = false;
         G.currentUser = null;
         G.token = '';
         localStorage.removeItem('token');
+        document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
         G.gameMode = 'ai';
         G.showToast(G.i18n.t('guestModeExited'));
         setTimeout(function() { window.location.href = '/login'; }, 1500);
+    };
+
+    // 退出访客并导航到指定页面（用于顶部登录/注册按钮）
+    G.guestLogoutAndNavigate = async function(targetUrl) {
+        await G.deleteGuestAccount();
+        try { await G.apiCall('/api/logout', 'POST').catch(function() {}); } catch (e) {}
+        G.clearGuestData();
+        G.isLoggedIn = false;
+        G.currentUser = null;
+        G.token = '';
+        localStorage.removeItem('token');
+        document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+        G.gameMode = 'ai';
+        window.location.href = targetUrl;
     };
 
     // ==================== 登出 ====================
@@ -497,7 +517,7 @@ var Gomoku = window.Gomoku || {};
             G.updateUserDisplay();
 
             if (G.WebSocketManager && G.WebSocketManager.usingWebSocket && G.currentUser) {
-                G.WebSocketManager.registerUser(G.currentUser.username);
+                G.WebSocketManager.registerUser(G.currentUser.username, G.token);
             }
 
             // 管理员界面元素显示

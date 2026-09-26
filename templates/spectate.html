@@ -9,12 +9,12 @@
     <link href="/static/css/style.css" rel="stylesheet">
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4 font-sans bg-gradient-to-br from-[#f8f0e3] via-[#e8d3b8] to-[#d4b88e] bg-fixed">
+<body class="min-h-screen flex flex-col items-center justify-center p-4 font-sans bg-gradient-to-br from-[#f8f0e3] via-[#e8d3b8] to-[#d4b88e] bg-fixed relative">
 
-    <div id="spectateContainer" class="max-w-lg w-full bg-white rounded-2xl shadow-xl overflow-hidden">
+    <div id="spectateContainer" class="max-w-[90rem] w-full bg-white rounded-2xl shadow-xl overflow-hidden relative card-3d-hover">
         <div class="header-bar">
             <div>
-                <h1 class="text-xl md:text-2xl font-bold text-white">五子棋</h1>
+                <h1 class="text-2xl md:text-3xl font-bold text-white">五子棋</h1>
                 <p class="text-sm opacity-80">观战模式</p>
             </div>
             <div class="flex items-center space-x-3">
@@ -24,30 +24,64 @@
             </div>
         </div>
 
-        <div class="p-4">
-            <!-- 对局信息 -->
-            <div id="spectateHeader" class="text-center mb-3">
-                <p class="text-gray-600 text-sm">正在加载...</p>
-            </div>
+        <div class="p-4 md:p-6">
+            <div class="sidebar-layout">
+                <!-- 主区域：棋盘 -->
+                <div class="sidebar-main">
+                    <div class="online-board-wrapper">
+                        <div class="aspect-square bg-board rounded-xl shadow-2xl relative board-frame">
+                            <canvas id="spectateCanvas" class="w-full h-full relative" style="z-index: 2;"></canvas>
+                        </div>
+                    </div>
 
-            <!-- 棋盘 -->
-            <div class="aspect-square bg-board rounded-lg shadow-lg relative mb-3">
-                <canvas id="spectateCanvas" class="w-full h-full" style="z-index: 2;"></canvas>
-            </div>
+                    <div class="online-status-bar">
+                        <div class="online-status-title">
+                            <span id="spectateStatusLight" class="inline-block w-3 h-3 bg-green-500 rounded-full shadow-sm"></span>
+                            <span id="gameStatus">观战中...</span>
+                        </div>
+                        <div class="online-status-info">
+                            <span><i class="fa-solid fa-list-numbered"></i>步数: <strong id="moveCount">0</strong></span>
+                            <span><i class="fa-solid fa-door-open"></i>房间号: <strong id="roomId" class="font-mono">-</strong></span>
+                        </div>
+                    </div>
+                </div>
 
-            <!-- 状态栏 -->
-            <div class="bg-gray-50 rounded-lg p-3 text-sm">
-                <div class="flex justify-between items-center">
-                    <span><i class="fa-solid fa-list-numbered mr-1"></i>步数: <span id="moveCount">0</span></span>
-                    <span class="text-gray-500">房间: <span id="roomId" class="font-mono font-bold"></span></span>
-                    <span id="gameStatus" class="text-gray-500">观战中...</span>
+                <!-- 侧边栏 -->
+                <div class="sidebar-aside">
+                    <div class="aside-cards">
+                        <!-- 对局信息 -->
+                        <div class="card-padded hover-lift">
+                            <div class="online-section-title">
+                                <i class="fa-solid fa-eye"></i><span>观战对局</span>
+                            </div>
+                            <div id="spectateHeader" class="space-y-2 text-sm">
+                                <p class="text-gray-500">正在加载...</p>
+                            </div>
+                        </div>
+
+                        <!-- 玩家信息 -->
+                        <div class="card-padded hover-lift">
+                            <div class="online-section-title">
+                                <i class="fa-solid fa-users"></i><span>对阵双方</span>
+                            </div>
+                            <div id="spectatePlayers" class="space-y-3 text-sm">
+                                <p class="text-gray-500">等待对局信息...</p>
+                            </div>
+                        </div>
+
+                        <div class="card-padded">
+                            <a href="/game" class="btn-primary btn-ripple w-full">
+                                <i class="fa-solid fa-chess-board mr-2"></i>进入游戏大厅
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <!-- 错误遮罩 -->
-            <div id="spectateError" class="hidden mt-4 p-4 bg-red-50 rounded-lg text-center">
+            <div id="spectateError" class="hidden mt-4 p-4 bg-red-50 rounded-lg text-center border border-red-200 shadow-lg">
                 <i class="fa-solid fa-exclamation-circle text-red-500 text-2xl mb-2"></i>
-                <p id="spectateErrorMsg" class="text-red-600 text-sm"></p>
+                <p id="spectateErrorMsg" class="text-red-600 text-sm font-medium"></p>
                 <a href="/game" class="inline-block mt-3 btn-primary btn-ripple py-2 px-4 rounded-lg text-sm">
                     <i class="fa-solid fa-arrow-left mr-2"></i>返回游戏大厅
                 </a>
@@ -59,6 +93,8 @@
 
     <div id="toastContainer" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50"></div>
 
+    <script src="/static/js/socket.io.min.js"></script>
+    <script src="/static/js/gomoku/websocket_manager.js"></script>
     <script src="/static/js/gomoku/spectate_page.js"></script>
 </body>
 </html>

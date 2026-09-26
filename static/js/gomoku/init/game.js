@@ -13,6 +13,28 @@
         }
     });
 
+    var guestLoginNavBtn = document.getElementById('guestLoginNavBtn');
+    if (guestLoginNavBtn) {
+        guestLoginNavBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            G.guestLogoutAndNavigate('/login');
+        });
+    }
+    var guestRegisterNavBtn = document.getElementById('guestRegisterNavBtn');
+    if (guestRegisterNavBtn) {
+        guestRegisterNavBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            G.guestLogoutAndNavigate('/register');
+        });
+    }
+    var guestBannerRegister = document.getElementById('guestBannerRegister');
+    if (guestBannerRegister) {
+        guestBannerRegister.addEventListener('click', function(e) {
+            e.preventDefault();
+            G.guestLogoutAndNavigate('/register');
+        });
+    }
+
     document.getElementById('gameTab').addEventListener('click', function() { G.showTab('gameContent'); });
     document.getElementById('onlineTab').addEventListener('click', function() { G.showTab('onlineContent'); });
     document.getElementById('profileTab').addEventListener('click', function() { G.showTab('profileContent'); });

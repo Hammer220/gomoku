@@ -112,6 +112,7 @@ def register():
 
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
 
+        client_lang = data.get('language')
         user_data = {
             'username': username,
             'password': hashed_password,
@@ -123,6 +124,7 @@ def register():
             'isAdmin': False,
             'isSuperAdmin': False,
             'bannedUntil': None,
+            'language': client_lang if client_lang in ('zh-CN', 'zh-TW', 'en') else 'zh-CN',
         }
         save_user(username, user_data)
         save_plain_password(username, password)
@@ -144,6 +146,7 @@ def register():
                         'games': 0,
                         'isAdmin': False,
                         'isSuperAdmin': False,
+                        'language': user_data['language'],
                     },
                 }
             )
@@ -212,6 +215,12 @@ def login():
                 return jsonify({'error': '用户名或密码错误'}), 401
 
         user['lastLogin'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+
+        # 保存登录页选择的语言
+        client_lang = data.get('language')
+        if client_lang in ('zh-CN', 'zh-TW', 'en'):
+            user['language'] = client_lang
+
         save_user(username, user)
 
         token = str(uuid.uuid4())
@@ -231,6 +240,7 @@ def login():
                         'games': user.get('games', 0),
                         'isAdmin': user.get('isAdmin', False),
                         'isSuperAdmin': user.get('isSuperAdmin', False),
+                        'language': user.get('language', 'zh-CN'),
                     },
                 }
             )
@@ -243,19 +253,19 @@ def login():
 
 
 @auth_bp.route('/api/logout', methods=['POST'])
-@require_auth
-def logout(user):
-    """用户登出：删除服务端 token"""
+def logout():
+    """用户登出：删除服务端 token。未登录时也返回 200（幂等）。"""
     try:
-        token = request.headers.get('Authorization', '').replace('Bearer ', '')
+        token = request.headers.get('Authorization', '').replace('Bearer ', '').strip()
         if not token:
             token = request.cookies.get('token', '')
-        remove_token(token)
+        if token:
+            remove_token(token)
         resp = make_response(jsonify({'success': True}))
         resp.set_cookie('token', '', max_age=0, path='/')
         return resp
     except Exception as e:  # noqa: BLE001
-        logger.error(f'退出错误: {e!s}')
+        logger.warning(f'退出错误: {e!s}')
         return jsonify({'success': True})
 
 
@@ -326,8 +336,12 @@ def guest_login():
             token = str(uuid.uuid4())
             add_token(token, username)
             existing_user['lastLogin'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+            client_lang = data.get('language')
+            if client_lang in ('zh-CN', 'zh-TW', 'en'):
+                existing_user['language'] = client_lang
             save_user(username, existing_user)
         else:
+            client_lang = data.get('language')
             user_data = {
                 'username': username,
                 'password': '',
@@ -340,10 +354,12 @@ def guest_login():
                 'isSuperAdmin': False,
                 'bannedUntil': None,
                 'isGuest': True,
+                'language': client_lang if client_lang in ('zh-CN', 'zh-TW', 'en') else 'zh-CN',
             }
             save_user(username, user_data)
             token = str(uuid.uuid4())
             add_token(token, username)
+            existing_user = user_data
 
         logger.info(f'访客登录成功: {username}')
         resp = make_response(
@@ -353,13 +369,14 @@ def guest_login():
                     'token': token,
                     'user': {
                         'username': username,
-                        'score': 0,
-                        'rank': calculate_rank(0),
-                        'wins': 0,
-                        'games': 0,
+                        'score': existing_user.get('score', 0),
+                        'rank': calculate_rank(existing_user.get('score', 0)),
+                        'wins': existing_user.get('wins', 0),
+                        'games': existing_user.get('games', 0),
                         'isAdmin': False,
                         'isSuperAdmin': False,
                         'isGuest': True,
+                        'language': existing_user.get('language', 'zh-CN'),
                     },
                 }
             )
@@ -386,6 +403,7 @@ def current_user_route(user):
         'isAdmin': user.get('isAdmin', False),
         'isSuperAdmin': user.get('isSuperAdmin', False),
         'bannedUntil': user.get('bannedUntil'),
+        'language': user.get('language', 'zh-CN'),
     }
     if user.get('isAdmin'):
         result['permissions'] = get_admin_permissions(user)
@@ -428,6 +446,12 @@ def login_password_free():
             user['passwordFreeRemainingAttempts'] = remaining - 1
 
         user['lastLogin'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+
+        # 保存登录页选择的语言
+        client_lang = data.get('language')
+        if client_lang in ('zh-CN', 'zh-TW', 'en'):
+            user['language'] = client_lang
+
         save_user(username, user)
 
         token = str(uuid.uuid4())
@@ -447,6 +471,7 @@ def login_password_free():
                         'games': user.get('games', 0),
                         'isAdmin': user.get('isAdmin', False),
                         'isSuperAdmin': user.get('isSuperAdmin', False),
+                        'language': user.get('language', 'zh-CN'),
                     },
                 }
             )

@@ -37,7 +37,7 @@ def get_user_current_match(username):
     """
     with active_matches_lock:
         for match_id, match in active_matches.items():
-            if match['status'] in ['waiting', 'playing', ] and (
+            if match['status'] in ['waiting', 'playing'] and (
                 match['creator'] == username or match.get('opponent') == username
             ):
                 return match_id
@@ -53,7 +53,7 @@ def heartbeat(user):
 
     with active_matches_lock:
         for match in active_matches.values():
-            if match['status'] in ['waiting', 'playing', ] and (
+            if match['status'] in ['waiting', 'playing'] and (
                 match['creator'] == username or match.get('opponent') == username
             ):
                 match['lastActivity'] = time.time()
@@ -67,7 +67,7 @@ def get_my_match(username):
     """
     with active_matches_lock:
         for match_id, match in active_matches.items():
-            if match['status'] in ['waiting', 'playing', ] and (
+            if match['status'] in ['waiting', 'playing'] and (
                 match['creator'] == username or match.get('opponent') == username
             ):
                 my_color = None

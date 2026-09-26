@@ -51,57 +51,83 @@
                 <div class="aside-cards">
                     <!-- 房间大厅面板（未进入棋局时显示） -->
                     <div id="onlineLobbyPanel">
-                        <div class="card-padded hover-lift">
-                            <div class="online-section-title">
-                                <i class="fa-solid fa-door-open"></i><span>房间大厅</span>
-                            </div>
-                            <div class="online-form-group">
-                                <label class="online-form-label"><i class="fa-solid fa-clock"></i>计时模式</label>
-                                <select id="timeModeSelect" class="form-select input-focus-animate">
-                                    <option value="untimed">无计时</option>
-                                    <option value="move">每步限时 (30秒)</option>
-                                    <option value="total">总时间 (10分钟)</option>
-                                    <option value="both">每步限时 + 总时间</option>
-                                </select>
-                            </div>
-                            <div class="online-form-group">
-                                <label class="info-row">
-                                    <input type="checkbox" id="allowSpectateCheck" checked class="form-checkbox">
-                                    <span class="text-sm text-gray-600"><i class="fa-solid fa-eye mr-1"></i>允许观战</span>
-                                </label>
-                            </div>
-                            <div class="online-form-group">
-                                <label class="online-form-label"><i class="fa-solid fa-key"></i>房间密码（可选）</label>
-                                <input type="text" id="roomPasswordInput" placeholder="留空则不设密码" class="form-input input-focus-animate">
-                            </div>
-                            <button id="onlineCreateBtn" class="btn-primary btn-ripple w-full mb-3">
-                                <i class="fa-solid fa-plus mr-2"></i>创建房间
-                            </button>
-                            <div class="room-join-group">
-                                <input type="text" id="onlineMatchIdInput" placeholder="房间号" class="form-input input-focus-animate">
-                                <input type="password" id="joinPasswordInput" placeholder="密码" class="form-input w-24 input-focus-animate">
-                                <button id="onlineJoinBtn" class="btn-primary btn-sm btn-ripple">
-                                    <i class="fa-solid fa-right-to-bracket mr-1"></i>加入
-                                </button>
-                            </div>
-                            <div class="pt-3 border-t">
-                                <div class="panel-title-sm"><i class="fa-solid fa-list mr-1"></i>可用房间</div>
-                                <div id="availableMatchesContainer" class="room-list"></div>
-                                <button id="refreshAvailableBtn" class="btn-secondary btn-ripple w-full mt-2 text-sm">
-                                    <i class="fa-solid fa-refresh mr-1"></i>刷新列表
-                                </button>
+                        <!-- 欢迎横幅 -->
+                        <div class="lobby-banner">
+                            <div class="lobby-banner-inner">
+                                <div class="lobby-banner-graphic" aria-hidden="true">
+                                    <span class="lobby-piece lobby-piece-black"></span>
+                                    <span class="lobby-piece lobby-piece-white"></span>
+                                </div>
+                                <div class="lobby-banner-text">
+                                    <div class="lobby-banner-title"><i class="fa-solid fa-globe mr-2"></i>联机大厅</div>
+                                    <div class="lobby-banner-sub">与世界各地的棋友来一局精彩对战吧</div>
+                                </div>
                             </div>
                         </div>
 
-                        <div class="card-padded hover-lift">
-                            <div class="online-section-title">
-                                <i class="fa-solid fa-eye"></i><span>观战大厅</span>
-                                <span id="spectateCount" class="text-xs text-gray-400 ml-1"></span>
+                        <!-- 两列网格：左 创建/加入，右 房间/观战 列表 -->
+                        <div class="lobby-grid">
+                            <!-- 左列：创建与加入 -->
+                            <div class="card-padded hover-lift lobby-col">
+                                <div class="online-section-title">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i><span>创建房间</span>
+                                </div>
+                                <div class="online-form-group">
+                                    <label class="online-form-label"><i class="fa-solid fa-clock"></i>计时模式</label>
+                                    <select id="timeModeSelect" class="form-select input-focus-animate">
+                                        <option value="untimed">无计时</option>
+                                        <option value="move">每步限时 (30秒)</option>
+                                        <option value="total">总时间 (10分钟)</option>
+                                        <option value="both">每步限时 + 总时间</option>
+                                    </select>
+                                </div>
+                                <div class="online-form-group">
+                                    <label class="info-row">
+                                        <input type="checkbox" id="allowSpectateCheck" checked class="form-checkbox">
+                                        <span class="text-sm text-gray-600"><i class="fa-solid fa-eye mr-1"></i>允许观战</span>
+                                    </label>
+                                </div>
+                                <div class="online-form-group">
+                                    <label class="online-form-label"><i class="fa-solid fa-key"></i>房间密码（可选）</label>
+                                    <input type="text" id="roomPasswordInput" placeholder="留空则不设密码" class="form-input input-focus-animate">
+                                </div>
+                                <button id="onlineCreateBtn" class="lobby-btn-create btn-ripple w-full">
+                                    <i class="fa-solid fa-plus"></i><span>创建房间</span>
+                                </button>
+
+                                <div id="joinControlsGroup">
+                                    <div class="lobby-divider"><span>或</span></div>
+
+                                    <div class="online-section-title">
+                                        <i class="fa-solid fa-right-to-bracket"></i><span>加入房间</span>
+                                    </div>
+                                    <div class="online-form-group">
+                                        <label class="online-form-label"><i class="fa-solid fa-hashtag"></i>房间号</label>
+                                        <input type="text" id="onlineMatchIdInput" placeholder="输入房间号加入" class="form-input input-focus-animate">
+                                    </div>
+                                    <div class="online-form-group">
+                                        <label class="online-form-label"><i class="fa-solid fa-lock"></i>房间密码</label>
+                                        <input type="password" id="joinPasswordInput" placeholder="私人房间需要" class="form-input input-focus-animate">
+                                    </div>
+                                    <button id="onlineJoinBtn" class="btn-outline btn-ripple w-full">
+                                        <i class="fa-solid fa-arrow-right mr-1"></i>加入房间
+                                    </button>
+                                </div>
                             </div>
-                            <div id="spectatableMatchesContainer" class="room-list h-36 mb-3"></div>
-                            <button id="refreshSpectateBtn" class="btn-secondary btn-ripple w-full text-sm">
-                                <i class="fa-solid fa-refresh mr-1"></i>刷新列表
-                            </button>
+
+                            <!-- 右列：房间列表 -->
+                            <div class="lobby-col lobby-col-stack">
+                                <div class="card-padded hover-lift">
+                                    <div class="online-section-title">
+                                        <i class="fa-solid fa-list"></i><span>可用房间</span>
+                                        <span id="availableCount" class="lobby-chip lobby-chip-primary">0</span>
+                                    </div>
+                                    <div id="availableMatchesContainer" class="room-list"></div>
+                                    <button id="refreshAvailableBtn" class="btn-secondary btn-ripple w-full mt-2 text-sm">
+                                        <i class="fa-solid fa-refresh mr-1"></i>刷新列表
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

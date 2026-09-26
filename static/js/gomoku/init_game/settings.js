@@ -14,6 +14,14 @@
     G.onlineCanvas = $('onlineCanvas');
     G.onlineCtx = G.onlineCanvas ? G.onlineCanvas.getContext('2d') : null;
 
+    // ==================== 实时通信初始化 ====================
+    // WebSocket 优先，连接失败自动降级到长轮询/业务 HTTP 轮询
+    if (G.WebSocketManager) {
+        G.WebSocketManager.init();
+        if (G.initWebSocketPollingIntegration) G.initWebSocketPollingIntegration();
+        if (G.initRoomChat) G.initRoomChat();
+    }
+
     // ==================== 标签页切换 ====================
 
     var gameTab = $('gameTab');
@@ -168,6 +176,21 @@
         });
     }
 
+    var guestLoginNavBtn = $('guestLoginNavBtn');
+    if (guestLoginNavBtn) {
+        guestLoginNavBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            G.guestLogoutAndNavigate('/login');
+        });
+    }
+    var guestRegisterNavBtn = $('guestRegisterNavBtn');
+    if (guestRegisterNavBtn) {
+        guestRegisterNavBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            G.guestLogoutAndNavigate('/register');
+        });
+    }
+
     // ==================== 访客模式初始化 ====================
 
     if (G.isGuest) {
@@ -207,6 +230,10 @@
     if (G.isGuest) {
         G.isLoggedIn = true;
         G.currentUser = { username: G.getGuestUsername(), isGuest: true };
+        // 访客同样注册 WebSocket（用 token 做凭证）
+        if (G.WebSocketManager && G.token) {
+            G.WebSocketManager.registerUser(G.getGuestUsername(), G.token);
+        }
         if (G.updateUserDisplay) G.updateUserDisplay();
         if (G.loadBoardColorSettings) G.loadBoardColorSettings();
         if (G.showGameUI) G.showGameUI();
@@ -221,6 +248,9 @@
             try {
                 G.currentUser = await G.apiCall('/api/current_user', 'GET', null, true);
                 G.isLoggedIn = true;
+                if (G.WebSocketManager) {
+                    G.WebSocketManager.registerUser(G.currentUser.username, G.token);
+                }
                 if (G.updateUserDisplay) G.updateUserDisplay();
                 if (G.loadBoardColorSettings) await G.loadBoardColorSettings();
                 if (G.showGameUI) G.showGameUI();

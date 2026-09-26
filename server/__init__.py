@@ -5,6 +5,8 @@
 import json
 import os
 import secrets
+import time
+from typing import TYPE_CHECKING, Any, Callable
 
 from flask import Flask
 from flask import request as socket_request
@@ -13,7 +15,51 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 from .config import SCRIPT_DIR, STATIC_DIR
 from .logger import logger, setup_logging
 
-socketio = SocketIO()
+
+class _SocketIOWithHooks(SocketIO):  # type: ignore[misc]
+    """flask_socketio.SocketIO 运行时被动态挂载的自定义方法桩（仅类型检查用）
+
+    显式覆盖 emit / join_room / leave_room 签名，以补全 flask_socketio 类型桩
+    中缺失或标记为 Unknown 的 kwargs（如 room=），消除 Pylance 误报。
+    """
+
+    def emit(
+        self,
+        event: str,
+        *args: Any,
+        namespace: str = '/',
+        to: str | None = None,
+        room: str | None = None,
+        include_self: bool = True,
+        skip_sid: str | list[str] | None = None,
+        callback: Callable[..., Any] | None = None,
+    ) -> None: ...
+
+    def join_room(
+        self,
+        room: str,
+        sid: str | None = None,
+        namespace: str = '/',
+    ) -> None: ...
+
+    def leave_room(
+        self,
+        room: str,
+        sid: str | None = None,
+        namespace: str = '/',
+    ) -> None: ...
+
+    def push_user_status_update(self, username: str, status: str) -> None: ...
+    def push_unread_count_update(self, username: str) -> None: ...
+    def push_message_read_update(self, sender_username: str, reader_username: str, message_id: str) -> None: ...
+    def push_ban_notification(self, username: str, banned_until: float) -> None: ...
+    def push_match_list_changed(self) -> None: ...
+
+
+if TYPE_CHECKING:
+    socketio: _SocketIOWithHooks  # type: ignore[assignment]
+else:
+    socketio: SocketIO = SocketIO()
 
 
 def create_app():
@@ -37,8 +83,10 @@ def create_app():
     register_routes(app)
 
     from .match_manager import init_matches, start_cleanup_task
+    from .models import init_admin
 
     init_matches()
+    init_admin()
     if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
         start_cleanup_task()
 
@@ -93,15 +141,22 @@ def _build_match_event(match):
 
 
 def _emit_match_update(sio, match_id):
-    """通过 Socket.IO 向房间广播赛事更新"""
+    """通过 Socket.IO 向房间广播赛事更新
+
+    除向房间内玩家推送完整状态外，同时向全局广播一条轻量的 match_activity
+    事件，供管理员监控面板等场景实时感知对局变化（不含棋盘数据）。
+    """
     try:
         from .match.storage import active_matches, active_matches_lock
 
+        event_data = None
         with active_matches_lock:
             if match_id in active_matches:
                 match = active_matches[match_id]
                 event_data = _build_match_event(match)
-        sio.emit('match_updated', event_data, room=match_id)
+        if event_data is not None:
+            sio.emit('match_updated', event_data, room=match_id)
+        sio.emit('match_activity', {'match_id': match_id})
     except Exception as e:  # noqa: BLE001
         logger.warning(f'Socket.IO emit failed for match {match_id}: {e}')
 
@@ -147,23 +202,64 @@ def register_socket_events(sio):
             if not username_to_sids[username]:
                 del username_to_sids[username]
 
-        if match_id and username:
-            logger.info(f'断线客户端所在房间: {match_id}，用户: {username}，通知房间内其他用户')
-            emit(
-                'opponent_disconnected',
-                {'match_id': match_id, 'username': username, 'message': f'{username} 已断开连接'},
-                room=match_id,
-            )
+        # WebSocket 级断线：立即解析对局（判对手获胜），不等 5 分钟心跳超时
+        if username:
+            try:
+                from .match.storage import handle_player_disconnect_from_match
+
+                handle_player_disconnect_from_match(username)
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f'处理玩家断线失败 {username}: {e}')
 
     @sio.on('register_user')
     def handle_register_user(data):
         username = data.get('username')
-        if username:
-            sid_to_user[socket_request.sid] = username
-            if username not in username_to_sids:
-                username_to_sids[username] = set()
-            username_to_sids[username].add(socket_request.sid)
-            logger.info(f'用户注册到WebSocket: {username}, sid: {socket_request.sid}')
+        client_token = data.get('token', '')
+
+        # 优先使用客户端显式传入的 token，否则从当前 HTTP 请求的 cookie 中取
+        effective_token = client_token or ''
+        if not effective_token:
+            try:
+                effective_token = socket_request.cookies.get('token', '')
+            except Exception:  # noqa: BLE001
+                effective_token = ''
+
+        if not username:
+            _ws_error_response(socket_request.sid, '注册失败：缺少用户名')
+            return
+
+        # Fail-closed：无有效 token 一律拒绝注册（访客也走 cookie token）
+        if not effective_token:
+            _ws_error_response(socket_request.sid, '注册失败：需要登录凭证')
+            logger.warning(f'WebSocket 注册失败（无 token）: sid={socket_request.sid}, username={username}')
+            return
+
+        from .models import get_user_from_token
+
+        verified_user = get_user_from_token(effective_token)
+        if not verified_user:
+            _ws_error_response(socket_request.sid, '注册失败：登录凭证无效')
+            logger.warning(f'WebSocket 注册失败（无效 token）: sid={socket_request.sid}, username={username}')
+            return
+        if verified_user.get('bannedUntil'):
+            banned_until = verified_user['bannedUntil']
+            if time.time() < banned_until:
+                _ws_error_response(socket_request.sid, '注册失败：账号已被封禁')
+                logger.warning(f'WebSocket 注册失败（账号封禁）: sid={socket_request.sid}, username={username}')
+                return
+        if verified_user.get('username') != username:
+            _ws_error_response(socket_request.sid, '注册失败：用户名与登录凭证不匹配')
+            logger.warning(
+                f'WebSocket 注册失败（用户名篡改）: sid={socket_request.sid}, '
+                f'claimed={username}, actual={verified_user.get("username")}'
+            )
+            return
+
+        sid_to_user[socket_request.sid] = username
+        if username not in username_to_sids:
+            username_to_sids[username] = set()
+        username_to_sids[username].add(socket_request.sid)
+        logger.info(f'用户注册到WebSocket: {username}, sid: {socket_request.sid}')
 
     @sio.on('join')
     def handle_join(data):
@@ -185,6 +281,35 @@ def register_socket_events(sio):
             sid_to_match.pop(socket_request.sid, None)
             sid_to_user.pop(socket_request.sid, None)
             logger.info(f'客户端离开房间: {match_id}, sid: {socket_request.sid}, username: {username}')
+
+    @sio.on('spectate_join')
+    def handle_spectate_join(data):
+        """公开观战加入房间（无需登录，凭观战 token 校验）"""
+        match_id = (data or {}).get('match_id')
+        token = (data or {}).get('token')
+        if not match_id or not token:
+            emit('spectate_join_failed', {'error': '缺少房间号或观战凭证'})
+            return
+        try:
+            from .match.storage import active_matches, active_matches_lock
+
+            with active_matches_lock:
+                match = active_matches.get(match_id)
+                if not match:
+                    emit('spectate_join_failed', {'error': '房间不存在'})
+                    return
+                if match.get('spectateToken') != token:
+                    emit('spectate_join_failed', {'error': '无效的观战链接'})
+                    return
+                if match.get('status') != 'playing' or not match.get('allowSpectate', True):
+                    emit('spectate_join_failed', {'error': '该对局当前不可观看'})
+                    return
+            join_room(match_id)
+            logger.info(f'观战客户端加入房间: {match_id}, sid: {socket_request.sid}')
+            emit('spectate_joined', {'match_id': match_id})
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f'观战加入房间失败: {e}')
+            emit('spectate_join_failed', {'error': '加入观战失败'})
 
     # ==================== WebSocket 游戏动作处理 ====================
 
@@ -443,6 +568,7 @@ def register_socket_events(sio):
             result = close_match(user, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _ws_success_response(sid, {'action': 'close_room', 'result': result_data})
+            sio.push_match_list_changed()
         except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket关闭房间错误: {e}')
             _ws_error_response(sid, str(e))
@@ -466,6 +592,7 @@ def register_socket_events(sio):
             _emit_match_update(sio, match_id)
             result_data = json.loads(result.get_data(as_text=True)) if hasattr(result, 'get_data') else result
             _ws_success_response(sid, {'action': 'leave_room', 'result': result_data})
+            sio.push_match_list_changed()
         except Exception as e:  # noqa: BLE001
             logger.error(f'WebSocket离开房间错误: {e}')
             _ws_error_response(sid, str(e))
@@ -553,7 +680,12 @@ def register_socket_events(sio):
             for sid in username_to_sids[username]:
                 sio.emit('banned_notification', {'bannedUntil': banned_until}, room=sid)
 
+    def push_match_list_changed():
+        """大厅房间列表发生变化时全局广播，客户端收到后按需拉取最新列表"""
+        sio.emit('match_list_changed', {'timestamp': __import__('time').time()})
+
     sio.push_user_status_update = push_user_status_update
     sio.push_unread_count_update = push_unread_count_update
     sio.push_message_read_update = push_message_read_update
     sio.push_ban_notification = push_ban_notification
+    sio.push_match_list_changed = push_match_list_changed

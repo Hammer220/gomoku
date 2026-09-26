@@ -18,9 +18,9 @@ var Gomoku = window.Gomoku || {};
     // ==================== WebSocket 通信辅助 ====================
 
     G.wsSend = function(eventName, data) {
-        if (G.WebSocketManager && G.WebSocketManager.usingWebSocket && G.WebSocketManager.socket) {
-            G.WebSocketManager.socket.emit(eventName, data);
-            return true;
+        // 已通过 Socket.IO（WebSocket 或长轮询）连接则实时发送，否则返回 false 走 HTTP
+        if (G.WebSocketManager && G.WebSocketManager.isConnected()) {
+            return G.WebSocketManager.send(eventName, data);
         }
         return false;
     };
@@ -301,6 +301,11 @@ var Gomoku = window.Gomoku || {};
             var spectatePanel = $('spectatePanel');
             if (spectatePanel) spectatePanel.classList.remove('hidden');
 
+            // 订阅房间的实时推送（观战者加入 Socket.IO 房间即可接收 match_updated）
+            if (G.WebSocketManager) {
+                G.WebSocketManager.joinRoom(matchId);
+            }
+            G.initSpectateRealtime();
             G.updateSpectateUI();
             G.startSpectatePolling();
             G.showToast('正在观看 ' + matchId);
@@ -367,6 +372,11 @@ var Gomoku = window.Gomoku || {};
                 var spectatePanel = $('spectatePanel');
                 if (spectatePanel) spectatePanel.classList.remove('hidden');
 
+                // 订阅房间的实时推送（观战者加入 Socket.IO 房间即可接收 match_updated）
+                if (G.WebSocketManager) {
+                    G.WebSocketManager.joinRoom(matchId);
+                }
+                G.initSpectateRealtime();
                 G.updateSpectateUI();
                 G.startSpectatePolling();
                 G.showToast('正在观看 ' + matchId);
@@ -385,12 +395,82 @@ var Gomoku = window.Gomoku || {};
         passwordInput.focus();
     };
 
+    /**
+     * 应用一次观战状态（WS 推送与 HTTP 轮询共用）
+     */
+    G.applySpectateStatus = function(res) {
+        if (!res || !G.spectateMatchId) return;
+        if (res.error) {
+            G.stopSpectatePolling();
+            return;
+        }
+        if (res.board && res.moves) {
+            G.spectateBoard = res.board.map(function(r) { return r.slice(); });
+            G.spectateMoveHistory = res.moves.slice();
+            G.spectateCurrentPlayer = res.currentPlayer;
+            G.spectateBlackTime = res.blackTime;
+            G.spectateWhiteTime = res.whiteTime;
+            G.updateSpectateUI();
+            if (G.drawSpectateBoard) G.drawSpectateBoard();
+        }
+        if (res.winner !== undefined && res.winner !== null) {
+            G.spectateGameActive = false;
+            G.updateSpectateUI();
+        }
+        if (res.restartVersion && res.restartVersion > (G.spectateRestartVersion || 0)) {
+            G.spectateRestartVersion = res.restartVersion;
+            G.spectateBoard = res.board.map(function(r) { return r.slice(); });
+            G.spectateMoveHistory = res.moves.slice();
+            G.spectateCurrentPlayer = res.currentPlayer;
+            G.spectateGameActive = true;
+            if (G.drawSpectateBoard) G.drawSpectateBoard();
+            G.updateSpectateUI();
+        }
+    };
+
+    /**
+     * 观战实时通道：优先消费 match_updated；Socket.IO 断线时自动回退到 2s 轮询
+     * 只需绑定一次
+     */
+    G.initSpectateRealtime = function() {
+        if (!G.WebSocketManager || G._spectateRealtimeBound) return;
+        G._spectateRealtimeBound = true;
+
+        G.WebSocketManager.on('match_updated', function(data) {
+            if (!G.spectateMatchId || !data) return;
+            if (data.match_id && data.match_id !== G.spectateMatchId) return;
+            G.applySpectateStatus(data);
+        });
+
+        G.WebSocketManager.on('connected', function() {
+            G.syncSpectatePolling();
+        });
+
+        G.WebSocketManager.on('disconnected', function() {
+            G.syncSpectatePolling();
+        });
+    };
+
+    G.syncSpectatePolling = function() {
+        var wsConnected = !!(G.WebSocketManager && G.WebSocketManager.isConnected());
+        if (G.spectatePollingActive && G.spectateMatchId && !wsConnected) {
+            if (!G.spectatePollingTimer) {
+                G.pollSpectateMatch();
+                G.spectatePollingTimer = setInterval(G.pollSpectateMatch, 2000);
+            }
+        } else if (G.spectatePollingTimer) {
+            clearInterval(G.spectatePollingTimer);
+            G.spectatePollingTimer = null;
+        }
+    };
+
     G.startSpectatePolling = function() {
-        if (G.spectatePollingTimer) return;
-        G.spectatePollingTimer = setInterval(G.pollSpectateMatch, 2000);
+        G.spectatePollingActive = true;
+        G.syncSpectatePolling();
     };
 
     G.stopSpectatePolling = function() {
+        G.spectatePollingActive = false;
         if (G.spectatePollingTimer) {
             clearInterval(G.spectatePollingTimer);
             G.spectatePollingTimer = null;
@@ -401,32 +481,7 @@ var Gomoku = window.Gomoku || {};
         if (!G.spectateMatchId) return;
         try {
             var res = await G.apiCall('/api/match/spectate/status?matchId=' + G.spectateMatchId, 'GET');
-            if (res.error) {
-                G.stopSpectatePolling();
-                return;
-            }
-            if (res.board && res.moves) {
-                G.spectateBoard = res.board.map(function(r) { return r.slice(); });
-                G.spectateMoveHistory = res.moves.slice();
-                G.spectateCurrentPlayer = res.currentPlayer;
-                G.spectateBlackTime = res.blackTime;
-                G.spectateWhiteTime = res.whiteTime;
-                G.updateSpectateUI();
-                if (G.drawSpectateBoard) G.drawSpectateBoard();
-            }
-            if (res.winner !== undefined && res.winner !== null) {
-                G.spectateGameActive = false;
-                G.updateSpectateUI();
-            }
-            if (res.restartVersion && res.restartVersion > (G.spectateRestartVersion || 0)) {
-                G.spectateRestartVersion = res.restartVersion;
-                G.spectateBoard = res.board.map(function(r) { return r.slice(); });
-                G.spectateMoveHistory = res.moves.slice();
-                G.spectateCurrentPlayer = res.currentPlayer;
-                G.spectateGameActive = true;
-                if (G.drawSpectateBoard) G.drawSpectateBoard();
-                G.updateSpectateUI();
-            }
+            G.applySpectateStatus(res);
         } catch (e) {
             console.error('观战轮询错误:', e);
         }
@@ -443,15 +498,20 @@ var Gomoku = window.Gomoku || {};
 
     G.leaveSpectate = async function() {
         if (!G.spectateMatchId) return;
+        var leavingMatchId = G.spectateMatchId;
         try {
-            await G.apiCall('/api/match/spectate/leave', 'POST', { matchId: G.spectateMatchId });
+            await G.apiCall('/api/match/spectate/leave', 'POST', { matchId: leavingMatchId });
         } catch (e) {
             console.error('离开观战错误:', e);
         }
         G.stopSpectatePolling();
+        if (G.WebSocketManager) {
+            G.WebSocketManager.leaveRoom(leavingMatchId);
+        }
         G.spectateMatchId = null;
         G.spectateBoard = null;
         G.spectateMoveHistory = null;
+        G.spectateRestartVersion = 0;
         var spectatePanel = $('spectatePanel');
         if (spectatePanel) spectatePanel.classList.add('hidden');
     };

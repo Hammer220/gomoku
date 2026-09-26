@@ -53,7 +53,7 @@ var Gomoku = window.Gomoku || {};
 
     G.sendRoomChatMessage = function() {
         if (G.spectateMatchId) {
-            G.showToast('观战模式下无法发送消息, true);
+            G.showToast('观战模式下无法发送消息', true);
             return;
         }
 
@@ -69,8 +69,12 @@ var Gomoku = window.Gomoku || {};
         }
 
         if (G.WebSocketManager) {
-            G.WebSocketManager.sendRoomChat(G.onlineMatchId, G.currentUser.username, message);
-            input.value = '';
+            // 房间聊天仅支持实时通道（无 HTTP 兜底接口），断线时保留输入并提示
+            if (G.WebSocketManager.sendRoomChat(G.onlineMatchId, G.currentUser.username, message)) {
+                input.value = '';
+            } else {
+                G.showToast('实时连接未就绪，消息暂无法发送', true);
+            }
         }
     };
 
@@ -113,7 +117,7 @@ var Gomoku = window.Gomoku || {};
 
         var statusLabel = $('onlineStatusLabel');
         if (statusLabel) {
-            statusLabel.textContent = '对手已离开，你获得胜利;
+            statusLabel.textContent = '对手已离开，你获得胜利';
         }
         var statusLight = $('onlineStatusLight');
         if (statusLight) {

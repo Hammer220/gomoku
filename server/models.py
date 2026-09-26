@@ -7,6 +7,7 @@ import json
 import os
 import threading
 import time
+from typing import Any, TypeVar
 
 from .config import SCRIPT_DIR
 
@@ -63,7 +64,7 @@ def get_file_lock(file_path):
     return file_locks.get(file_path, threading.Lock())
 
 
-def load_json_with_lock(file_path, default=None):
+def load_json_with_lock(file_path: str, default: Any | None = None) -> Any:
     if default is None:
         default = {}
     lock = get_file_lock(file_path)
@@ -77,7 +78,10 @@ def load_json_with_lock(file_path, default=None):
             return default
 
 
-def save_json_with_lock(file_path, data):
+_JSON_T = TypeVar('_JSON_T')
+
+
+def save_json_with_lock(file_path: str, data: Any) -> None:
     lock = get_file_lock(file_path)
     with lock:
         try:
@@ -275,10 +279,11 @@ def get_plain_password(username):
     return passwords.get(username)
 
 
-def get_current_user_from_request(request):
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    if not token:
-        token = request.cookies.get('token', '')
+def get_user_from_token(token):
+    """根据 token 字符串直接获取用户对象（不依赖 request 上下文）。
+
+    用于 WebSocket 等非 HTTP 请求的 token 验证场景。
+    """
     if not token:
         return None
 
@@ -314,6 +319,16 @@ def get_current_user_from_request(request):
     if user:
         pass
     return user
+
+
+def get_current_user_from_request(request):
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    if not token:
+        token = request.cookies.get('token', '')
+    if not token:
+        return None
+
+    return get_user_from_token(token)
 
 
 def init_admin():

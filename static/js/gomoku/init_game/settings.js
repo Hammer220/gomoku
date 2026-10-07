@@ -258,8 +258,14 @@
                 G.resetGame();
                 if (G.startStatusCheck) G.startStatusCheck();
                 if (G.updateUnreadBadge) G.updateUnreadBadge();
-                if (G.recoverOnlineMatch) await G.recoverOnlineMatch();
-                if (window.INITIAL_MATCH_ID) {
+                // 优先恢复 URL 指定的房间（INITIAL_MATCH_ID），其次恢复当前用户活跃房间
+                if (G.recoverOnlineMatch) {
+                    await G.recoverOnlineMatch(window.INITIAL_MATCH_ID || undefined);
+                }
+                // 仅当 recoverOnlineMatch 未能恢复到任何房间（onlineMatchId 尚未设置），
+                // 才用 INITIAL_MATCH_ID 主动加入。避免创建者刷新时触发
+                // "不能加入自己创建的房间" 的错误。
+                if (window.INITIAL_MATCH_ID && !G.onlineMatchId) {
                     G.autoJoinMatchById(window.INITIAL_MATCH_ID);
                 }
                 if (G.handleRouteChange) G.handleRouteChange();

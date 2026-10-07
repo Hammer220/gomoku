@@ -232,6 +232,11 @@ var Gomoku = window.Gomoku || {};
             geetestPassToken = parts[2];
             geetestGenTime = parts[3];
         }
+        // PoW session 统一从守卫层拿（刷新页面时从 sessionStorage fallback）
+        var powSession = G.powSession_guard || '';
+        if (!powSession) {
+            try { powSession = sessionStorage.getItem('powSession') || ''; } catch(e) {}
+        }
         var res = await G.apiCall('/api/login', 'POST', {
             username: username,
             password: password,
@@ -239,6 +244,7 @@ var Gomoku = window.Gomoku || {};
             geetestCaptchaOutput: geetestCaptchaOutput,
             geetestPassToken: geetestPassToken,
             geetestGenTime: geetestGenTime,
+            powSession: powSession,
             language: G.i18n.getLang()
         }, true);
         G.token = res.token;
@@ -316,6 +322,7 @@ var Gomoku = window.Gomoku || {};
             geetestCaptchaOutput: geetestCaptchaOutput,
             geetestPassToken: geetestPassToken,
             geetestGenTime: geetestGenTime,
+            powSession: G.powSession_guard || (function(){ try { return sessionStorage.getItem('powSession') || ''; } catch(e) { return ''; } })(),
             language: G.i18n.getLang()
         }, true);
         await G.resetGuestData();
@@ -388,6 +395,7 @@ var Gomoku = window.Gomoku || {};
                     geetestCaptchaOutput: parts[1],
                     geetestPassToken: parts[2],
                     geetestGenTime: parts[3],
+                    powSession: G.powSession_guard || (function(){ try { return sessionStorage.getItem('powSession') || ''; } catch(e) { return ''; } })(),
                     language: G.i18n.getLang()
                 }, true);
                 G.token = res.token;

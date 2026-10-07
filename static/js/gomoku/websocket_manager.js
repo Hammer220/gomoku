@@ -41,6 +41,9 @@ var Gomoku = window.Gomoku || {};
         /** 连接成功后实际使用的引擎传输名 */
         transport: null,
 
+        /** 页面正在卸载（beforeunload）——此时的 disconnect 是页面切换导致，不是网络故障 */
+        _pageUnloading: false,
+
         // Socket.IO 连接实例
         socket: null,
 
@@ -74,6 +77,17 @@ var Gomoku = window.Gomoku || {};
                 return;
             }
             this.initialized = true;
+
+            // 标记页面卸载：此时的 WS disconnect 是页面切换导致，不是网络故障
+            // 避免页面刷新时误触发降级计时器
+            window.addEventListener('beforeunload', function() {
+                Gomoku.WebSocketManager._pageUnloading = true;
+                clearTimeout(Gomoku.WebSocketManager._downgradeTimer);
+                clearTimeout(Gomoku.WebSocketManager._promoteTimer);
+            });
+            window.addEventListener('pageshow', function() {
+                Gomoku.WebSocketManager._pageUnloading = false;
+            });
 
             if (typeof io === 'undefined') {
                 console.warn('[WS] Socket.IO 客户端未加载，业务将使用 HTTP 轮询');
@@ -201,6 +215,13 @@ var Gomoku = window.Gomoku || {};
                 self.emit('disconnected', {reason: reason});
                 self.emit('connection_change', {connected: false, reason: reason});
 
+                // 页面正在卸载（刷新/跳转）：disconnect 是正常的页面切换，
+                // 不要触发降级计时器，否则新页面刚加载完又会被误降级。
+                if (self._pageUnloading) {
+                    clearTimeout(self._downgradeTimer);
+                    return;
+                }
+
                 // WS 直连模式下断开，短时间内连不回来则降级到长轮询
                 if (self.transportMode === 'websocket') {
                     self._scheduleDowngrade();
@@ -227,10 +248,11 @@ var Gomoku = window.Gomoku || {};
                         attempt: attempt,
                         transportMode: self.transportMode
                     });
-                    if (self.transportMode === 'websocket' && attempt >= 3) {
-                        // 连续 3 次重连失败，提前降级（约 5~8 秒）
-                        self._downgradeToPolling();
-                    }
+                    // 不再在这里根据 attempt 次数提前调用 _downgradeToPolling()：
+                    // 页面刷新时 attempt 计数会让这里误立即降级（约 3 秒），
+                    // 早于 _scheduleDowngrade() 的 6 秒宽限期，也早于新 WS 的稳定连接。
+                    // 降级统一由 disconnect → _scheduleDowngrade() 驱动，
+                    // 且在 beforeunload 时会被完全跳过。
                 });
             }
         },

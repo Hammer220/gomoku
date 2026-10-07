@@ -85,36 +85,72 @@ var Gomoku = window.Gomoku || {};
         // 获取前端配置
         var config = await G.apiCall('/api/config', 'GET');
         G.captchaEnabled = config.captchaEnabled !== false;
-        // 保存后端返回的 captchaId，确保与后端 config.ini 一致
+        G.powEnabled = !!config.powEnabled;
         G.captchaId = config.captchaId || '';
         G.loginCaptchaId = config.loginCaptchaId || '';
 
-        // 如果验证码已禁用，隐藏验证码容器
-        if (!G.captchaEnabled) {
-            var loginCaptcha = document.getElementById('geetestLoginWidget');
-            var regCaptcha = document.getElementById('geetestRegisterWidget');
-            var guestCaptcha = document.getElementById('geetestGuestWidget');
-            if (loginCaptcha) loginCaptcha.classList.add('hidden');
-            if (regCaptcha) regCaptcha.classList.add('hidden');
-            if (guestCaptcha) guestCaptcha.classList.add('hidden');
+        // ==================== Cerberus PoW 首页守卫 ====================
+
+        /** PoW 通过后才初始化极验（省资源）。极验原样保留。*/
+        function initGeetests() {
+            if (!G.captchaEnabled) {
+                var guestBox = document.getElementById('geetestGuestWidget');
+                if (guestBox) guestBox.classList.add('hidden');
+                G.loginGeetestToken = 'disabled';
+                G.guestGeetestToken = 'disabled';
+                G.registerGeetestToken = 'disabled';
+                return;
+            }
+            // 极验容器默认可见（恢复原样）
+            var geetestLogin = document.getElementById('geetestLoginWidget');
+            var geetestGuest = document.getElementById('geetestGuestWidget');
+            var geetestRegister = document.getElementById('geetestRegisterWidget');
+            if (geetestLogin) geetestLogin.classList.remove('hidden');
+            if (geetestRegister) geetestRegister.classList.remove('hidden');
+            // guest 容器默认隐藏（访客登录按钮点到时才 show）
+            if (geetestGuest) geetestGuest.classList.add('hidden');
+
+            // 初始化极验
+            if (geetestLogin) {
+                G.initGeetestWidget('geetestLoginWidget', function(){});
+            }
+            if (geetestGuest) {
+                G.initGeetestWidget('geetestGuestWidget', function(){});
+            }
         }
 
-        // 初始化极验登录验证码
-        if (G.captchaEnabled) {
-            await new Promise(function(resolve) {
-                G.initGeetestWidget('geetestLoginWidget', function() {
-                    resolve();
-                });
+        var existingPow = null;
+        try { existingPow = sessionStorage.getItem('powSession'); } catch(e) {}
+
+        if (G.powEnabled && !existingPow) {
+            // 开启了 PoW 且没有缓存的 session —— 先过守卫
+            G.initCerberusPow('powGuard', {
+                onPass: function() {
+                    // 守卫层隐藏了，露出登录表单，然后才初始化极验
+                    var loginModal = document.getElementById('loginModal');
+                    if (loginModal) loginModal.classList.remove('hidden');
+                    initGeetests();
+                },
+                onError: function(err) {
+                    G.showToast ? G.showToast('PoW 守卫初始化失败', true) : console.error(err);
+                    // 失败时仍露出登录表单
+                    var loginModal = document.getElementById('loginModal');
+                    if (loginModal) loginModal.classList.remove('hidden');
+                    setTimeout(initGeetests, 1200);
+                },
             });
-            // 初始化访客登录验证码
-            await new Promise(function(resolve) {
-                G.initGeetestWidget('geetestGuestWidget', function() {
-                    resolve();
-                });
-            });
+            // 守卫未过期间先隐藏登录表单，避免露馅
+            var loginModal = document.getElementById('loginModal');
+            if (loginModal) loginModal.classList.add('hidden');
         } else {
-            G.loginGeetestToken = 'disabled';
-            G.guestGeetestToken = 'disabled';
+            // 跳过守卫：PoW 没开，或 sessionStorage 里已有有效 session（刷新页面）
+            if (existingPow) {
+                G.powSession_guard = existingPow;
+            }
+            // 隐藏守卫层
+            var pg = document.getElementById('powGuard');
+            if (pg) { pg.classList.add('hidden'); pg.style.pointerEvents = 'none'; }
+            initGeetests();
         }
 
         // ==================== 显示注册弹窗 ====================
@@ -124,17 +160,14 @@ var Gomoku = window.Gomoku || {};
             e.preventDefault();
             document.getElementById('loginModal').classList.add('hidden');
             document.getElementById('registerModal').classList.remove('hidden');
-            // 延迟初始化注册验证码，确保容器可见后再渲染
             if (G.captchaEnabled) {
-                setTimeout(function() {
-                    var regContainer = document.getElementById('geetestRegisterWidget');
-                    if (regContainer && !regContainer.hasAttribute('data-initialized')) {
-                        regContainer.setAttribute('data-initialized', 'true');
-                        G.initGeetestWidget('geetestRegisterWidget', function() {
-                            // 注册验证码初始化完成
-                        });
-                    }
-                }, 300);
+                // 恢复注册极验容器（如果 initGeetests 里没 show 出来）
+                var regContainer = document.getElementById('geetestRegisterWidget');
+                if (regContainer) regContainer.classList.remove('hidden');
+                if (regContainer && !regContainer.hasAttribute('data-initialized')) {
+                    regContainer.setAttribute('data-initialized', 'true');
+                    G.initGeetestWidget('geetestRegisterWidget', function() {});
+                }
             } else {
                 G.registerGeetestToken = 'disabled';
             }
@@ -193,6 +226,11 @@ var Gomoku = window.Gomoku || {};
             e.preventDefault();
             var u = document.getElementById('username').value;
             var p = document.getElementById('password').value;
+            if (G.powEnabled && !G.powSession_guard) {
+                // 守卫已过但 session 被后端判定过期 → 重刷守卫
+                G.reopenPowGuard();
+                return;
+            }
             if (G.captchaEnabled && !G.loginGeetestToken) {
                 G.showToast('请完成验证码验证', true);
                 return;
@@ -202,9 +240,8 @@ var Gomoku = window.Gomoku || {};
                 await G.login(u, p, G.loginGeetestToken);
             } catch (err) {
                 G.showToast(err.message, true);
-                if (G.captchaEnabled) {
-                    G.refreshGeetestCaptcha(true);
-                }
+                if (G.captchaEnabled) G.refreshGeetestCaptcha(true);
+                if (err.message && err.message.indexOf('PoW') >= 0) G.reopenPowGuard();
             }
         });
 
@@ -229,15 +266,15 @@ var Gomoku = window.Gomoku || {};
             if (!/^[a-zA-Z0-9_]+$/.test(u)) { G.showToast('用户名只能包含英文、数字和下划线', true); return; }
             if (p !== cp) { G.showToast('密码不一致', true); return; }
             if (p.length < 6) { G.showToast('密码至少6位', true); return; }
+            if (G.powEnabled && !G.powSession_guard) { G.reopenPowGuard(); return; }
             if (G.captchaEnabled && !G.registerGeetestToken) { G.showToast('请完成验证码验证', true); return; }
             sessionStorage.removeItem('registerFormInteracted');
             try {
                 await G.register(u, p, G.registerGeetestToken);
             } catch (err) {
                 G.showToast(err.message, true);
-                if (G.captchaEnabled) {
-                    G.refreshGeetestCaptcha(false);
-                }
+                if (G.captchaEnabled) G.refreshGeetestCaptcha(false);
+                if (err.message && err.message.indexOf('PoW') >= 0) G.reopenPowGuard();
             }
         });
 

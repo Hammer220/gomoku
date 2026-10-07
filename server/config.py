@@ -58,4 +58,15 @@ VERIFY_URL = cfg.get('GEETEST', 'verify_url') if has_valid_geetest_config() else
 GT4_LOGIN_CAPTCHA_ID = cfg.get('GEETEST_LOGIN', 'captcha_id') if has_valid_geetest_login_config() else ''
 GT4_LOGIN_CAPTCHA_KEY = cfg.get('GEETEST_LOGIN', 'captcha_key') if has_valid_geetest_login_config() else ''
 LOGIN_VERIFY_URL = cfg.get('GEETEST_LOGIN', 'verify_url') if has_valid_geetest_login_config() else ''
-CAPTCHA_ENABLED = has_valid_geetest_config() and has_valid_geetest_login_config()
+
+# ===== CAPTCHA_ENABLED：从 config.ini [APP] captcha_enabled 读取；true 即启用极验 =====
+# （原先是硬编码 False，导致极验永远休眠）
+CAPTCHA_ENABLED = cfg.getboolean('APP', 'captcha_enabled', fallback=False) and has_valid_geetest_config() and has_valid_geetest_login_config()
+
+# ===== PoW 校验开关 =====
+POW_ENABLED = cfg.getboolean('APP', 'pow_enabled', fallback=False)
+
+# ===== PoW 难度：前 N 位必须为 0（每 +1 计算量 ×2）=====
+POW_DIFFICULTY = cfg.getint('APP', 'pow_difficulty', fallback=16)
+if not (8 <= POW_DIFFICULTY <= 24):
+    POW_DIFFICULTY = 16

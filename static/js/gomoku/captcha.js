@@ -247,4 +247,110 @@ var Gomoku = window.Gomoku || {};
     G.completePostLoginVerification = async function() { ... };
     */
 
+    // ==================== Cerberus 风格 PoW 验证 ====================
+    // 后端：/api/pow/challenge + /api/pow/verify
+    // 前端：pow_worker.js 做 SHA-256 PoW
+    // 定位：首页大屏守卫页——通过后才露出原登录表单（极验保留在表单内）
+
+    /**
+     * 初始化 Cerberus PoW 全屏守卫。
+     * containerId: 守卫根元素 id（默认 'powGuard'）
+     * options.onPass(session, elapsedMs): 校验通过后的回调——由它负责隐藏守卫、初始化极验等
+     */
+    G.initCerberusPow = function (containerId, options) {
+        options = options || {};
+        var container = document.getElementById(containerId || 'powGuard');
+        if (!container) return;
+
+        // 守卫层默认显示，只有 PoW 通过才隐藏
+        container.classList.remove('hidden');
+        container.style.pointerEvents = 'auto';
+
+        var bar = container.querySelector('#pg-bar');
+        var speedEl = container.querySelector('#pg-speed');
+        var diffEl = container.querySelector('#pg-diff');
+        var triedEl = container.querySelector('#pg-tried');
+        var statusEl = container.querySelector('#pg-status');
+        var retryBtn = container.querySelector('#pg-retry');
+
+        function setStatus(txt, cls) {
+            statusEl.textContent = txt;
+            statusEl.classList.remove('pass', 'fail');
+            if (cls) statusEl.classList.add(cls);
+        }
+        function t(key) {
+            var map = {
+                zh:  { Checking:'确保你不是机器人', Sub:'正在进行浏览器检查，仅需几秒钟',
+                       Initial:'正在发起挑战 ...', Running:'正在进行浏览器检查...',
+                       Passed:'✅ 验证通过', Failed:'验证失败，点击重试', Retry:'重新开始' },
+                en:  { Checking:'Making sure you are not a bot', Sub:'Performing browser checks...',
+                       Initial:'Requesting challenge...', Running:'Performing browser checks...',
+                       Passed:'✅ Verified', Failed:'Failed. Click to retry', Retry:'Retry' },
+                tw:  { Checking:'確保你不是機器人', Sub:'正在進行瀏覽器檢查，僅需幾秒鐘',
+                       Initial:'正在發起挑戰 ...', Running:'正在進行瀏覽器檢查...',
+                       Passed:'✅ 驗證通過', Failed:'驗證失敗，點擊重試', Retry:'重新開始' },
+            };
+            var lang = (G.i18n && G.i18n.currentLang) ? G.i18n.currentLang : 'zh-CN';
+            var b = lang.startsWith('zh-TW') ? map.tw : (lang.startsWith('en') ? map.en : map.zh);
+            return b[key] || key;
+        }
+
+        async function run() {
+            G.Pow.cancel();
+            G.powSession_guard = null;
+            try {
+                setStatus(t('Initial'));
+                var info = await G.Pow.newChallenge();
+                diffEl.textContent = info.difficulty;
+                setStatus(t('Running'));
+
+                await G.Pow.solve({
+                    onProgress: function (p) {
+                        speedEl.textContent = p.speedKhs;
+                        var expected = Math.pow(2, info.difficulty);
+                        var pct = Math.min(100, (p.tried / expected) * 100);
+                        bar.style.width = pct.toFixed(1) + '%';
+                        if (triedEl) triedEl.textContent = p.tried.toLocaleString();
+                    },
+                    onDone: function (info2) {
+                        bar.style.width = '100%';
+                        setStatus(t('Passed'), 'pass');
+                        retryBtn.classList.add('pow-guard-hidden');
+                        // 存到 sessionStorage，刷新页面时可跳过守卫
+                        G.powSession_guard = info2.session;
+                        try { sessionStorage.setItem('powSession', info2.session); } catch(e) {}
+                        // 隐藏守卫层
+                        setTimeout(function() {
+                            container.classList.add('hidden');
+                            container.style.pointerEvents = 'none';
+                            if (options.onPass) options.onPass(info2.session, info2.elapsedMs);
+                        }, 350);
+                    },
+                    onError: function (err) {
+                        setStatus(t('Failed'), 'fail');
+                        retryBtn.classList.remove('pow-guard-hidden');
+                        if (options.onError) options.onError(err);
+                    },
+                });
+            } catch (err) {
+                setStatus(t('Failed'), 'fail');
+                retryBtn.classList.remove('pow-guard-hidden');
+            }
+        }
+
+        retryBtn.addEventListener('click', run);
+        run();
+    };
+
+    /** 重新弹出守卫页并刷新 PoW（后端返回 session 过期错误时调用）。*/
+    G.reopenPowGuard = function () {
+        var container = document.getElementById('powGuard');
+        if (!container) return;
+        G.powSession_guard = null;
+        try { sessionStorage.removeItem('powSession'); } catch(e) {}
+        container.classList.remove('hidden');
+        container.style.pointerEvents = 'auto';
+        setTimeout(function() { G.initCerberusPow('powGuard'); }, 100);
+    };
+
 })();

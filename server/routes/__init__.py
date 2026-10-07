@@ -10,6 +10,7 @@ from .auth_routes import auth_bp
 from .game_routes import game_bp
 from .match_routes import match_bp
 from .message_routes import message_bp
+from .pow_routes import pow_bp
 from .static_routes import static_bp
 from .user_routes import user_bp
 
@@ -17,6 +18,7 @@ from .user_routes import user_bp
 def register_routes(app):
     """将所有蓝图注册到 Flask 应用"""
     app.register_blueprint(auth_bp)
+    app.register_blueprint(pow_bp)
     app.register_blueprint(user_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(match_bp)
@@ -27,6 +29,7 @@ def register_routes(app):
     # 登录页面
     @app.route('/')
     @app.route('/login')
+    @app.route('/login.html')
     def login_page():
         # 已登录（cookie / Authorization 任一有效）则直接进入主页
         if get_current_user():

@@ -83,11 +83,27 @@ var Gomoku = window.Gomoku || {};
         }
     };
 
-    G.recoverOnlineMatch = async function() {
+    G.recoverOnlineMatch = async function(preferredMatchId) {
         try {
-            var res = await G.apiCall('/api/match/my', 'GET');
-            if (!res.match) return;
-            var match = res.match;
+            // 如果指定了 preferredMatchId，优先检查该房间（对应 URL 里带 match_id 的场景）
+            var matchData = null;
+            if (preferredMatchId) {
+                try {
+                    var statusRes = await G.apiCall('/api/match/status/' + preferredMatchId, 'GET');
+                    if (statusRes && !statusRes.error) {
+                        matchData = statusRes;
+                    }
+                } catch(e) {
+                    // 403/404 说明用户不是该房间参与者或房间不存在，忽略
+                }
+            }
+            // 没指定或指定的房间不可恢复 → 用 /api/match/my 找活跃房间
+            if (!matchData) {
+                var myRes = await G.apiCall('/api/match/my', 'GET');
+                if (myRes.match) matchData = myRes.match;
+            }
+            if (!matchData) return;
+            var match = matchData;
             G.onlineMatchId = match.id;
             G.onlineMyColor = match.myColor;
             G.onlineOpponent = match.opponent;

@@ -54,6 +54,9 @@ def admin_close_match(admin_user, match_id):
 def admin_close_all_matches(admin_user):
     logger.info(f'管理员 {admin_user["username"]} 强制关闭所有房间')
     result = force_close_all_matches()
+    # 给每个被关闭的房间广播，让玩家/观战者立即收到状态变更
+    for mid in result.get('closed_ids', []):
+        broadcast_match_update(mid)
     _emit_match_list_changed()
     return result
 
@@ -65,6 +68,7 @@ def admin_restart_match(admin_user, match_id):
     logger.info(f'管理员 {admin_user["username"]} 强制重新开始房间 {match_id}')
     result = force_restart_match(match_id)
     broadcast_match_update(match_id)
+    _emit_match_list_changed()
     return result
 
 

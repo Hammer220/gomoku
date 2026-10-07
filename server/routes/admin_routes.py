@@ -40,6 +40,7 @@ def _batch_operate(admin_user, usernames, operation, **kwargs):
 
     success_count = 0
     failed_count = 0
+    pushed_bans = []
 
     for username in usernames:
         try:
@@ -55,6 +56,7 @@ def _batch_operate(admin_user, usernames, operation, **kwargs):
                 minutes = kwargs.get('minutes', 0)
                 if minutes > 0:
                     user['bannedUntil'] = time.time() + minutes * 60
+                    pushed_bans.append((username, user['bannedUntil']))
                 else:
                     user['bannedUntil'] = None
                 save_user(username, user)
@@ -71,6 +73,17 @@ def _batch_operate(admin_user, usernames, operation, **kwargs):
                 success_count += 1
         except Exception:  # noqa: BLE001
             failed_count += 1
+
+    # 批量封禁后统一推送 WS 通知（与单个 /api/admin/ban 行为一致）
+    if pushed_bans:
+        from .. import socketio
+
+        for username, banned_until in pushed_bans:
+            try:
+                socketio.push_ban_notification(username, banned_until)
+                socketio.push_user_status_update(username, {'bannedUntil': banned_until})
+            except Exception:  # noqa: BLE001
+                pass
 
     from .admin.user_management import _invalidate_admin_users_cache
 

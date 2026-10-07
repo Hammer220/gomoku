@@ -269,14 +269,20 @@ def cleanup_inactive_connections() -> list[str]:
     return inactive_users
 
 
+# 创建者断开连接时的宽限期（秒）—— 给页面刷新/导航时的 WebSocket 重连留时间
+OWNER_DISCONNECT_GRACE_SECONDS = 8
+
+
 def handle_player_disconnect_from_match(username: str) -> None:
     """处理玩家断开连接时的房间状态
-    - waiting + 创建者断开 → 直接删除房间
+    - waiting + 创建者断开 → 标记宽限期，不立即删除（等待重连）
+    - waiting + 对手断开 → 直接删除房间
     - playing + 一方断开 → 立即判对手获胜（与 leave_match 逻辑一致）
     """
     try:
         with active_matches_lock:
             affected: list[str] = []
+            grace_deadline = time.time() + OWNER_DISCONNECT_GRACE_SECONDS
             for match_id, match in list(active_matches.items()):
                 status = match.get('status')
                 if status not in ('waiting', 'playing'):
@@ -290,10 +296,17 @@ def handle_player_disconnect_from_match(username: str) -> None:
 
                 if status == 'waiting':
                     if is_creator:
+                        # 宽限期：不立即删除，等重连
+                        match['_owner_disconnect_deadline'] = grace_deadline
+                        logger.info(
+                            f'房间 {match_id} 创建者断开连接，宽限期 {OWNER_DISCONNECT_GRACE_SECONDS}s 后若无重连将删除'
+                        )
+                    else:
+                        # 对手在 waiting 状态断开（极少发生），直接删除
                         del active_matches[match_id]
                         clear_room_chat(match_id)
                         affected.append(match_id)
-                        logger.info(f'房间 {match_id} 创建者断开连接，房间已删除')
+                        logger.info(f'房间 {match_id} 对手断开连接，房间已删除')
                     continue
 
                 # playing —— 直接判对手获胜
@@ -302,6 +315,7 @@ def handle_player_disconnect_from_match(username: str) -> None:
                 match['status'] = 'finished'
                 match['finishedReason'] = 'opponent_left'
                 match['lastActivity'] = time.time()
+                match.pop('_owner_disconnect_deadline', None)
                 affected.append(match_id)
                 logger.info(f'玩家 {username} 断开连接，房间 {match_id} 判对手获胜')
 
@@ -313,6 +327,32 @@ def handle_player_disconnect_from_match(username: str) -> None:
             _notify_list_changed()
     except Exception as e:  # noqa: BLE001
         logger.error(f'Error handling player disconnect from match: {e}')
+
+
+def _check_owner_disconnect_deadlines() -> None:
+    """检查创建者断开宽限期到期的 waiting 房间，执行删除。
+
+    每 10 秒由 cleanup_loop 调用。到期前创建者成功重连（通过 join 或心跳）
+    时 deadline 会被清除。
+    """
+    now = time.time()
+    expired: list[str] = []
+
+    with active_matches_lock:
+        for match_id, match in list(active_matches.items()):
+            deadline = match.get('_owner_disconnect_deadline', 0)
+            if deadline > 0 and now > deadline and match.get('status') == 'waiting':
+                del active_matches[match_id]
+                clear_room_chat(match_id)
+                expired.append(match_id)
+                logger.info(f'宽限期到期，删除房间 {match_id}（创建者未重连）')
+
+        if expired:
+            save_matches()
+
+    if expired:
+        for match_id in expired:
+            _notify_list_changed()
 
 
 def _check_timeouts() -> None:
@@ -377,6 +417,7 @@ def start_cleanup_task() -> None:
             time.sleep(10)
             try:
                 _check_timeouts()
+                _check_owner_disconnect_deadlines()
                 # 每 300s 跑一次房间过期 + 连接清理
                 now = time.time()
                 if now - last_expired_run >= 300:

@@ -207,6 +207,21 @@ def register_socket_events(sio):
         sid = socket_request.sid
         # 只允许已通过 register_user 认证的 SID 绑定房间；不接受客户端声称的 username
         authenticated_username = sid_to_user.get(sid)
+
+        # 创建者重连时清除断开宽限期 deadline
+        if authenticated_username:
+            try:
+                from .match.storage import active_matches, active_matches_lock
+
+                with active_matches_lock:
+                    match = active_matches.get(match_id)
+                    if match and match.get('creator') == authenticated_username:
+                        cleared = match.pop('_owner_disconnect_deadline', None)
+                        if cleared:
+                            logger.info(f'房间 {match_id} 创建者 {authenticated_username} 重连，已清除断开宽限期')
+            except Exception as e:  # noqa: BLE001
+                logger.debug(f'清除断开 deadline 跳过: {e}')
+
         join_room(match_id)
         sid_to_match[sid] = match_id
         logger.info(

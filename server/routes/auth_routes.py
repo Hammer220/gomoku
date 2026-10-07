@@ -15,11 +15,14 @@ from ..auth import geetest_verify, require_auth
 from ..config import (
     CAPTCHA_ENABLED,
     GT4_CAPTCHA_ID,
+    GT4_CAPTCHA_KEY,
     GT4_LOGIN_CAPTCHA_ID,
     GT4_LOGIN_CAPTCHA_KEY,
     LOGIN_VERIFY_URL,
+    POW_ENABLED,
 )
 from ..logger import logger
+from .pow_routes import consume_pow_session
 
 # TURNSTILE_SITE_KEY
 from ..models import (
@@ -59,6 +62,19 @@ def calculate_rank(score):
     return RANK_CONFIG[-1]['name']
 
 
+def _require_pow_session(data, scope: str):
+    """如果 POW_ENABLED 开启，强制校验请求里的 powSession 字段。一次性消耗。"""
+    if not POW_ENABLED:
+        return None
+    session = (data.get('powSession') or '').strip() if data else ''
+    if not session:
+        return '请完成 PoW 人机验证（缺少 powSession）'
+    if not consume_pow_session(session):
+        logger.warning(f'PoW session 无效或已过期 [{scope}]')
+        return 'PoW 验证已过期，请重试'
+    return None
+
+
 @auth_bp.route('/api/config', methods=['GET'])
 def api_config():
     """获取前端配置（验证码 ID 等）"""
@@ -67,6 +83,7 @@ def api_config():
             'captchaId': GT4_CAPTCHA_ID,
             'loginCaptchaId': GT4_LOGIN_CAPTCHA_ID,
             'captchaEnabled': CAPTCHA_ENABLED,
+            'powEnabled': POW_ENABLED,
             # 'turnstileSiteKey': TURNSTILE_SITE_KEY
         }
     )
@@ -79,6 +96,10 @@ def register():
         data = request.get_json()
         if not data:
             return jsonify({'error': '无效的请求数据'}), 400
+
+        err = _require_pow_session(data, 'register')
+        if err:
+            return jsonify({'error': err}), 400
 
         username = data.get('username', '').strip()
         password = data.get('password', '').strip()
@@ -165,6 +186,10 @@ def login():
         data = request.get_json()
         if not data:
             return jsonify({'error': '无效的请求数据'}), 400
+
+        err = _require_pow_session(data, 'login')
+        if err:
+            return jsonify({'error': err}), 400
 
         username = data.get('username', '').strip()
         password = data.get('password', '').strip()
@@ -296,6 +321,10 @@ def guest_login():
         data = request.get_json()
         if not data:
             return jsonify({'error': '无效的请求数据'}), 400
+
+        err = _require_pow_session(data, 'guest_login')
+        if err:
+            return jsonify({'error': err}), 400
 
         username = data.get('username', '').strip()
         geetest_lot = data.get('geetestLot', '')

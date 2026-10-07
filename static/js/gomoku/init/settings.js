@@ -4,87 +4,121 @@
 // ============================================================
 (function() {
     var G = window.Gomoku;
+    var $ = function(id) { return document.getElementById(id); };
 
-    document.getElementById('changePasswordBtn').addEventListener('click', G.changePassword);
+    var changePasswordBtn = $('changePasswordBtn');
+    if (changePasswordBtn) changePasswordBtn.addEventListener('click', G.changePassword);
 
-    document.getElementById('createAdminBtn').addEventListener('click', G.createAdminAccount);
-    document.getElementById('refreshAdminsBtn').addEventListener('click', G.loadAdminList);
+    var createAdminBtn = $('createAdminBtn');
+    if (createAdminBtn) createAdminBtn.addEventListener('click', G.createAdminAccount);
+    var refreshAdminsBtn = $('refreshAdminsBtn');
+    if (refreshAdminsBtn) refreshAdminsBtn.addEventListener('click', G.loadAdminList);
 
-    document.getElementById('viewAllRecordsBtn').addEventListener('click', G.viewAllRecords);
-    document.getElementById('closeAllRecordsBtn').addEventListener('click', G.closeAllRecordsModal);
-    document.getElementById('exportRecordsBtn').addEventListener('click', G.exportRecords);
-    document.getElementById('recordsUserFilter').addEventListener('change', function() {
-        if (G.allRecordsData) {
-            G.renderRecords(G.allRecordsData, this.value);
-        }
-    });
+    var viewAllRecordsBtn = $('viewAllRecordsBtn');
+    if (viewAllRecordsBtn) viewAllRecordsBtn.addEventListener('click', G.viewAllRecords);
+    var closeAllRecordsBtn = $('closeAllRecordsBtn');
+    if (closeAllRecordsBtn) closeAllRecordsBtn.addEventListener('click', G.closeAllRecordsModal);
+    var exportRecordsBtn = $('exportRecordsBtn');
+    if (exportRecordsBtn) exportRecordsBtn.addEventListener('click', G.exportRecords);
+    var recordsUserFilter = $('recordsUserFilter');
+    if (recordsUserFilter) {
+        recordsUserFilter.addEventListener('change', function() {
+            if (G.allRecordsData) {
+                G.renderRecords(G.allRecordsData, recordsUserFilter.value);
+            }
+        });
+    }
 
-    document.getElementById('boardLineColor').addEventListener('input', function() {
-        document.getElementById('boardLineColorText').value = this.value;
-    });
-    document.getElementById('boardLineColorText').addEventListener('input', function() {
-        var color = this.value;
-        if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
-            document.getElementById('boardLineColor').value = color;
-        }
-    });
+    var boardLineColor = $('boardLineColor');
+    var boardLineColorText = $('boardLineColorText');
+    if (boardLineColor) {
+        boardLineColor.addEventListener('input', function() {
+            if (boardLineColorText) boardLineColorText.value = this.value;
+        });
+    }
+    if (boardLineColorText) {
+        boardLineColorText.addEventListener('input', function() {
+            var color = this.value;
+            if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                if (boardLineColor) boardLineColor.value = color;
+            }
+        });
+    }
 
-    document.getElementById('boardDotColor').addEventListener('input', function() {
-        document.getElementById('boardDotColorText').value = this.value;
-    });
-    document.getElementById('boardDotColorText').addEventListener('input', function() {
-        var color = this.value;
-        if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
-            document.getElementById('boardDotColor').value = color;
-        }
-    });
+    var boardDotColor = $('boardDotColor');
+    var boardDotColorText = $('boardDotColorText');
+    if (boardDotColor) {
+        boardDotColor.addEventListener('input', function() {
+            if (boardDotColorText) boardDotColorText.value = this.value;
+        });
+    }
+    if (boardDotColorText) {
+        boardDotColorText.addEventListener('input', function() {
+            var color = this.value;
+            if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                if (boardDotColor) boardDotColor.value = color;
+            }
+        });
+    }
 
-    document.getElementById('saveBoardColorBtn').addEventListener('click', G.saveBoardColorSettings);
+    var saveBoardColorBtn = $('saveBoardColorBtn');
+    if (saveBoardColorBtn) saveBoardColorBtn.addEventListener('click', G.saveBoardColorSettings);
 
-    document.getElementById('resetBoardColorBtn').addEventListener('click', function() {
-        G.boardLineColor = '#8B5A2B';
-        G.boardDotColor = '#8B5A2B';
-        G.selectedBackground = '';
-        document.getElementById('boardLineColor').value = G.boardLineColor;
-        document.getElementById('boardLineColorText').value = G.boardLineColor;
-        document.getElementById('boardDotColor').value = G.boardDotColor;
-        document.getElementById('boardDotColorText').value = G.boardDotColor;
-        G.drawBoard();
-        G.drawOnlineBoard();
-        G.applyBackground('');
-        G.renderBackgroundGrid();
-        G.saveBoardColorSettings();
-    });
+    var resetBoardColorBtn = $('resetBoardColorBtn');
+    if (resetBoardColorBtn) {
+        resetBoardColorBtn.addEventListener('click', function() {
+            G.boardLineColor = '#8B5A2B';
+            G.boardDotColor = '#8B5A2B';
+            G.selectedBackground = '';
+            if (boardLineColor) boardLineColor.value = G.boardLineColor;
+            if (boardLineColorText) boardLineColorText.value = G.boardLineColor;
+            if (boardDotColor) boardDotColor.value = G.boardDotColor;
+            if (boardDotColorText) boardDotColorText.value = G.boardDotColor;
+            G.drawBoard();
+            G.drawOnlineBoard();
+            if (G.applyBackground) G.applyBackground('');
+            if (G.renderBackgroundGrid) G.renderBackgroundGrid();
+            if (G.saveBoardColorSettings) G.saveBoardColorSettings();
+        });
+    }
 
-    document.getElementById('loadBackgroundsBtn').addEventListener('click', G.loadBackgrounds);
+    var loadBackgroundsBtn = $('loadBackgroundsBtn');
+    if (loadBackgroundsBtn) loadBackgroundsBtn.addEventListener('click', G.loadBackgrounds);
 
-    document.getElementById('refreshLeaderboardBtn').addEventListener('click', G.loadLeaderboard);
+    var refreshLeaderboardBtn = $('refreshLeaderboardBtn');
+    if (refreshLeaderboardBtn) refreshLeaderboardBtn.addEventListener('click', G.loadLeaderboard);
 
-    document.getElementById('historyModeFilter') && document.getElementById('historyModeFilter').addEventListener('change', function() {
+    var historyModeFilter = $('historyModeFilter');
+    if (historyModeFilter) historyModeFilter.addEventListener('change', function() {
         G.historyCurrentPage = 1;
         G.renderHistory();
     });
-    document.getElementById('historyResultFilter') && document.getElementById('historyResultFilter').addEventListener('change', function() {
+    var historyResultFilter = $('historyResultFilter');
+    if (historyResultFilter) historyResultFilter.addEventListener('change', function() {
         G.historyCurrentPage = 1;
         G.renderHistory();
     });
-    document.getElementById('historyUserFilter') && document.getElementById('historyUserFilter').addEventListener('change', function() {
+    var historyUserFilter = $('historyUserFilter');
+    if (historyUserFilter) historyUserFilter.addEventListener('change', function() {
         G.historyCurrentPage = 1;
         G.renderHistory();
     });
-    document.getElementById('refreshHistoryBtn') && document.getElementById('refreshHistoryBtn').addEventListener('click', function() {
+    var refreshHistoryBtn = $('refreshHistoryBtn');
+    if (refreshHistoryBtn) refreshHistoryBtn.addEventListener('click', function() {
         G.historyCurrentPage = 1;
         G.loadHistory();
     });
-    document.getElementById('historyPrevPage') && document.getElementById('historyPrevPage').addEventListener('click', function() {
+    var historyPrevPage = $('historyPrevPage');
+    if (historyPrevPage) historyPrevPage.addEventListener('click', function() {
         if (G.historyCurrentPage > 1) { G.historyCurrentPage--; G.renderHistory(); }
     });
-    document.getElementById('historyNextPage') && document.getElementById('historyNextPage').addEventListener('click', function() {
+    var historyNextPage = $('historyNextPage');
+    if (historyNextPage) historyNextPage.addEventListener('click', function() {
         G.historyCurrentPage++;
         G.renderHistory();
     });
 
-    G.initCanvasObserver();
+    if (G.initCanvasObserver) G.initCanvasObserver();
 
     window.addEventListener('resize', function() {
         G.drawBoard();
@@ -92,8 +126,8 @@
     });
 
     window.addEventListener('beforeunload', function(event) {
-        G.stopStatusCheck();
-        G.stopBannedCountdown();
+        if (G.stopStatusCheck) G.stopStatusCheck();
+        if (G.stopBannedCountdown) G.stopBannedCountdown();
     });
 
 })();

@@ -58,13 +58,13 @@ TRANSLATIONS = {
 }
 
 
-def get_text(key, lang='zh-CN'):
+def get_text(key: str, lang: str = 'zh-CN') -> str:
     """根据语言代码获取翻译文本"""
     translations = TRANSLATIONS.get(lang, TRANSLATIONS['zh-CN'])
     return translations.get(key, key)
 
 
-def get_user_language(user):
+def get_user_language(user: dict | None) -> str:
     """从用户对象中获取语言偏好，默认为 zh-CN"""
     if not user:
         return 'zh-CN'

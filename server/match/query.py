@@ -142,11 +142,15 @@ def list_available_matches(username):
 
 def get_all_matches():
     """获取所有活跃对局列表（管理员用）
-    返回所有对局的概览信息
+    只返回 waiting / playing / waiting_reconnect 状态的对局，
+    closed / finished 已结束的交给清理线程处理，避免管理员看到一堆历史残留。
     """
     with active_matches_lock:
+        active_statuses = ('waiting', 'playing', 'waiting_reconnect')
         all_list = []
         for match_id, match in active_matches.items():
+            if match.get('status') not in active_statuses:
+                continue
             all_list.append(
                 {
                     'id': match_id,

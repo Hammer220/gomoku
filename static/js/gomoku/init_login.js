@@ -58,10 +58,24 @@ var Gomoku = window.Gomoku || {};
                 }
                 return;
             } catch (e) {
+                // token 失效：同时清 localStorage 和 cookie（Flask 后端也认 cookie）
                 G.token = '';
                 localStorage.removeItem('token');
+                // 清 cookie 里的 token（同源）
+                document.cookie = 'token=; Path=/; Max-Age=0;';
+                document.cookie = 'token=; Path=/; Max-Age=0; Domain=' + location.hostname + ';';
             }
         }
+
+        // 兜底：如果 cookie 里残留旧 token 但 localStorage 已空，主动登出服务端
+        // 避免 Flask /login 路由从 cookie 读到 token → redirect /game → 前端又 401 的死循环
+        try {
+            var hasCookieToken = /(?:^|;\s*)token=([^;]+)/.test(document.cookie);
+            if (hasCookieToken) {
+                await fetch('/api/logout', { method: 'POST', credentials: 'same-origin' }).catch(function(){});
+                document.cookie = 'token=; Path=/; Max-Age=0;';
+            }
+        } catch (_) {}
 
         // 自动登录失败或无 token，显示登录界面
         document.getElementById('loginModal').classList.remove('hidden');
@@ -93,30 +107,28 @@ var Gomoku = window.Gomoku || {};
 
         /** PoW 通过后才初始化极验（省资源）。极验原样保留。*/
         function initGeetests() {
-            if (!G.captchaEnabled) {
-                var guestBox = document.getElementById('geetestGuestWidget');
-                if (guestBox) guestBox.classList.add('hidden');
+            // 前置：必须同时满足 captchaEnabled=true 和 captchaId 非空
+            // captchaId 留空（config.ini 没填真 key 或 demo id 被后端遮掉）就跳过，
+            // 避免 gt4.js 对着假 captcha_id 反复 ERR_ABORTED 刷屏
+            var loginId = (G.loginCaptchaId || '').trim();
+            if (!G.captchaEnabled || !loginId) {
+                var geetestGuest = document.getElementById('geetestGuestWidget');
+                if (geetestGuest) geetestGuest.classList.add('hidden');
                 G.loginGeetestToken = 'disabled';
                 G.guestGeetestToken = 'disabled';
                 G.registerGeetestToken = 'disabled';
                 return;
             }
-            // 极验容器默认可见（恢复原样）
+            // 极验容器显示
             var geetestLogin = document.getElementById('geetestLoginWidget');
             var geetestGuest = document.getElementById('geetestGuestWidget');
             var geetestRegister = document.getElementById('geetestRegisterWidget');
             if (geetestLogin) geetestLogin.classList.remove('hidden');
             if (geetestRegister) geetestRegister.classList.remove('hidden');
-            // guest 容器默认隐藏（访客登录按钮点到时才 show）
             if (geetestGuest) geetestGuest.classList.add('hidden');
 
-            // 初始化极验
-            if (geetestLogin) {
-                G.initGeetestWidget('geetestLoginWidget', function(){});
-            }
-            if (geetestGuest) {
-                G.initGeetestWidget('geetestGuestWidget', function(){});
-            }
+            G.initGeetestWidget('geetestLoginWidget', function(){});
+            G.initGeetestWidget('geetestGuestWidget', function(){});
         }
 
         var existingPow = null;

@@ -59,9 +59,10 @@ GT4_LOGIN_CAPTCHA_ID = cfg.get('GEETEST_LOGIN', 'captcha_id') if has_valid_geete
 GT4_LOGIN_CAPTCHA_KEY = cfg.get('GEETEST_LOGIN', 'captcha_key') if has_valid_geetest_login_config() else ''
 LOGIN_VERIFY_URL = cfg.get('GEETEST_LOGIN', 'verify_url') if has_valid_geetest_login_config() else ''
 
-# ===== CAPTCHA_ENABLED：从 config.ini [APP] captcha_enabled 读取；true 即启用极验 =====
-# （原先是硬编码 False，导致极验永远休眠）
-CAPTCHA_ENABLED = cfg.getboolean('APP', 'captcha_enabled', fallback=False) and has_valid_geetest_config() and has_valid_geetest_login_config()
+# ===== CAPTCHA_ENABLED：只看 config.ini [APP] captcha_enabled 这一行 =====
+# 真正的凭据（captcha_id / captcha_key）留空时，前端 initGeetests 会自动跳过极验初始化
+# 避免对着假 captcha_id 撞墙刷屏；后端 geetest_verify 会自然返回 False
+CAPTCHA_ENABLED = cfg.getboolean('APP', 'captcha_enabled', fallback=False)
 
 # ===== PoW 校验开关 =====
 POW_ENABLED = cfg.getboolean('APP', 'pow_enabled', fallback=False)

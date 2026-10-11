@@ -3,6 +3,7 @@
 """
 
 import json
+import mimetypes
 import os
 import secrets
 import time
@@ -70,6 +71,17 @@ def create_app():
         template_folder=os.path.join(SCRIPT_DIR, 'templates'),
     )
     app.secret_key = secrets.token_hex(32)
+
+    # 常见字体 MIME type（Flask 自带不全，浏览器会拒绝或 abort）
+    for _mime, _ext in [
+        ('font/woff2', '.woff2'),
+        ('font/woff',  '.woff'),
+        ('font/ttf',   '.ttf'),
+        ('font/otf',   '.otf'),
+        ('application/font-woff2', '.woff2'),
+        ('application/font-woff',   '.woff'),
+    ]:
+        mimetypes.add_type(_mime, _ext)
 
     setup_logging()
 
